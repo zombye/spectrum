@@ -1,0 +1,59 @@
+screen.miscellaneous=Miscellaneous
+
+value.TERRAIN_DEFORMATION_MODE.0=Off
+value.TERRAIN_DEFORMATION_MODE.1=Planetoid
+
+##--## Atmospherics
+
+screen.atmospherics=Atmospherics
+
+option.PHYSICAL_ATMOSPHERE=Physically Based Atmosphere
+
+# Volumetric Clouds
+option.VOLUMETRICCLOUDS=Volumetric Clouds
+option.VOLUMETRICCLOUDS_QUALITY=Volumetric Clouds Quality
+
+##--## Lighting
+
+screen.lighting=Lighting
+
+# (Fake) Crepuscular rays
+option.FAKE_CREPUSCULAR_RAYS=Fake Crepuscular Rays
+option.FAKE_CREPUSCULAR_RAYS.comment=Automatically disabled when volumetric fog is enabled, as volumetric fog includes "real" crepuscular rays.
+
+# Fog
+option.SIMPLE_FOG=Simple Fog
+option.SIMPLE_FOG.comment=Disabled when volumetric fog is enabled.
+
+# Volumetric fog
+option.VOLUMETRIC_FOG=Volumetric Fog
+
+# Reflections
+option.REFLECTION_SAMPLES=Reflection Samples
+
+# Shadow mapping
+option.shadowMapResolution=Shadow Map Resolution
+option.SHADOW_SPACE_QUANTIZATION=Shadow-space Quantization
+value.SHADOW_SPACE_QUANTIZATION.0=Off
+
+# Reflective Shadow Maps
+option.RSM=Bounced Sunlight
+option.RSM_RADIUS=Bounced Sunlight Range
+option.RSM_SAMPLES=Bounced Sunlight Quality
+option.RSM_INTENSITY=Bounced Sunlight Intensity
+
+# Diffuse sky illumination
+option.DIRECTIONAL_SKY_DIFFUSE=Directional Sky Lighting
+option.DIRECTIONAL_SKY_DIFFUSE_SAMPLES=Directional Sky Lighting Quality
+
+##--## Optics
+
+screen.optics=Optics
+
+option.APERTURE_RADIUS=Aperture Radius
+option.APERTURE_BLADE_COUNT=Aperture Blade Count
+option.APERTURE_BLADE_ROTATION=Aperture Blade Rotation
+
+option.DOF=Depth of Field
+option.DIFFRACTION_SPIKES=Diffraction Spikes
+option.GLARE=Glare
