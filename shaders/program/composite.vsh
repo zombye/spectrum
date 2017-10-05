@@ -15,9 +15,6 @@ varying vec2 screenCoord;
 #include "/lib/uniform/shadowMatrices.glsl"
 
 void main() {
-	#if !defined RSM && DIRECTIONAL_SKY_DIFFUSE == OFF
-	gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
-	#else
 	gl_Position = ftransform();
 	screenCoord = gl_Position.xy * 0.5 + 0.5;
 	screenCoord /= COMPOSITE0_SCALE;
@@ -26,5 +23,4 @@ void main() {
 	calculateColors();
 	calculateGbufferMatrices();
 	calculateShadowMatrices();
-	#endif
 }

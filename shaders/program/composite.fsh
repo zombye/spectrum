@@ -144,8 +144,8 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, vec2 lightmap) {
 //--//
 
 void main() {
-	#if !defined RSM && DIRECTIONAL_SKY_DIFFUSE == OFF
-	discard;
+	#if !defined RSM && DIRECTIONAL_SKY_DIFFUSE == OFF && CAUSTICS_SAMPLES == 0
+	gl_FragData[0] = vec4(0.0, 0.0, 0.0, 1.0); return;
 	#else
 
 	vec3 tex0 = textureRaw(colortex0, screenCoord).rgb;
