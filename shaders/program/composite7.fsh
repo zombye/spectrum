@@ -1,6 +1,6 @@
 #include "/settings.glsl"
 
-//#define DIFFRACTION_SPIKES // Diffraction spikes. Quite slow.
+//#define DIFFRACTION_SPIKES // Diffraction spikes. Quite slow. Not finished.
 
 //----------------------------------------------------------------------------//
 

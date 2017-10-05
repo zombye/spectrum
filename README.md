@@ -1,13 +1,13 @@
 # Spectrum
 
 Spectrum is a Minecraft shaderpack, and is currently in early alpha.  
-It aims to provide a natural look and feel, but not necessarily realistic.
+It aims to provide a "natural" look and feel.
 
 Expect a lot of bugs.
 
 ## Requirements
 
-I try to keep Spectrum compatible with most hardware, and as far as I know there are no particular requirements here.
+I try to keep Spectrum compatible with most hardware, and as far as I know there are no particular hardware requirements.
 
 * Optifine 1.12.1 HD U C6 (or newer)
 
