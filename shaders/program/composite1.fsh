@@ -28,7 +28,7 @@ uniform sampler2D colortex3;
 
 uniform sampler2D depthtex1;
 
-uniform sampler2D shadowtex0;
+uniform sampler2D shadowtex1;
 
 uniform sampler2D noisetex;
 
@@ -97,7 +97,7 @@ float calculateAntiAcneOffset(float sampleRadius, vec3 normal, float distortFact
 
 	float projectionScale = projectionShadow[2].z * 2.0 / projectionShadow[0].x;
 
-	float baseOffset = sampleRadius * projectionScale / (textureSize2D(shadowtex0, 0).x * distortFactor * distortFactor);
+	float baseOffset = sampleRadius * projectionScale / (textureSize2D(shadowtex1, 0).x * distortFactor * distortFactor);
 	float normalScaling = (normal.x + normal.y) * tan(acos(normal.z));
 
 	return baseOffset * min(normalScaling, 9.0);
@@ -125,7 +125,7 @@ vec3 shadows(vec3 position) {
 	position.z += calculateAntiAcneOffset(0.5, normal, distortFactor);
 	position.z -= 0.0001 * distortFactor;
 
-	float result = textureShadow(shadowtex0, position);
+	float result = textureShadow(shadowtex1, position);
 
 	return vec3(result * result * (-2.0 * result + 3.0));
 }
@@ -172,12 +172,11 @@ float handLight(mat3 position, vec3 normal) {
 
 //--//
 
-#if defined RSM || DIRECTIONAL_SKY_DIFFUSE != OFF
-vec3 bilateralResample(vec3 normal, float depth) {
-	const float range = 3.0;
+vec4 bilateralResample(vec3 normal, float depth) {
+	const float range = 0.0;
 	vec2 px = 1.0 / (COMPOSITE0_SCALE * vec2(viewWidth, viewHeight));
 
-	vec3 filtered = vec3(0.0);
+	vec4 filtered = vec4(0.0);
 	float totalWeight = 0.0;
 	for (float i = -range; i <= range; i++) {
 		for (float j = -range; j <= range; j++) {
@@ -190,17 +189,16 @@ vec3 bilateralResample(vec3 normal, float depth) {
 			float weight = max0(dot(normal, normalSample));
 			weight *= 1.0 - clamp(abs(depth - depthSample), 0.0, 1.0);
 
-			filtered += texture2D(colortex3, coord * COMPOSITE0_SCALE).rgb * weight;
+			filtered += texture2D(colortex3, coord * COMPOSITE0_SCALE) * weight;
 			totalWeight += weight;
 		}
 	}
 
-	if (totalWeight == 0.0) return vec3(0.0);
+	if (totalWeight == 0.0) return vec4(0.0);
 
 	filtered /= totalWeight;
 	return filtered;
 }
-#endif
 
 //--//
 
@@ -232,16 +230,16 @@ void main() {
 
 	//--// Main calculations
 
-	#if defined RSM || DIRECTIONAL_SKY_DIFFUSE != OFF
-	vec3 filtered = bilateralResample(normal, position[1].z);
-	#endif
+	vec4 filtered = bilateralResample(normal, position[1].z);
 
 	vec3 sunVisibility = shadows(position[2]);
 
 	vec3
 	composite  = shadowLightColor;
+	composite *= lightmap.y * lightmap.y;
 	composite *= sunVisibility;
 	composite *= mix(diffuse_burley(normalize(position[1]), normal, shadowLightVector, mat.roughness), 1.0 / pi, mat.subsurface);
+	composite *= filtered.a;
 	#if defined RSM || DIRECTIONAL_SKY_DIFFUSE != OFF
 	composite += filtered.rgb;
 	#endif

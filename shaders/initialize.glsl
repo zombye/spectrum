@@ -18,13 +18,13 @@ const int colortex5Format = RGBA16F;        // Transparent composite
 const int colortex6Format = RGB16;          // Transparent normal, id, and skylight
 const int colortex7Format = R16F;           // Exposure
 
-const bool colortex0Clear = true;
+const bool colortex0Clear = false;
 const bool colortex1Clear = false;
 const bool colortex2Clear = false;
 const bool colortex3Clear = false;
 const bool colortex4Clear = false;
 const bool colortex5Clear = true;
-const bool colortex6Clear = false;
+const bool colortex6Clear = true;
 const bool colortex7Clear = false;
 
 // Shadow mipmaps

@@ -3,18 +3,26 @@
 
 //----------------------------------------------------------------------------//
 
+uniform int isEyeInWater;
+
+// Time
+uniform float frameTimeCounter;
+
 // Positions
 uniform vec3 cameraPosition;
 
 // Samplers
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
+uniform sampler2D colortex6;
 
 uniform sampler2D depthtex1;
 
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowcolor0;
 uniform sampler2D shadowcolor1;
+
+uniform sampler2D noisetex;
 
 //----------------------------------------------------------------------------//
 
@@ -44,6 +52,13 @@ vec2 spiralPoint(float angle, float scale) {
 
 #include "/lib/misc/importanceSampling.glsl"
 #include "/lib/misc/shadowDistortion.glsl"
+
+//--//
+
+#include "/lib/fragment/water/waves.fsh"
+#include "/lib/fragment/water/parallax.fsh"
+#include "/lib/fragment/water/normal.fsh"
+#include "/lib/fragment/water/caustics.fsh"
 
 //--//
 
@@ -141,7 +156,7 @@ void main() {
 
 	mat3 position;
 	position[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
-	#ifdef RSM
+	#if defined RSM || defined CAUSTCS
 	position[1] = screenSpaceToViewSpace(position[0], projectionInverse);
 	position[2] = viewSpaceToSceneSpace(position[1], modelViewInverse);
 	#endif
@@ -158,10 +173,13 @@ void main() {
 	#ifdef RSM
 	additive += calculateReflectiveShadowMaps(position[2], normal, lightmap) * shadowLightColor * RSM_INTENSITY;
 	#endif
+	float caustics = 1.0;
+	bool waterMask = abs(unpack2x8(textureRaw(colortex6, screenCoord).b).r * 255.0 - 8.5) < 0.6;
+	if ((isEyeInWater == 1) != waterMask) caustics *= water_calculateCaustics(position[2] + cameraPosition, lightmap.y);
 
 /* DRAWBUFFERS:3 */
 
-	gl_FragData[0] = vec4(additive, 1.0);
+	gl_FragData[0] = vec4(additive, caustics);
 
 	#endif
 }
