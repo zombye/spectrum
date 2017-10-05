@@ -5,8 +5,7 @@ bool raytraceIntersection(vec3 start, vec3 direction, out vec3 position, float d
 	direction  = viewSpaceToScreenSpace(direction + start, projection) - position;
 	direction *= inversesqrt(dot(direction.xy, direction.xy));
 
-	//direction *= minof((step(0.0, direction) - position) / direction) / quality;
-	direction /= quality;
+	direction *= clamp(minof((step(0.0, direction) - position) / direction) / quality, 0.0001, 1.0);
 	float difference;
 	bool  intersected;
 

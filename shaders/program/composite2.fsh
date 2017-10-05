@@ -2,7 +2,7 @@
 
 #define REFLECTION_SAMPLES 1 // [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64]
 #define REFLECTION_QUALITY 8.0
-//#define VOLUMETRICCLOUDS_REFLECTED // Can have a very high performance impact!
+#define VOLUMETRICCLOUDS_REFLECTED // Can have a very high performance impact!
 
 const bool colortex2MipmapEnabled = true;
 
@@ -198,7 +198,7 @@ float v_smithGGXCorrelated(float NoV, float NoL, float alpha2) {
 	return 0.5 / max(delta.x + delta.y, 1e-9);
 }
 
-float brdf(vec3 view, vec3 normal, vec3 light, float reflectance, float alpha2) {
+float specularBRDF(vec3 view, vec3 normal, vec3 light, float reflectance, float alpha2) {
 	vec3 halfVec = normalize(view + light);
 	float NoV = max0(dot(normal, view));
 	float NoH = max0(dot(normal, halfVec));
@@ -220,7 +220,7 @@ float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDista
 	return max0(0.25 * log2(4.0 * projection[1].y * viewHeight * viewHeight * zDistance * dot(view, normalize(view + light)) * p * p / (REFLECTION_SAMPLES * alpha2 * NoH)));
 }
 
-vec3 calculateReflections(mat3 position, vec3 normal, float reflectance, float roughness, float skyLight) {
+vec3 calculateReflections(mat3 position, vec3 normal, float reflectance, float roughness, float skyLight, const bool doSunSpecular) {
 	if (reflectance == 0.0) return vec3(0.0);
 
 	vec3 viewDir = normalize(position[1]);
@@ -245,11 +245,13 @@ vec3 calculateReflections(mat3 position, vec3 normal, float reflectance, float r
 		if (intersected) reflectionSample = texture2DLod(colortex2, hitPos.st, calculateReflectionMipGGX(-viewDir, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
 		else if (skyLight > 0.1) reflectionSample = sky_atmosphere(vec3(0.0), rayDir) * smoothstep(0.1, 0.9, skyLight);
 
-		#if defined VOLUMETRICCLOUDS && defined VOLUMETRICCLOUDS_REFLECTED
+		#ifdef VOLUMETRICCLOUDS_REFLECTED
+		#ifdef VOLUMETRICCLOUDS
 		if (skyLight > 0.1) {
 			vec4 clouds = volumetricClouds_calculate(position[1], screenSpaceToViewSpace(hitPos, projectionInverse), rayDir, !intersected);
 			reflectionSample = reflectionSample * clouds.a + clouds.rgb;
 		}
+		#endif
 		#endif
 
 		reflection += reflectionSample * fresnel;
@@ -257,7 +259,7 @@ vec3 calculateReflections(mat3 position, vec3 normal, float reflectance, float r
 	reflection /= REFLECTION_SAMPLES;
 
 	// Sun specular
-	reflection += texture2D(colortex4, screenCoord).rgb * shadowLightColor * brdf(-viewDir, normal, shadowLightVector, reflectance, alpha2);
+	if (doSunSpecular) reflection += texture2D(colortex4, screenCoord).rgb * shadowLightColor * specularBRDF(-viewDir, normal, shadowLightVector, reflectance, alpha2);
 
 	return reflection;
 }
@@ -288,7 +290,7 @@ void main() {
 	if (mask.sky) {
 		composite = sky_render(composite, normalize(position[1]));
 	} else {
-		vec3 specular = calculateReflections(position, normal, mat.reflectance, mat.roughness, lightmap.y);
+		vec3 specular = calculateReflections(position, normal, mat.reflectance, mat.roughness, lightmap.y, true);
 
 		composite = blendMaterial(composite, specular, mat);
 	}
@@ -320,7 +322,7 @@ void main() {
 		if (frontMask.water) {
 			vec3  frontNormal   = unpackNormal(tex6.rg);
 
-			vec3 specular = calculateReflections(frontPosition, frontNormal, 0.02, 0.01, frontSkylight);
+			vec3 specular = calculateReflections(frontPosition, frontNormal, 0.02, 0.0, frontSkylight, false);
 			composite += specular;
 		}
 	}

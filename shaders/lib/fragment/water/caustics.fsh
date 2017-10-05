@@ -1,5 +1,5 @@
-#define CAUSTICS_SAMPLES 16  // [0 4 9 16]
-#define CAUSTICS_DEFOCUS 1.0 //
+#define CAUSTICS_SAMPLES 49 // [0 49]
+#define CAUSTICS_DEFOCUS 1.0
 //#define CAUSTICS_ALTERNATE_DEPTH_CALCULATION
 
 float remapRange(float x, float to0, float to1) {
@@ -21,7 +21,7 @@ float water_calculateCaustics(vec3 pos, float lightmap) {
 
 	if (lightmap <= 0.0) return 1.0;
 
-	const float radius      = 0.2;
+	const float radius      = 0.3;
 	const float kernel      = 0.5 * (sqrt(CAUSTICS_SAMPLES) - 1.0);
 	const float sampleRange = radius / kernel;
 	const float distThresh  = kernel / (radius * CAUSTICS_DEFOCUS);

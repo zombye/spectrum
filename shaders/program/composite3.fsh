@@ -387,7 +387,7 @@ vec3 depthOfField() {
 
 float calculateSmoothLuminance() {
 	float prevLuminance = texture2D(colortex7, screenCoord).r;
-	float currLuminance = clamp(dot(texture2DLod(colortex2, vec2(0.5), 100).rgb, lumacoeff_rec709) / (0.35 / prevLuminance), 20.0, 2e5);
+	float currLuminance = clamp(dot(texture2DLod(colortex2, vec2(0.5), 100).rgb, lumacoeff_rec709) / (0.35 / prevLuminance), 20.0, 2e4);
 
 	if (prevLuminance == 0.0) prevLuminance = 0.35;
 
