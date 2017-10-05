@@ -216,11 +216,14 @@ void main() {
 	position[1] = screenSpaceToViewSpace(position[0], projectionInverse);
 	position[2]  = viewSpaceToSceneSpace(position[1], modelViewInverse);
 
-	vec4 clouds = volumetricClouds_calculate(vec3(0.0), position[1], normalize(position[1]), mask.sky);
+	#ifdef VOLUMETRICCLOUDS
+	gl_FragData[1] = volumetricClouds_calculate(vec3(0.0), position[1], normalize(position[1]), mask.sky);
+	#else
+	gl_FragData[1] = vec4(0.0, 0.0, 0.0, 1.0);
+	#endif
 
 	if (mask.id == 0.0) {
 		gl_FragData[0] = vec4(0.0);
-		gl_FragData[1] = clouds;
 		gl_FragData[2] = vec4(0.0);
 		return;
 	}
@@ -230,7 +233,9 @@ void main() {
 
 	//--// Main calculations
 
+	#if defined CAUSTICS || defined RSM || DIRECTIONAL_SKY_DIFFUSE != OFF
 	vec4 filtered = bilateralResample(normal, position[1].z);
+	#endif
 
 	vec3 sunVisibility = shadows(position[2]);
 
@@ -239,7 +244,9 @@ void main() {
 	composite *= lightmap.y * lightmap.y;
 	composite *= sunVisibility;
 	composite *= mix(diffuse_burley(normalize(position[1]), normal, shadowLightVector, mat.roughness), 1.0 / pi, mat.subsurface);
+	#ifdef CAUSTICS
 	composite *= filtered.a;
+	#endif
 	#if defined RSM || DIRECTIONAL_SKY_DIFFUSE != OFF
 	composite += filtered.rgb;
 	#endif
@@ -254,6 +261,5 @@ void main() {
 /* DRAWBUFFERS:234 */
 
 	gl_FragData[0] = vec4(composite, 1.0);
-	gl_FragData[1] = clouds;
 	gl_FragData[2] = vec4(sunVisibility, 1.0);
 }

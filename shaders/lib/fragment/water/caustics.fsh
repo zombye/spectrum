@@ -1,7 +1,3 @@
-#define CAUSTICS_SAMPLES 49 // [0 49]
-#define CAUSTICS_DEFOCUS 1.0
-//#define CAUSTICS_ALTERNATE_DEPTH_CALCULATION
-
 float remapRange(float x, float to0, float to1) {
 	return (x - to0) / (to1 - to0);
 }
@@ -15,7 +11,7 @@ float water_causticsSurfDist(float posy, float lm) {
 }
 
 float water_calculateCaustics(vec3 pos, float lightmap) {
-	#if CAUSTICS_SAMPLES == 0
+	#ifndef CAUSTICS
 	return 1.0;
 	#endif
 
