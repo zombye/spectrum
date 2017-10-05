@@ -205,10 +205,10 @@ vec3 volumetricFog(vec3 background, mat3 position, vec2 lightmap) {
 		);
 
 		vec3 sunlight = (scatterCoeffs * phase.xy) * shadowLightColor * textureShadow(shadowtex0, shadows_distortShadowSpace(shadowPos) * 0.5 + 0.5);
-		vec3 skylight = (scatterCoeffs * phase.zz) * skylightBrightness;
+		vec3 skylight = (scatterCoeffs * 0.5) * skylightBrightness;
 
 		scattering += (sunlight + skylight) * transmittance;
-		transmittance *= exp(-(transmittanceCoefficients[0] + transmittanceCoefficients[1]) * stepSize);
+		transmittance *= exp(-transmittanceCoefficients * opticalDepth);
 	}
 
 	return background * transmittance + scattering * 10.0;
