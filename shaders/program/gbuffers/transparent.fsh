@@ -2,6 +2,12 @@
 
 //----------------------------------------------------------------------------//
 
+// Time
+uniform float frameTimeCounter;
+
+// Positions
+uniform vec3 cameraPosition;
+
 // Hand light
 uniform int heldBlockLightValue;
 uniform int heldBlockLightValue2;
@@ -16,6 +22,8 @@ uniform sampler2D specular;
 #endif
 
 uniform sampler2D shadowtex0;
+
+uniform sampler2D noisetex;
 
 //----------------------------------------------------------------------------//
 
@@ -49,6 +57,10 @@ varying mat3 position;
 
 #include "/lib/fragment/masks.fsh"
 #include "/lib/fragment/materials.fsh"
+
+#include "/lib/fragment/water/waves.fsh"
+#include "/lib/fragment/water/parallax.fsh"
+#include "/lib/fragment/water/normal.fsh"
 
 //--//
 
@@ -143,8 +155,10 @@ float handLight(vec3 position, vec3 normal) {
 //--//
 
 void main() {
+	bool waterMask = metadata.x > 7.9 && metadata.x < 9.1;
+
 	vec4 base = texture2D(tex,      baseUV) * tint; if (base.a < 0.102) discard;
-	#if PROGRAM != PROGRAM_ENTITIES && PROGRAM != PROGRAM_HAND && defined MC_NORMAL_MAP
+	#ifdef MC_NORMAL_MAP
 	vec4 norm = texture2D(normals,  baseUV) * 2.0 - 1.0; norm.w = length(norm.xyz); norm.xyz = tbn * norm.xyz / norm.w;
 	#else
 	vec4 norm = vec4(tbn[2], 1.0);
@@ -154,6 +168,12 @@ void main() {
 	#else
 	vec4 spec = vec4(0.0, 0.0, 0.0, 0.0);
 	#endif
+	
+	if (waterMask) {
+		base = vec4(0.1, 0.2, 0.4, 0.15);
+		norm.xyz = water_calculateNormal(position[2] + cameraPosition, tbn, normalize(position[1]));
+		spec = vec4(0.02, 0.0, 0.9, 0.0);
+	}
 
 	masks mask = calculateMasks(metadata.x);
 	material mat = calculateMaterial(base.rgb, spec.rb, mask);

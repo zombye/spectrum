@@ -15,7 +15,7 @@ const int colortex2Format = R11F_G11F_B10F; // Composite
 const int colortex3Format = RGBA16F;        // Auxiliary
 const int colortex4Format = RGB10_A2;       // Auxiliary
 const int colortex5Format = RGBA16F;        // Transparent composite
-const int colortex6Format = R8;             //
+const int colortex6Format = RGB16;          // Transparent normal, id, and skylight
 const int colortex7Format = R16F;           // Exposure
 
 const bool colortex0Clear = true;

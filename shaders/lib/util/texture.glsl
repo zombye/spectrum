@@ -59,3 +59,14 @@ vec4 textureBicubicLod(sampler2D sampler, vec2 coord, int lod) {
 		mix(texture2DLod(sampler, c.yz, lod), texture2DLod(sampler, c.xz, lod), m.x),
 		m.y);
 }
+
+vec4 textureSmooth(sampler2D sampler, vec2 coord) {
+	vec2 resolution = textureSize2D(sampler, 0);
+	coord = coord * resolution + 0.5;
+	vec2 floored = floor(coord);
+	coord -= floored;
+	coord *= coord * (-2.0 * coord + 3.0);
+	coord += floored - 0.5;
+	coord /= resolution;
+	return texture2D(sampler, coord);
+}

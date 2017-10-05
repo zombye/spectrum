@@ -10,6 +10,8 @@ const bool colortex2MipmapEnabled = true;
 
 uniform ivec2 eyeBrightness;
 
+uniform int isEyeInWater;
+
 // Viewport
 uniform float viewWidth, viewHeight;
 
@@ -26,8 +28,10 @@ uniform sampler2D colortex2; // Composite
 uniform sampler2D colortex3; // Volumetric clouds
 uniform sampler2D colortex4; // Sunlight visibility
 uniform sampler2D colortex5; // Transparent composite
+uniform sampler2D colortex6; // Transparent normal, id, skylight
 uniform sampler2D colortex7;
 
+uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
 
 uniform sampler2D shadowtex0;
@@ -70,106 +74,13 @@ float get3DNoise(vec3 pos) {
 #include "/lib/fragment/masks.fsh"
 #include "/lib/fragment/materials.fsh"
 
+#include "/lib/fragment/water/fog.fsh"
+
 //--//
 
 #include "/lib/fragment/sky.fsh"
 
 #include "/lib/fragment/volumetricClouds.fsh"
-
-//--//
-
-float f0ToIOR(float f0) {
-	f0 = sqrt(f0);
-	f0 *= 0.99999; // Prevents divide by 0
-	return (1.0 + f0) / (1.0 - f0);
-}
-
-float d_GGX(float NoH, float alpha2) {
-	float p = (NoH * alpha2 - NoH) * NoH + 1.0;
-	return alpha2 / (pi * p * p);
-}
-float f_dielectric(float NoV, float n1, float n2) {
-	float p = 1.0 - (pow2(n1 / n2) * (1.0 - NoV * NoV));
-	if (p <= 0.0) return 1.0; p = sqrt(p);
-
-	float Rs = pow2((n1 * NoV - n2 * p  ) / (n1 * NoV + n2 * p  ));
-	float Rp = pow2((n1 * p   - n2 * NoV) / (n1 * p   + n2 * NoV));
-
-	return 0.5 * (Rs + Rp);
-}
-float v_smithGGXCorrelated(float NoV, float NoL, float alpha2) {
-	vec2 delta = vec2(NoV, NoL);
-	delta *= sqrt((-delta * alpha2 + delta) * delta + alpha2);
-	return 0.5 / max(delta.x + delta.y, 1e-9);
-}
-
-float brdf(vec3 view, vec3 normal, vec3 light, float reflectance, float alpha2) {
-	vec3 halfVec = normalize(view + light);
-	float NoV = max0(dot(normal, view));
-	float NoH = max0(dot(normal, halfVec));
-	float NoL = max0(dot(normal, light));
-
-	float d = d_GGX(NoH, alpha2);
-	float f = f_dielectric(NoV, 1.0, f0ToIOR(reflectance));
-	float v = v_smithGGXCorrelated(NoV, NoL, alpha2);
-
-	return d * f * v * NoL;
-}
-
-#include "/lib/fragment/raytracer.fsh"
-
-float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDistance, float alpha2) {
-	float NoH = dot(normal, normalize(view + light));
-
-	float p = (NoH * alpha2 - NoH) * NoH + 1.0;
-	return max0(0.25 * log2(4.0 * projection[1].y * viewHeight * viewHeight * zDistance * dot(view, normalize(view + light)) * p * p / (REFLECTION_SAMPLES * alpha2 * NoH)));
-}
-
-vec3 calculateReflections(mat3 position, material mat, vec3 normal, float skyLight) {
-	if (mat.reflectance == 0.0) return vec3(0.0);
-
-	vec3 viewDir = normalize(position[1]);
-	float dither = bayer8(gl_FragCoord.st);
-
-	float ior    = f0ToIOR(mat.reflectance);
-	float alpha2 = mat.roughness * mat.roughness;
-
-	vec3 reflection = vec3(0.0);
-	for (float i = 0.0; i < REFLECTION_SAMPLES; i++) {
-		#if REFLECTION_SAMPLES > 1
-		vec3 facetNormal = is_GGX(normal, hash42(vec2(i, dither)), alpha2);
-		if (dot(viewDir, facetNormal) > 0.0) facetNormal = -facetNormal;
-		#else
-		vec3 facetNormal = normal; // Leave roughness to mipmaps when only doing one sample.
-		#endif
-		vec3 rayDir = reflect(viewDir, facetNormal);
-
-		float fresnel = f_dielectric(max0(dot(facetNormal, -viewDir)), 1.0, ior);
-
-		vec3 hitPos;
-		bool intersected = raytraceIntersection(position[0], rayDir, hitPos, dither, REFLECTION_QUALITY);
-
-		vec3 reflectionSample = vec3(0.0);
-
-		if (intersected) reflectionSample = texture2DLod(colortex2, hitPos.st, calculateReflectionMipGGX(-viewDir, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
-		else if (skyLight > 0.1) reflectionSample = sky_atmosphere(vec3(0.0), rayDir) * smoothstep(0.1, 0.9, skyLight);
-
-		#if defined VOLUMETRICCLOUDS && defined VOLUMETRICCLOUDS_REFLECTED
-		if (skyLight > 0.1) {
-			vec4 clouds = volumetricClouds_calculate(position[1], screenSpaceToViewSpace(hitPos, projectionInverse), rayDir, !intersected);
-			reflectionSample = reflectionSample * clouds.a + clouds.rgb;
-		}
-		#endif
-
-		reflection += reflectionSample * fresnel;
-	}
-	reflection /= REFLECTION_SAMPLES;
-
-	// Sun specular
-	reflection += texture2D(colortex4, screenCoord).rgb * shadowLightColor * brdf(-viewDir, normal, shadowLightVector, mat.reflectance, alpha2);
-
-	return reflection;
-}
 
 //--//
 
@@ -262,6 +173,97 @@ vec3 fog(vec3 background, vec3 position, vec2 lightmap) {
 
 //--//
 
+float f0ToIOR(float f0) {
+	f0 = sqrt(f0);
+	f0 *= 0.99999; // Prevents divide by 0
+	return (1.0 + f0) / (1.0 - f0);
+}
+
+float d_GGX(float NoH, float alpha2) {
+	float p = (NoH * alpha2 - NoH) * NoH + 1.0;
+	return alpha2 / (pi * p * p);
+}
+float f_dielectric(float NoV, float n1, float n2) {
+	float p = 1.0 - (pow2(n1 / n2) * (1.0 - NoV * NoV));
+	if (p <= 0.0) return 1.0; p = sqrt(p);
+
+	float Rs = pow2((n1 * NoV - n2 * p  ) / (n1 * NoV + n2 * p  ));
+	float Rp = pow2((n1 * p   - n2 * NoV) / (n1 * p   + n2 * NoV));
+
+	return 0.5 * (Rs + Rp);
+}
+float v_smithGGXCorrelated(float NoV, float NoL, float alpha2) {
+	vec2 delta = vec2(NoV, NoL);
+	delta *= sqrt((-delta * alpha2 + delta) * delta + alpha2);
+	return 0.5 / max(delta.x + delta.y, 1e-9);
+}
+
+float brdf(vec3 view, vec3 normal, vec3 light, float reflectance, float alpha2) {
+	vec3 halfVec = normalize(view + light);
+	float NoV = max0(dot(normal, view));
+	float NoH = max0(dot(normal, halfVec));
+	float NoL = max0(dot(normal, light));
+
+	float d = d_GGX(NoH, alpha2);
+	float f = f_dielectric(NoV, 1.0, f0ToIOR(reflectance));
+	float v = v_smithGGXCorrelated(NoV, NoL, alpha2);
+
+	return d * f * v * NoL;
+}
+
+#include "/lib/fragment/raytracer.fsh"
+
+float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDistance, float alpha2) {
+	float NoH = dot(normal, normalize(view + light));
+
+	float p = (NoH * alpha2 - NoH) * NoH + 1.0;
+	return max0(0.25 * log2(4.0 * projection[1].y * viewHeight * viewHeight * zDistance * dot(view, normalize(view + light)) * p * p / (REFLECTION_SAMPLES * alpha2 * NoH)));
+}
+
+vec3 calculateReflections(mat3 position, vec3 normal, float reflectance, float roughness, float skyLight) {
+	if (reflectance == 0.0) return vec3(0.0);
+
+	vec3 viewDir = normalize(position[1]);
+	float dither = bayer8(gl_FragCoord.st);
+
+	float ior    = f0ToIOR(reflectance);
+	float alpha2 = roughness * roughness;
+
+	vec3 reflection = vec3(0.0);
+	for (float i = 0.0; i < REFLECTION_SAMPLES; i++) {
+		vec3 facetNormal = is_GGX(normal, hash42(vec2(i, dither)), alpha2);
+		if (dot(viewDir, facetNormal) > 0.0) facetNormal = -facetNormal;
+		vec3 rayDir = reflect(viewDir, facetNormal);
+
+		float fresnel = f_dielectric(max0(dot(facetNormal, -viewDir)), 1.0, ior);
+
+		vec3 hitPos;
+		bool intersected = raytraceIntersection(position[0], rayDir, hitPos, dither, REFLECTION_QUALITY);
+
+		vec3 reflectionSample = vec3(0.0);
+
+		if (intersected) reflectionSample = texture2DLod(colortex2, hitPos.st, calculateReflectionMipGGX(-viewDir, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
+		else if (skyLight > 0.1) reflectionSample = sky_atmosphere(vec3(0.0), rayDir) * smoothstep(0.1, 0.9, skyLight);
+
+		#if defined VOLUMETRICCLOUDS && defined VOLUMETRICCLOUDS_REFLECTED
+		if (skyLight > 0.1) {
+			vec4 clouds = volumetricClouds_calculate(position[1], screenSpaceToViewSpace(hitPos, projectionInverse), rayDir, !intersected);
+			reflectionSample = reflectionSample * clouds.a + clouds.rgb;
+		}
+		#endif
+
+		reflection += reflectionSample * fresnel;
+	}
+	reflection /= REFLECTION_SAMPLES;
+
+	// Sun specular
+	reflection += texture2D(colortex4, screenCoord).rgb * shadowLightColor * brdf(-viewDir, normal, shadowLightVector, reflectance, alpha2);
+
+	return reflection;
+}
+
+//--//
+
 void main() {
 	vec3 tex0 = textureRaw(colortex0, screenCoord).rgb;
 	vec3 tex1 = textureRaw(colortex1, screenCoord).rgb;
@@ -286,17 +288,42 @@ void main() {
 	if (mask.sky) {
 		composite = sky_render(composite, normalize(position[1]));
 	} else {
-		vec3 specular = calculateReflections(position, mat, normal, lightmap.y);
+		vec3 specular = calculateReflections(position, normal, mat.reflectance, mat.roughness, lightmap.y);
 
 		composite = blendMaterial(composite, specular, mat);
 	}
-
-	composite = mix(composite, texture2D(colortex5, screenCoord).rgb, texture2D(colortex5, screenCoord).a);
 
 	#ifdef VOLUMETRICCLOUDS
 	vec4 clouds = texture2D(colortex3, screenCoord);
 	composite = composite * clouds.a + clouds.rgb;
 	#endif
+
+	vec4 tex5 = texture2D(colortex5, screenCoord);
+	if (tex5.a > 0.0) {
+		vec3 tex6 = textureRaw(colortex6, screenCoord).rgb;
+
+		masks frontMask = calculateMasks(round(unpack2x8(tex6.b).r * 255.0));
+
+		mat3 frontPosition;
+		frontPosition[0] = vec3(screenCoord, texture2D(depthtex0, screenCoord).r);
+		frontPosition[1] = screenSpaceToViewSpace(frontPosition[0], projectionInverse);
+		frontPosition[2] = viewSpaceToSceneSpace(frontPosition[1], modelViewInverse);
+
+		float frontSkylight = unpack2x8(tex6.b).g;
+
+		if (frontMask.water != (isEyeInWater == 1)) {
+			composite = water_calculateFog(composite, distance(frontPosition[1], position[1]), frontSkylight);
+		}
+
+		composite = mix(composite, tex5.rgb, tex5.a);
+
+		if (frontMask.water) {
+			vec3  frontNormal   = unpackNormal(tex6.rg);
+
+			vec3 specular = calculateReflections(frontPosition, frontNormal, 0.02, 0.01, frontSkylight);
+			composite += specular;
+		}
+	}
 
 	#ifdef VOLUMETRIC_FOG
 	composite = volumetricFog(composite, position, lightmap);
