@@ -302,7 +302,7 @@ void main() {
 		vec3 specular = calculateReflections(backPosition, direction[0], backNormal, mat.reflectance, mat.roughness, lightmap.y);
 
 		// Sun specular
-		specular += texture2D(colortex4, screenCoord).rgb * shadowLightColor * specularBRDF(-direction[0], backNormal, mrp_sphere(reflect(direction, backNormal), shadowLightVector, sunAngularRadius), mat.reflectance, mat.roughness * mat.roughness);
+		specular += texture2D(colortex4, screenCoord).rgb * shadowLightColor * specularBRDF(-direction[0], backNormal, mrp_sphere(reflect(direction[0], backNormal), shadowLightVector, sunAngularRadius), mat.reflectance, mat.roughness * mat.roughness);
 
 		composite = blendMaterial(composite, specular, mat);
 	}
