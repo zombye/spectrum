@@ -1,6 +1,6 @@
 #version 120
 #include "/lib/header.glsl"
 #define STAGE   STAGE_FRAGMENT
-#define PROGRAM PROGRAM_COMPOSITE7
+#define PROGRAM PROGRAM_COMPOSITE5
 #include "/lib/postHeader.glsl"
-#include "/program/composite7.fsh"
+#include "/program/composite5.fsh"

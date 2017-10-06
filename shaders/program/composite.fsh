@@ -66,11 +66,11 @@ vec2 spiralPoint(float angle, float scale) {
 #include "/lib/fragment/sky.fsh"
 
 #if DIRECTIONAL_SKY_DIFFUSE != OFF
-vec3 calculateDirectionalSkyDiffuse(vec3 position, vec3 normal, vec2 lightmap) {
+vec3 calculateDirectionalSkyDiffuse(vec3 position, vec3 normal, float skylight) {
 	vec3 temp = vec3(0.0);
 	vec3 result = vec3(0.0);
 
-	if (lightmap.y <= 0.0) return vec3(0.0);
+	if (skylight <= 0.0) return vec3(0.0);
 
 	float dither = bayer16(gl_FragCoord.st) + (0.5 / 256.0);
 
@@ -87,14 +87,14 @@ vec3 calculateDirectionalSkyDiffuse(vec3 position, vec3 normal, vec2 lightmap) {
 	}
 	result /= DIRECTIONAL_SKY_DIFFUSE_SAMPLES;
 
-	result *= lightmap.y / (pow2(-4.0 * lightmap.y + 4.0) + 1.0);
+	result *= skylight / (pow2(-4.0 * skylight + 4.0) + 1.0);
 
 	return result;
 }
 #endif
 
 #ifdef RSM
-vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, vec2 lightmap) {
+vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal) {
 	const float radiusSquared = RSM_RADIUS * RSM_RADIUS;
 	const float perSampleArea = radiusSquared / RSM_SAMPLES;
 	      float offsetScale   = RSM_RADIUS * projectionShadow[0].x;
@@ -144,7 +144,7 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, vec2 lightmap) {
 //--//
 
 void main() {
-	#if !defined RSM && DIRECTIONAL_SKY_DIFFUSE == OFF && CAUSTICS_SAMPLES == 0
+	#if !defined CAUSTICS && !defined RSM && DIRECTIONAL_SKY_DIFFUSE == OFF
 	gl_FragData[0] = vec4(0.0, 0.0, 0.0, 1.0); return;
 	#else
 
@@ -156,26 +156,30 @@ void main() {
 
 	mat3 position;
 	position[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
-	#if defined RSM || defined CAUSTCS
+	#if defined CAUSTICS || defined RSM
 	position[1] = screenSpaceToViewSpace(position[0], projectionInverse);
 	position[2] = viewSpaceToSceneSpace(position[1], modelViewInverse);
 	#endif
 
-	vec3 normal   = unpackNormal(textureRaw(colortex1, screenCoord).rg);
-	vec2 lightmap = unpack2x8(tex0.b);
+	vec3  normal   = unpackNormal(textureRaw(colortex1, screenCoord).rg);
+	#if defined CAUSTICS || DIRECTIONAL_SKY_DIFFUSE != OFF
+	float skylight = unpack2x8(tex0.b).y;
+	#endif
 
 	//--//
 
 	vec3 additive = vec3(0.0);
 	#if DIRECTIONAL_SKY_DIFFUSE != OFF
-	additive += calculateDirectionalSkyDiffuse(position[0], normal, lightmap);
+	additive += calculateDirectionalSkyDiffuse(position[0], normal, skylight);
 	#endif
 	#ifdef RSM
-	additive += calculateReflectiveShadowMaps(position[2], normal, lightmap) * shadowLightColor * RSM_INTENSITY;
+	additive += calculateReflectiveShadowMaps(position[2], normal) * shadowLightColor * RSM_BRIGHTNESS;
 	#endif
 	float caustics = 1.0;
+	#ifdef CAUSTICS
 	bool waterMask = abs(unpack2x8(textureRaw(colortex6, screenCoord).b).r * 255.0 - 8.5) < 0.6;
-	if ((isEyeInWater == 1) != waterMask) caustics *= water_calculateCaustics(position[2] + cameraPosition, lightmap.y);
+	if ((isEyeInWater == 1) != waterMask) caustics *= water_calculateCaustics(position[2] + cameraPosition, skylight);
+	#endif
 
 /* DRAWBUFFERS:3 */
 

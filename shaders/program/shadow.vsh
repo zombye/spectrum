@@ -25,6 +25,7 @@ varying vec3 normal;
 
 #include "/lib/util/constants.glsl"
 
+#include "/lib/uniform/gbufferMatrices.glsl"
 #include "/lib/uniform/shadowMatrices.glsl"
 
 #include "/lib/misc/shadowDistortion.glsl"
@@ -33,7 +34,10 @@ varying vec3 normal;
 #include "/lib/vertex/projectVertex.vsh"
 #include "/lib/vertex/uv.vsh"
 
+//--//
+
 void main() {
+	calculateGbufferMatrices();
 	calculateShadowMatrices();
 
 	tint     = gl_Color;

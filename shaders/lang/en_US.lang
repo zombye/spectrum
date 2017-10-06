@@ -40,7 +40,7 @@ value.SHADOW_SPACE_QUANTIZATION.0=Off
 option.RSM=Bounced Sunlight
 option.RSM_RADIUS=Bounced Sunlight Range
 option.RSM_SAMPLES=Bounced Sunlight Quality
-option.RSM_INTENSITY=Bounced Sunlight Intensity
+option.RSM_BRIGHTNESS=Bounced Sunlight Brightness
 
 # Diffuse sky illumination
 option.DIRECTIONAL_SKY_DIFFUSE=Directional Sky Lighting

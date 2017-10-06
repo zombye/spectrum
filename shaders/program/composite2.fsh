@@ -92,7 +92,7 @@ vec3 volumetricFog(vec3 background, mat3 position, vec2 lightmap) {
 	const float steps = 16.0;
 
 	vec3 phase = vec3(dot(normalize(position[1]), shadowLightVector));
-	phase = vec3(sky_rayleighPhase(phase.x), sky_miePhase(phase.x, 0.8), 0.25 / pi);
+	phase = vec3(sky_rayleighPhase(phase.x), sky_miePhase(phase.x, 0.8), 0.5);
 
 	float stepSize = length(position[1]) / steps;
 
@@ -116,7 +116,7 @@ vec3 volumetricFog(vec3 background, mat3 position, vec2 lightmap) {
 		);
 
 		vec3 sunlight = (scatterCoeffs * phase.xy) * shadowLightColor * textureShadow(shadowtex0, shadows_distortShadowSpace(shadowPos) * 0.5 + 0.5);
-		vec3 skylight = (scatterCoeffs * 0.5) * skylightBrightness;
+		vec3 skylight = (scatterCoeffs * phase.zz) * skylightBrightness;
 
 		scattering += (sunlight + skylight) * transmittance;
 		transmittance *= exp(-transmittanceCoefficients * opticalDepth);
@@ -220,10 +220,32 @@ float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDista
 	return max0(0.25 * log2(4.0 * projection[1].y * viewHeight * viewHeight * zDistance * dot(view, normalize(view + light)) * p * p / (REFLECTION_SAMPLES * alpha2 * NoH)));
 }
 
-vec3 calculateReflections(mat3 position, vec3 normal, float reflectance, float roughness, float skyLight, const bool doSunSpecular) {
-	if (reflectance == 0.0) return vec3(0.0);
-
+vec3 calculateSharpReflections(mat3 position, vec3 normal, float reflectance, float skyLight) {
 	vec3 viewDir = normalize(position[1]);
+	float dither = bayer8(gl_FragCoord.st);
+
+	vec3 rayDir = reflect(viewDir, normal);
+
+	vec3 hitPos;
+	bool intersected = raytraceIntersection(position[0], rayDir, hitPos, dither, REFLECTION_QUALITY);
+
+	vec3 reflection;
+	if (intersected) reflection = texture2DLod(colortex2, hitPos.st, 0.0).rgb;
+	else if (skyLight > 0.1) reflection = sky_atmosphere(vec3(0.0), rayDir) * smoothstep(0.1, 0.9, skyLight);
+
+	#ifdef VOLUMETRICCLOUDS_REFLECTED
+	#ifdef VOLUMETRICCLOUDS
+	if (skyLight > 0.1) {
+		vec4 clouds = volumetricClouds_calculate(position[1], screenSpaceToViewSpace(hitPos, projectionInverse), rayDir, !intersected);
+		reflection = reflection * clouds.a + clouds.rgb;
+	}
+	#endif
+	#endif
+
+	return reflection * f_dielectric(max0(dot(normal, -viewDir)), 1.0, f0ToIOR(reflectance));
+}
+
+vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float reflectance, float roughness, float skyLight) {
 	float dither = bayer8(gl_FragCoord.st);
 
 	float ior    = f0ToIOR(reflectance);
@@ -232,17 +254,17 @@ vec3 calculateReflections(mat3 position, vec3 normal, float reflectance, float r
 	vec3 reflection = vec3(0.0);
 	for (float i = 0.0; i < REFLECTION_SAMPLES; i++) {
 		vec3 facetNormal = is_GGX(normal, hash42(vec2(i, dither)), alpha2);
-		if (dot(viewDir, facetNormal) > 0.0) facetNormal = -facetNormal;
-		vec3 rayDir = reflect(viewDir, facetNormal);
+		if (dot(viewDirection, facetNormal) > 0.0) facetNormal = -facetNormal;
+		vec3 rayDir = reflect(viewDirection, facetNormal);
 
-		float fresnel = f_dielectric(max0(dot(facetNormal, -viewDir)), 1.0, ior);
+		float fresnel = f_dielectric(max0(dot(facetNormal, -viewDirection)), 1.0, ior);
 
 		vec3 hitPos;
 		bool intersected = raytraceIntersection(position[0], rayDir, hitPos, dither, REFLECTION_QUALITY);
 
 		vec3 reflectionSample = vec3(0.0);
 
-		if (intersected) reflectionSample = texture2DLod(colortex2, hitPos.st, calculateReflectionMipGGX(-viewDir, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
+		if (intersected) reflectionSample = texture2DLod(colortex2, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
 		else if (skyLight > 0.1) reflectionSample = sky_atmosphere(vec3(0.0), rayDir) * smoothstep(0.1, 0.9, skyLight);
 
 		#ifdef VOLUMETRICCLOUDS_REFLECTED
@@ -258,10 +280,22 @@ vec3 calculateReflections(mat3 position, vec3 normal, float reflectance, float r
 	}
 	reflection /= REFLECTION_SAMPLES;
 
-	// Sun specular
-	if (doSunSpecular) reflection += texture2D(colortex4, screenCoord).rgb * shadowLightColor * specularBRDF(-viewDir, normal, shadowLightVector, reflectance, alpha2);
-
 	return reflection;
+}
+
+//--//
+
+vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction, vec3 normal, masks mask) {
+	//if (!mask.water) return texture2D(colortex2, screenCoord).rgb;
+
+	float eta = 0.75;
+	vec3 rayDirection = refract(direction, normal, eta);
+
+	mat2x3 hitPosition;
+	hitPosition[1] = rayDirection * clamp(distance(frontPosition, backPosition), 0.0, 1.0) + frontPosition;
+	hitPosition[0] = viewSpaceToScreenSpace(hitPosition[1], projection);
+
+	return texture2D(colortex2, hitPosition[0].xy).rgb;
 }
 
 //--//
@@ -269,28 +303,41 @@ vec3 calculateReflections(mat3 position, vec3 normal, float reflectance, float r
 void main() {
 	vec3 tex0 = textureRaw(colortex0, screenCoord).rgb;
 	vec3 tex1 = textureRaw(colortex1, screenCoord).rgb;
+	vec4 tex5 = texture2D(colortex5, screenCoord);
+	vec3 tex6 = textureRaw(colortex6, screenCoord).rgb;
 
 	vec4 diff_id = vec4(unpack2x8(tex0.r), unpack2x8(tex0.g));
 
 	masks mask = calculateMasks(diff_id.a * 255.0);
 	material mat = calculateMaterial(diff_id.rgb, unpack2x8(tex1.b), mask);
 
-	mat3 position;
-	position[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
-	position[1] = screenSpaceToViewSpace(position[0], projectionInverse);
-	position[2] = viewSpaceToSceneSpace(position[1], modelViewInverse);
+	mat3 frontPosition;
+	frontPosition[0] = vec3(screenCoord, texture2D(depthtex0, screenCoord).r);
+	frontPosition[1] = screenSpaceToViewSpace(frontPosition[0], projectionInverse);
+	frontPosition[2] = viewSpaceToSceneSpace(frontPosition[1], modelViewInverse);
+	mat3 backPosition;
+	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
+	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
+	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], modelViewInverse);
+	mat2x3 direction;
+	direction[0] = normalize(frontPosition[1]);
+	direction[1] = mat3(modelViewInverse) * direction[0];
 
-	vec3 normal   = unpackNormal(tex1.rg);
+	vec3 frontNormal = unpackNormal(tex6.rg);
+	vec3 backNormal  = unpackNormal(tex1.rg);
 	vec2 lightmap = unpack2x8(tex0.b);
 
 	//--//
 
-	vec3 composite = texture2D(colortex2, screenCoord).rgb;
+	vec3 composite = calculateRefractions(backPosition[1], frontPosition[1], direction[0], frontNormal, mask);
 
 	if (mask.sky) {
-		composite = sky_render(composite, normalize(position[1]));
-	} else {
-		vec3 specular = calculateReflections(position, normal, mat.reflectance, mat.roughness, lightmap.y, true);
+		composite = sky_render(composite, direction[0]);
+	} else if (mat.reflectance > 0.0) {
+		vec3 specular = calculateReflections(backPosition, direction[0], backNormal, mat.reflectance, mat.roughness, lightmap.y);
+
+		// Sun specular
+		specular += texture2D(colortex4, screenCoord).rgb * shadowLightColor * specularBRDF(-direction[0], backNormal, shadowLightVector, mat.reflectance, mat.roughness * mat.roughness);
 
 		composite = blendMaterial(composite, specular, mat);
 	}
@@ -300,39 +347,29 @@ void main() {
 	composite = composite * clouds.a + clouds.rgb;
 	#endif
 
-	vec4 tex5 = texture2D(colortex5, screenCoord);
 	if (tex5.a > 0.0) {
-		vec3 tex6 = textureRaw(colortex6, screenCoord).rgb;
-
 		masks frontMask = calculateMasks(round(unpack2x8(tex6.b).r * 255.0));
-
-		mat3 frontPosition;
-		frontPosition[0] = vec3(screenCoord, texture2D(depthtex0, screenCoord).r);
-		frontPosition[1] = screenSpaceToViewSpace(frontPosition[0], projectionInverse);
-		frontPosition[2] = viewSpaceToSceneSpace(frontPosition[1], modelViewInverse);
 
 		float frontSkylight = unpack2x8(tex6.b).g;
 
 		if (frontMask.water != (isEyeInWater == 1)) {
-			composite = water_calculateFog(composite, distance(frontPosition[1], position[1]), frontSkylight);
+			composite = water_calculateFog(composite, distance(frontPosition[1], backPosition[1]), frontSkylight);
 		}
 
 		composite = mix(composite, tex5.rgb, tex5.a);
 
 		if (frontMask.water) {
-			vec3  frontNormal   = unpackNormal(tex6.rg);
-
-			vec3 specular = calculateReflections(frontPosition, frontNormal, 0.02, 0.0, frontSkylight, false);
+			vec3 specular = calculateSharpReflections(frontPosition, frontNormal, 0.02, frontSkylight);
 			composite += specular;
 		}
 	}
 
 	#ifdef VOLUMETRIC_FOG
-	composite = volumetricFog(composite, position, lightmap);
+	composite = volumetricFog(composite, frontPosition, lightmap);
 	#elif defined SIMPLE_FOG
-	composite = fog(composite, position[1], lightmap);
+	composite = fog(composite, frontPosition[1], lightmap);
 	#elif defined FAKE_CREPUSCULAR_RAYS
-	composite += fakeCrepuscularRays(normalize(position[1]));
+	composite += fakeCrepuscularRays(direction[0]);
 	#endif
 
 	// Apply exposure - it needs to be done here for the sun to work properly.

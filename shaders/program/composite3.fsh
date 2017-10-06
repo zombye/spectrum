@@ -31,6 +31,7 @@ varying vec2 screenCoord;
 
 #include "/lib/uniform/gbufferMatrices.glsl"
 
+#ifdef DOF
 const vec2[335] dofOffsets = vec2[335](
 	vec2(-0.4089973, -0.7511642),
 	vec2(-0.3706706, -0.8872022),
@@ -384,6 +385,7 @@ vec3 depthOfField() {
 	}
 	return result / dofOffsets.length();
 }
+#endif
 
 float calculateSmoothLuminance() {
 	float prevLuminance = texture2D(colortex7, screenCoord).r;
