@@ -251,13 +251,22 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 
 //--//
 
-vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction, vec3 normal, masks mask) {
+vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction, vec3 normal, masks mask, out float refractionDepth) {
+	refractionDepth = distance(frontPosition, backPosition);
+
 	#ifdef REFRACTIONS
-	if (frontPosition == backPosition)
+	if (refractionDepth == 0.0)
 	#endif
 		return texture2D(colortex2, screenCoord).rgb;
 
-	return texture2D(colortex2, viewSpaceToScreenSpace(refract(direction, normal, 0.75) * clamp(distance(frontPosition, backPosition), 0.0, 1.0) + frontPosition, projection).xy).rgb;
+	vec3 hitPosition = refract(direction, normal, 0.75) * clamp01(refractionDepth) + frontPosition;
+	vec3 hitCoord = viewSpaceToScreenSpace(hitPosition, projection);
+	hitCoord.z = texture2D(depthtex1, hitCoord.st).r;
+	hitPosition = screenSpaceToViewSpace(hitCoord, projectionInverse);
+
+	refractionDepth = max0(distance(frontPosition, hitPosition));
+
+	return texture2D(colortex2, hitCoord.xy).rgb;
 }
 
 //--//
@@ -292,7 +301,8 @@ void main() {
 
 	//--//
 
-	vec3 composite = calculateRefractions(frontPosition[1], backPosition[1], direction[0], frontNormal, mask);
+	float refractionDepth;
+	vec3 composite = calculateRefractions(frontPosition[1], backPosition[1], direction[0], frontNormal, mask, refractionDepth);
 
 	if (mask.sky) {
 		composite = sky_render(composite, direction[0]);
@@ -314,7 +324,7 @@ void main() {
 	#endif
 
 	if (mask.water != (isEyeInWater == 1)) {
-		composite = water_calculateFog(composite, distance(frontPosition[1], isEyeInWater == 1 ? vec3(0.0) : backPosition[1]), frontSkylight);
+		composite = water_calculateFog(composite, isEyeInWater == 1 ? distance(vec3(0.0), frontPosition[1]) : refractionDepth, frontSkylight);
 	}
 
 	composite = mix(composite, tex5.rgb, tex5.a);
