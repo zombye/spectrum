@@ -1,6 +1,6 @@
 # Spectrum
 
-Spectrum is a Minecraft shaderpack, and is currently in early alpha.  
+Spectrum is a Minecraft: Java Edition shaderpack, and is currently in early alpha.  
 It aims to provide a "natural" look and feel.
 
 Expect a lot of bugs.
