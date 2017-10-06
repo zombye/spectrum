@@ -55,9 +55,9 @@ vec2 sky_opticalDepth(vec3 position, vec3 dir) {
 //--//
 
 void calculateColors() {
-	vec3 viewPosition = upVector * (planetRadius + 23e3);
+	vec3 viewPosition = upVector * planetRadius;
 	vec2 sunOD = sky_opticalDepth(viewPosition, shadowLightVector);
-	vec3 sunTransmittance = exp(-transmittanceCoefficients * sunOD.xy);
+	vec3 sunTransmittance = exp(-transmittanceCoefficients * sunOD);
 
 	shadowLightColor = mix(moonIlluminance, sunIlluminance, smoothstep(-0.01, 0.01, dot(sunVector, upVector))) * sunTransmittance;
 	blockLightColor  = vec3(1.00, 0.70, 0.35) * 1.0e2;

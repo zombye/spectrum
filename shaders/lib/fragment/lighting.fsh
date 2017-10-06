@@ -68,7 +68,7 @@ vec3 shadows(vec3 position) {
 }
 
 float blockLight(float lightmap) {
-	return lightmap / (pow2(-16.0 * lightmap + 16.0) + 1.0);
+	return lightmap / (pow2(-4.0 * lightmap + 4.0) + 1.0);
 }
 #if DIRECTIONAL_SKY_DIFFUSE == OFF || PROGRAM == PROGRAM_WATER
 float skyLight(float lightmap, vec3 normal) {

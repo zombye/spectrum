@@ -62,6 +62,7 @@ varying mat3 position;
 #include "/lib/fragment/water/parallax.fsh"
 #include "/lib/fragment/water/normal.fsh"
 
+#include "/lib/fragment/specularBRDF.fsh"
 #include "/lib/fragment/lighting.fsh"
 
 //--//
@@ -84,7 +85,7 @@ void main() {
 	if (mask.water) {
 		base = vec4(0.1, 0.2, 0.4, 0.15);
 		norm.xyz = water_calculateNormal(position[2] + cameraPosition, tbn, normalize(position[1]));
-		spec = vec4(0.02, 0.0, 0.9, 0.0);
+		spec = vec4(pow(0.02, 1.0 / 3.0), 0.0, 0.99, 0.0);
 	}
 
 	material mat = calculateMaterial(base.rgb, spec.rb, mask);
@@ -94,6 +95,7 @@ void main() {
 	vec3
 	composite  = calculateLighting(position, normal, lightmap, mat, sunVisibility);
 	composite *= mat.albedo;
+	composite += sunVisibility * shadowLightColor * specularBRDF(-normalize(position[1]), normal, mrp_sphere(reflect(normalize(position[1]), normal), shadowLightVector, sunAngularRadius), mat.reflectance, mat.roughness * mat.roughness) / base.a;
 
 /* DRAWBUFFERS:56 */
 

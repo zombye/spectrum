@@ -3,6 +3,10 @@ screen.miscellaneous=Miscellaneous
 value.TERRAIN_DEFORMATION_MODE.0=Off
 value.TERRAIN_DEFORMATION_MODE.1=Planetoid
 
+option.MOTION_BLUR=Motion Blur
+option.REFRACTIONS=Refractions
+option.WATER_PARALLAX=Water Parallax
+
 ##--## Atmospherics
 
 screen.atmospherics=Atmospherics
@@ -12,10 +16,6 @@ option.PHYSICAL_ATMOSPHERE=Physically Based Atmosphere
 # Volumetric Clouds
 option.VOLUMETRICCLOUDS=Volumetric Clouds
 option.VOLUMETRICCLOUDS_QUALITY=Volumetric Clouds Quality
-
-##--## Lighting
-
-screen.lighting=Lighting
 
 # (Fake) Crepuscular rays
 option.FAKE_CREPUSCULAR_RAYS=Fake Crepuscular Rays
@@ -27,6 +27,13 @@ option.SIMPLE_FOG.comment=Disabled when volumetric fog is enabled.
 
 # Volumetric fog
 option.VOLUMETRIC_FOG=Volumetric Fog
+
+##--## Lighting
+
+screen.lighting=Lighting
+
+# Caustics
+option.CAUSTICS=Water Caustics
 
 # Reflections
 option.REFLECTION_SAMPLES=Reflection Samples

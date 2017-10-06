@@ -14,7 +14,7 @@ const int colortex1Format = RGB16;          // Shaders: Normal(2), Reflectance(0
 const int colortex2Format = R11F_G11F_B10F; // Composite
 const int colortex3Format = RGBA16F;        // Auxiliary
 const int colortex4Format = RGB10_A2;       // Auxiliary
-const int colortex5Format = RGBA16F;        // Transparent composite
+const int colortex5Format = RGBA32F;        // Transparent composite - temporarily RGBA32F
 const int colortex6Format = RGB16;          // Transparent normal, id, and skylight
 const int colortex7Format = R16F;           // Exposure
 

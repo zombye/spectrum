@@ -80,7 +80,7 @@ void main() {
 	vec3 color = texture2D(colortex2, screenCoord).rgb;
 
 	#ifdef GLARE
-	color = mix(color, weighAndSumGlareTiles(), 0.02);
+	color = mix(color, weighAndSumGlareTiles(), 0.1);
 	#endif
 
 	#ifdef DIFFRACTION_SPIKES

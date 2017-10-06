@@ -4,6 +4,8 @@
 #define REFLECTION_QUALITY 8.0
 #define VOLUMETRICCLOUDS_REFLECTED // Can have a very high performance impact!
 
+#define REFRACTIONS
+
 const bool colortex2MipmapEnabled = true;
 
 //----------------------------------------------------------------------------//
@@ -173,43 +175,7 @@ vec3 fog(vec3 background, vec3 position, vec2 lightmap) {
 
 //--//
 
-float f0ToIOR(float f0) {
-	f0 = sqrt(f0);
-	f0 *= 0.99999; // Prevents divide by 0
-	return (1.0 + f0) / (1.0 - f0);
-}
-
-float d_GGX(float NoH, float alpha2) {
-	float p = (NoH * alpha2 - NoH) * NoH + 1.0;
-	return alpha2 / (pi * p * p);
-}
-float f_dielectric(float NoV, float n1, float n2) {
-	float p = 1.0 - (pow2(n1 / n2) * (1.0 - NoV * NoV));
-	if (p <= 0.0) return 1.0; p = sqrt(p);
-
-	float Rs = pow2((n1 * NoV - n2 * p  ) / (n1 * NoV + n2 * p  ));
-	float Rp = pow2((n1 * p   - n2 * NoV) / (n1 * p   + n2 * NoV));
-
-	return 0.5 * (Rs + Rp);
-}
-float v_smithGGXCorrelated(float NoV, float NoL, float alpha2) {
-	vec2 delta = vec2(NoV, NoL);
-	delta *= sqrt((-delta * alpha2 + delta) * delta + alpha2);
-	return 0.5 / max(delta.x + delta.y, 1e-9);
-}
-
-float specularBRDF(vec3 view, vec3 normal, vec3 light, float reflectance, float alpha2) {
-	vec3 halfVec = normalize(view + light);
-	float NoV = max0(dot(normal, view));
-	float NoH = max0(dot(normal, halfVec));
-	float NoL = max0(dot(normal, light));
-
-	float d = d_GGX(NoH, alpha2);
-	float f = f_dielectric(NoV, 1.0, f0ToIOR(reflectance));
-	float v = v_smithGGXCorrelated(NoV, NoL, alpha2);
-
-	return d * f * v * NoL;
-}
+#include "/lib/fragment/specularBRDF.fsh"
 
 #include "/lib/fragment/raytracer.fsh"
 
@@ -286,16 +252,12 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 //--//
 
 vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction, vec3 normal, masks mask) {
-	//if (!mask.water) return texture2D(colortex2, screenCoord).rgb;
+	#ifdef REFRACTIONS
+	if (frontPosition == backPosition)
+	#endif
+		return texture2D(colortex2, screenCoord).rgb;
 
-	float eta = 0.75;
-	vec3 rayDirection = refract(direction, normal, eta);
-
-	mat2x3 hitPosition;
-	hitPosition[1] = rayDirection * clamp(distance(frontPosition, backPosition), 0.0, 1.0) + frontPosition;
-	hitPosition[0] = viewSpaceToScreenSpace(hitPosition[1], projection);
-
-	return texture2D(colortex2, hitPosition[0].xy).rgb;
+	return texture2D(colortex2, viewSpaceToScreenSpace(refract(direction, normal, 0.75) * clamp(distance(frontPosition, backPosition), 0.0, 1.0) + frontPosition, projection).xy).rgb;
 }
 
 //--//
@@ -308,7 +270,7 @@ void main() {
 
 	vec4 diff_id = vec4(unpack2x8(tex0.r), unpack2x8(tex0.g));
 
-	masks mask = calculateMasks(diff_id.a * 255.0);
+	masks mask = calculateMasks(diff_id.a * 255.0, unpack2x8(tex6.b).r * 255.0);
 	material mat = calculateMaterial(diff_id.rgb, unpack2x8(tex1.b), mask);
 
 	mat3 frontPosition;
@@ -326,42 +288,40 @@ void main() {
 	vec3 frontNormal = unpackNormal(tex6.rg);
 	vec3 backNormal  = unpackNormal(tex1.rg);
 	vec2 lightmap = unpack2x8(tex0.b);
+	float frontSkylight = unpack2x8(tex6.b).g;
 
 	//--//
 
-	vec3 composite = calculateRefractions(backPosition[1], frontPosition[1], direction[0], frontNormal, mask);
+	vec3 composite = calculateRefractions(frontPosition[1], backPosition[1], direction[0], frontNormal, mask);
 
 	if (mask.sky) {
 		composite = sky_render(composite, direction[0]);
-	} else if (mat.reflectance > 0.0) {
+	}
+	#ifdef MC_SPECULAR_MAP
+	else if (mat.reflectance > 0.0) {
 		vec3 specular = calculateReflections(backPosition, direction[0], backNormal, mat.reflectance, mat.roughness, lightmap.y);
 
 		// Sun specular
-		specular += texture2D(colortex4, screenCoord).rgb * shadowLightColor * specularBRDF(-direction[0], backNormal, shadowLightVector, mat.reflectance, mat.roughness * mat.roughness);
+		specular += texture2D(colortex4, screenCoord).rgb * shadowLightColor * specularBRDF(-direction[0], backNormal, mrp_sphere(reflect(direction, backNormal), shadowLightVector, sunAngularRadius), mat.reflectance, mat.roughness * mat.roughness);
 
 		composite = blendMaterial(composite, specular, mat);
 	}
+	#endif
 
 	#ifdef VOLUMETRICCLOUDS
 	vec4 clouds = texture2D(colortex3, screenCoord);
 	composite = composite * clouds.a + clouds.rgb;
 	#endif
 
-	if (tex5.a > 0.0) {
-		masks frontMask = calculateMasks(round(unpack2x8(tex6.b).r * 255.0));
+	if (mask.water != (isEyeInWater == 1)) {
+		composite = water_calculateFog(composite, distance(frontPosition[1], isEyeInWater == 1 ? vec3(0.0) : backPosition[1]), frontSkylight);
+	}
 
-		float frontSkylight = unpack2x8(tex6.b).g;
+	composite = mix(composite, tex5.rgb, tex5.a);
 
-		if (frontMask.water != (isEyeInWater == 1)) {
-			composite = water_calculateFog(composite, distance(frontPosition[1], backPosition[1]), frontSkylight);
-		}
-
-		composite = mix(composite, tex5.rgb, tex5.a);
-
-		if (frontMask.water) {
-			vec3 specular = calculateSharpReflections(frontPosition, frontNormal, 0.02, frontSkylight);
-			composite += specular;
-		}
+	if (mask.water) {
+		vec3 specular = calculateSharpReflections(frontPosition, frontNormal, 0.02, frontSkylight);
+		composite += specular;
 	}
 
 	#ifdef VOLUMETRIC_FOG
