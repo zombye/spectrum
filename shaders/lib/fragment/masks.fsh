@@ -19,7 +19,7 @@ masks calculateMasks(float id) {
 	mask.transparent = false; // TODO
 	
 	mask.plant = id == 18 || id == 31;
-	mask.water = id == 8 || id == 9;
+	mask.water = id > 7.9 || id < 9.1;
 
 	return mask;
 }
