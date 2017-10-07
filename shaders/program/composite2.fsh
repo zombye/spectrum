@@ -203,6 +203,7 @@ vec3 calculateSharpReflections(mat3 position, vec3 normal, float reflectance, fl
 	#ifdef VOLUMETRICCLOUDS
 	if (skyLight > 0.1) {
 		vec4 clouds = volumetricClouds_calculate(position[1], screenSpaceToViewSpace(hitPos, projectionInverse), rayDir, !intersected);
+		clouds = mix(vec4(0.0, 0.0, 0.0, 1.0), clouds, smoothstep(0.1, 0.9, skyLight));
 		reflection = reflection * clouds.a + clouds.rgb;
 	}
 	#endif
