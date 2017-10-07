@@ -9,22 +9,15 @@ bool raytraceIntersection(vec3 start, vec3 direction, out vec3 position, float d
 	float difference;
 	bool  intersected;
 
-	{
-		position += direction * dither;
+	position -= direction * dither;
 
-		if (floor(position.st) != vec2(0.0)) return false;
-
-		difference  = texture2D(depthtex1, position.st).r - position.p;
-		intersected = difference < 0.0;
-	}
-
-	while (!intersected && position.p < 1.0) {
+	for (float i = 0.0; i <= quality && !intersected && position.p < 1.0; i++) {
 		position += direction;
 
 		if (floor(position.st) != vec2(0.0)) return false;
 
 		difference  = texture2D(depthtex1, position.st).r - position.p;
-		intersected = difference < 0.0;
+		intersected = -direction.z < difference && difference < 0.0;
 	}
 
 	return intersected && (difference + position.p) < 1.0 && position.p > 0.0;

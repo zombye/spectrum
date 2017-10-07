@@ -12,8 +12,7 @@ uniform float viewWidth, viewHeight;
 uniform vec3 cameraPosition;
 
 // Hand light
-uniform int heldBlockLightValue;
-uniform int heldBlockLightValue2;
+uniform int heldBlockLightValue, heldBlockLightValue2;
 
 // Samplers
 uniform sampler2D colortex0;

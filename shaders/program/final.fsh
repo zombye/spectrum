@@ -29,12 +29,12 @@ vec3 weighAndSumGlareTiles() {
 	vec2 px = 1.0 / vec2(viewWidth, viewHeight);
 
 	vec3
-	glare  = textureBicubic(colortex3, (screenCoord / exp2(1)) + vec2(0.00000, 0.0000).yx + vec2( 0,0).yx * px).rgb * 0.625;
-	glare += textureBicubic(colortex3, (screenCoord / exp2(2)) + vec2(0.50000, 0.0000).yx + vec2( 8,0).yx * px).rgb * 0.750;
-	glare += textureBicubic(colortex3, (screenCoord / exp2(3)) + vec2(0.50000, 0.2500).yx + vec2( 8,2).yx * px).rgb * 0.850;
-	glare += textureBicubic(colortex3, (screenCoord / exp2(4)) + vec2(0.62500, 0.2500).yx + vec2(16,2).yx * px).rgb * 0.925;
-	glare += textureBicubic(colortex3, (screenCoord / exp2(5)) + vec2(0.62500, 0.3125).yx + vec2(16,4).yx * px).rgb * 0.975;
-	glare += textureBicubic(colortex3, (screenCoord / exp2(6)) + vec2(0.65625, 0.3125).yx + vec2(24,4).yx * px).rgb * 1.000;
+	glare  = textureBicubic(colortex3, (screenCoord / exp2(1)) + vec2(0.0000, 0.00000) + vec2(0, 0) * px).rgb * 0.625;
+	glare += textureBicubic(colortex3, (screenCoord / exp2(2)) + vec2(0.0000, 0.50000) + vec2(0, 8) * px).rgb * 0.750;
+	glare += textureBicubic(colortex3, (screenCoord / exp2(3)) + vec2(0.2500, 0.50000) + vec2(2, 8) * px).rgb * 0.850;
+	glare += textureBicubic(colortex3, (screenCoord / exp2(4)) + vec2(0.2500, 0.62500) + vec2(2,16) * px).rgb * 0.925;
+	glare += textureBicubic(colortex3, (screenCoord / exp2(5)) + vec2(0.3125, 0.62500) + vec2(4,16) * px).rgb * 0.975;
+	glare += textureBicubic(colortex3, (screenCoord / exp2(6)) + vec2(0.3125, 0.65625) + vec2(4,24) * px).rgb * 1.000;
 	glare /= 5.125;
 
 	return glare;
@@ -45,6 +45,7 @@ vec3 weighAndSumGlareTiles() {
 vec3 diffractionSpikes(vec3 color) {
 	const float spikeCount   = APERTURE_BLADE_COUNT;
 	const float spikeSamples = 32.0;
+	const float spikeFalloff = 32.0;
 	const float spikeSize    = 0.1 / spikeSamples;
 	const float rotation     = radians(APERTURE_BLADE_ROTATION + 180.0);
 
@@ -54,7 +55,8 @@ vec3 diffractionSpikes(vec3 color) {
 		vec2 direction = vec2(sin(angle), cos(angle)) * spikeSize / vec2(aspectRatio, 1.0);
 
 		for (float j = 1.0; j < spikeSamples; j++) {
-			float weight = (spikeSamples - j) / (spikeSamples * j * j);
+			float weight = j / spikeSamples;
+			weight = (1.0 - weight) / (spikeFalloff * weight * weight);
 			color += texture2D(colortex2, direction * j + screenCoord).rgb * weight;
 			totalWeight += weight;
 		}

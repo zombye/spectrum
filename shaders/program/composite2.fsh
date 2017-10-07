@@ -264,7 +264,7 @@ vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction,
 	hitCoord.z = texture2D(depthtex1, hitCoord.st).r;
 	hitPosition = screenSpaceToViewSpace(hitCoord, projectionInverse);
 
-	refractionDepth = max0(distance(frontPosition, hitPosition));
+	refractionDepth = distance(frontPosition, hitPosition);
 
 	return texture2D(colortex2, hitCoord.xy).rgb;
 }

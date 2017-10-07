@@ -86,8 +86,8 @@ float handLight(mat3 position, vec3 normal) {
 
 	mat2x3 lightVector = handPosition - mat2x3(position[1], position[1]);
 
-	vec2 dist = (15.0 - vec2(heldBlockLightValue, heldBlockLightValue2)) + vec2(length(lightVector[0]), length(lightVector[1]));
-	vec2 lm   = clamp01(-0.0625 * dist + 1.0) / (dist * dist + 1.0);
+	vec2 dist = clamp01((vec2(heldBlockLightValue, heldBlockLightValue2) - vec2(length(lightVector[0]), length(lightVector[1]))) * 0.0625);
+	vec2 lm   = dist / (pow2(-4.0 * dist + 4.0) + 1.0);
 
 	#if PROGRAM != PROGRAM_WATER && defined HAND_LIGHT_SHADOWS
 	vec3 temp;
@@ -98,7 +98,7 @@ float handLight(mat3 position, vec3 normal) {
 	lm *= vec2(
 		diffuse(normalize(position[1]), normal, normalize(lightVector[0]), 0.0),
 		diffuse(normalize(position[1]), normal, normalize(lightVector[1]), 0.0)
-	);
+	) * pi;
 
 	return lm.x + lm.y;
 }

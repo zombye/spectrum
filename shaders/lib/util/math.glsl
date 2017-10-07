@@ -1,4 +1,5 @@
 float pow2(float x) { return x * x; }
+vec2  pow2(vec2  x) { return x * x; }
 vec3  pow2(vec3  x) { return x * x; }
 float pow3(float x) { return x * x * x; }
 float pow4(float x) { x *= x; return x * x; }
