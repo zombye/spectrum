@@ -34,6 +34,9 @@ screen.lighting=Lighting
 
 # Caustics
 option.CAUSTICS=Water Caustics
+option.CAUSTICS_SAMPLES=Water Caustics Quality
+option.CAUSTICS_DEFOCUS=Water Caustics Defocus
+option.CAUSTICS_DEFOCUS.comment=Essentially adjusts the "focus" of caustics. Higher values give blurrier caustics, which helps hide noise.
 
 # Reflections
 option.REFLECTION_SAMPLES=Reflection Samples
