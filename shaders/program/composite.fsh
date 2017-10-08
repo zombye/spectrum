@@ -33,14 +33,10 @@ varying vec2 screenCoord;
 #include "/lib/util/clamping.glsl"
 #include "/lib/util/constants.glsl"
 #include "/lib/util/dither.glsl"
-#include "/lib/util/math.glsl"
-#include "/lib/util/miscellaneous.glsl"
-#include "/lib/util/noise.glsl"
 #include "/lib/util/packing.glsl"
 #include "/lib/util/spaceConversion.glsl"
 #include "/lib/util/texture.glsl"
 
-// Generate a point along a spiral. Integer increments of angle will have a uniform distribution.
 vec2 spiralPoint(float angle, float scale) {
 	return vec2(sin(angle), cos(angle)) * pow(angle / scale, 1.0 / phi);
 }
@@ -50,7 +46,6 @@ vec2 spiralPoint(float angle, float scale) {
 #include "/lib/uniform/shadowMatrices.glsl"
 #include "/lib/uniform/vectors.glsl"
 
-#include "/lib/misc/importanceSampling.glsl"
 #include "/lib/misc/shadowDistortion.glsl"
 
 //--//
@@ -58,43 +53,43 @@ vec2 spiralPoint(float angle, float scale) {
 #include "/lib/fragment/water/waves.fsh"
 #include "/lib/fragment/water/parallax.fsh"
 #include "/lib/fragment/water/normal.fsh"
-#include "/lib/fragment/water/caustics.fsh"
 
-//--//
+float calculateWaterCaustics(vec3 position, float skylight) {
+	#if CAUSTICS_SAMPLES > 0
+	if ((isEyeInWater == 1) == (abs(unpack2x8(textureRaw(colortex6, screenCoord).b).r * 255.0 - 8.5) < 0.6) || skylight == 0.0)
+	#endif
+		return 1.0;
 
-#include "/lib/fragment/raytracer.fsh"
-#include "/lib/fragment/sky.fsh"
+	const float radius     = 0.3;
+	const float distThresh = (sqrt(CAUSTICS_SAMPLES) - 1.0) / (radius * CAUSTICS_DEFOCUS);
 
-#if DIRECTIONAL_SKY_DIFFUSE != OFF
-vec3 calculateDirectionalSkyDiffuse(vec3 position, vec3 normal, float skylight) {
-	vec3 temp = vec3(0.0);
-	vec3 result = vec3(0.0);
+	vec3  lightVector = mat3(modelViewInverse) * -shadowLightVector;
+	float surfDistUp  = position.y - 62.9;
+	float dither      = bayer8(gl_FragCoord.st) * 16.0;
 
-	if (skylight <= 0.0) return vec3(0.0);
+	vec3 flatRefractVec = refract(lightVector, vec3(0.0, 1.0, 0.0), 0.75);
+	vec3 surfPos        = position - flatRefractVec * (surfDistUp / flatRefractVec.y);
 
-	float dither = bayer16(gl_FragCoord.st) + (0.5 / 256.0);
+	float result = 0.0;
+	for (float i = 0.0; i < CAUSTICS_SAMPLES; i++) {
+		vec3 samplePos     = surfPos;
+		     samplePos.xz += spiralPoint(i * 16.0 + dither, CAUSTICS_SAMPLES * 16.0) * radius;
+		vec3 refractVec    = refract(lightVector, water_calculateNormal(samplePos), 0.75);
+		     samplePos     = refractVec * (surfDistUp / refractVec.y) + samplePos;
 
-	for (float i = 0.0; i < DIRECTIONAL_SKY_DIFFUSE_SAMPLES; i++) {
-		vec3 rayDir = is_lambertian(normal, hash42(vec2(i, dither)));
-
-		#if DIRECTIONAL_SKY_DIFFUSE == FANCY
-		if (raytraceIntersection(position, rayDir, temp, dither, 4.0)) continue;
-		result += sky_atmosphere(vec3(0.0), rayDir);
-		#else
-		float mul = clamp01(dot(rayDir, upVector) + 0.6);
-		result += sky_atmosphere(vec3(0.0), rayDir) * mul;
-		#endif
+		result += 1.0 - clamp01(distance(position, samplePos) * distThresh);
 	}
-	result /= DIRECTIONAL_SKY_DIFFUSE_SAMPLES;
-
-	result *= skylight / (pow2(-4.0 * skylight + 4.0) + 1.0);
+	result /= CAUSTICS_DEFOCUS * CAUSTICS_DEFOCUS;
 
 	return result;
 }
-#endif
 
-#ifdef RSM
-vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal) {
+vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float skylight) {
+	#if RSM_SAMPLES > 0
+	if (skylight == 0.0)
+	#endif
+		return vec3(0.0);
+
 	const float radiusSquared = RSM_RADIUS * RSM_RADIUS;
 	const float perSampleArea = radiusSquared / RSM_SAMPLES;
 	      float offsetScale   = RSM_RADIUS * projectionShadow[0].x;
@@ -137,16 +132,16 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal) {
 		vec4 sampleAlbedo = texture2DLod(shadowcolor0, sampleCoord.st, 3.0 / distortCoeff);
 		rsm += sampleAlbedo.rgb * sampleAlbedo.a * sampleVis / sampleDistSq;
 	}
-	return rsm * perSampleArea / pi;
+
+	return rsm * skylight * skylight * perSampleArea * RSM_BRIGHTNESS / pi;
 }
-#endif
 
 //--//
 
 void main() {
-	#if !defined CAUSTICS && !defined RSM && DIRECTIONAL_SKY_DIFFUSE == OFF
+	#if CAUSTICS_SAMPLES == 0 || RSM_SAMPLES == 0
 	gl_FragData[0] = vec4(0.0, 0.0, 0.0, 1.0); return;
-	#else
+	#endif
 
 	vec3 tex0 = textureRaw(colortex0, screenCoord).rgb;
 
@@ -156,34 +151,18 @@ void main() {
 
 	mat3 position;
 	position[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
-	#if defined CAUSTICS || defined RSM
 	position[1] = screenSpaceToViewSpace(position[0], projectionInverse);
 	position[2] = viewSpaceToSceneSpace(position[1], modelViewInverse);
-	#endif
 
 	vec3  normal   = unpackNormal(textureRaw(colortex1, screenCoord).rg);
-	#if defined CAUSTICS || DIRECTIONAL_SKY_DIFFUSE != OFF
 	float skylight = unpack2x8(tex0.b).y;
-	#endif
 
 	//--//
 
-	vec3 additive = vec3(0.0);
-	#if DIRECTIONAL_SKY_DIFFUSE != OFF
-	additive += calculateDirectionalSkyDiffuse(position[0], normal, skylight);
-	#endif
-	#ifdef RSM
-	additive += calculateReflectiveShadowMaps(position[2], normal) * shadowLightColor * RSM_BRIGHTNESS;
-	#endif
-	float caustics = 1.0;
-	#ifdef CAUSTICS
-	bool waterMask = abs(unpack2x8(textureRaw(colortex6, screenCoord).b).r * 255.0 - 8.5) < 0.6;
-	if ((isEyeInWater == 1) != waterMask) caustics *= water_calculateCaustics(position[2] + cameraPosition, skylight);
-	#endif
+	vec3 rsm = calculateReflectiveShadowMaps(position[2], normal, skylight) * shadowLightColor;
+	float caustics = calculateWaterCaustics(position[2] + cameraPosition, skylight);
 
 /* DRAWBUFFERS:3 */
 
-	gl_FragData[0] = vec4(additive, caustics);
-
-	#endif
+	gl_FragData[0] = vec4(rsm, caustics);
 }

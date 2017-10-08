@@ -1,9 +1,6 @@
-#define VOLUMETRICCLOUDS
-#define VOLUMETRICCLOUDS_CQR // Significantly improves quality of distant clouds. Can be up to 5x slower!
-
-// Performance
-#define VOLUMETRICCLOUDS_QUALITY 10 // [8 9 10 11 12 13 14 15 16 17 18 19 20]
+#define VOLUMETRICCLOUDS_QUALITY 10 // [0 8 9 10 11 12 13 14 15 16 17 18 19 20]
 #define VOLUMETRICCLOUDS_SHADING_HQ // Significantly improves quality of volumetric clouds, but has a much higher performance cost.
+#define VOLUMETRICCLOUDS_CQR // Significantly improves quality of distant clouds. Can be up to 5x slower!
 
 #ifdef VOLUMETRICCLOUDS_SHADING_HQ
 #define VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT   1 // Using more than one sample has very little impact on actual quality unless range is incresed.
@@ -18,7 +15,6 @@
 #define VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT 200.0
 #endif
 
-// Visual
 #define VOLUMETRICCLOUDS_ALTITUDE_MIN  500.0
 #define VOLUMETRICCLOUDS_ALTITUDE_MAX 2000.0
 
@@ -42,8 +38,6 @@ float volumetricClouds_phase(float cosTheta) {
 
 	return dot(res, vec2(0.4)) + 0.2;
 }
-
-//--//
 
 struct volumetricClouds_noiseLayer {
 	vec3  mul;
@@ -105,6 +99,10 @@ float volumetricClouds_skyVisibility(vec3 position, float odStartPos) {
 }
 
 vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewDirection, bool sky) {
+	#if VOLUMETRICCLOUDS_QUALITY == 0
+	return vec4(0.0, 0.0, 0.0, 1.0);
+	#endif
+
 	vec3 worldStart = mat3(modelViewInverse) * startPosition + modelViewInverse[3].xyz + cameraPosition;
 	vec3 direction  = mat3(modelViewInverse) * viewDirection;
 

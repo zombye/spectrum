@@ -62,7 +62,6 @@ vec3 diffractionSpikes(vec3 color) {
 		}
 	}
 	color /= totalWeight;
-	color *= APERTURE_BLADE_COUNT;
 
 	return color;
 }
@@ -86,7 +85,7 @@ void main() {
 	#endif
 
 	#ifdef DIFFRACTION_SPIKES
-	color = mix(color, diffractionSpikes(color), 0.01);
+	color = mix(color, diffractionSpikes(color), 0.05);
 	#endif
 
 	color = tonemap(color);

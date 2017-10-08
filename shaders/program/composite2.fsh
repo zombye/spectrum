@@ -82,6 +82,7 @@ float get3DNoise(vec3 pos) {
 
 #include "/lib/fragment/sky.fsh"
 
+#include "/lib/fragment/flatClouds.fsh"
 #include "/lib/fragment/volumetricClouds.fsh"
 
 //--//
@@ -186,32 +187,6 @@ float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDista
 	return max0(0.25 * log2(4.0 * projection[1].y * viewHeight * viewHeight * zDistance * dot(view, normalize(view + light)) * p * p / (REFLECTION_SAMPLES * alpha2 * NoH)));
 }
 
-vec3 calculateSharpReflections(mat3 position, vec3 normal, float reflectance, float skyLight) {
-	vec3 viewDir = normalize(position[1]);
-	float dither = bayer8(gl_FragCoord.st);
-
-	vec3 rayDir = reflect(viewDir, normal);
-
-	vec3 hitPos;
-	bool intersected = raytraceIntersection(position[0], rayDir, hitPos, dither, REFLECTION_QUALITY);
-
-	vec3 reflection;
-	if (intersected) reflection = texture2DLod(colortex2, hitPos.st, 0.0).rgb;
-	else if (skyLight > 0.1) reflection = sky_atmosphere(vec3(0.0), rayDir) * smoothstep(0.1, 0.9, skyLight);
-
-	#ifdef VOLUMETRICCLOUDS_REFLECTED
-	#ifdef VOLUMETRICCLOUDS
-	if (skyLight > 0.1) {
-		vec4 clouds = volumetricClouds_calculate(position[1], screenSpaceToViewSpace(hitPos, projectionInverse), rayDir, !intersected);
-		clouds = mix(vec4(0.0, 0.0, 0.0, 1.0), clouds, smoothstep(0.1, 0.9, skyLight));
-		reflection = reflection * clouds.a + clouds.rgb;
-	}
-	#endif
-	#endif
-
-	return reflection * f_dielectric(max0(dot(normal, -viewDir)), 1.0, f0ToIOR(reflectance));
-}
-
 vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float reflectance, float roughness, float skyLight) {
 	float dither = bayer8(gl_FragCoord.st);
 
@@ -232,15 +207,21 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 		vec3 reflectionSample = vec3(0.0);
 
 		if (intersected) reflectionSample = texture2DLod(colortex2, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
-		else if (skyLight > 0.1) reflectionSample = sky_atmosphere(vec3(0.0), rayDir) * smoothstep(0.1, 0.9, skyLight);
+		else if (skyLight > 0.1) {
+			reflectionSample = sky_atmosphere(vec3(0.0), rayDir);
+			#ifdef FLATCLOUDS
+			vec4 clouds = flatClouds_calculate(rayDir);
+			reflectionSample = reflectionSample * clouds.a + clouds.rgb;
+			#endif
+			reflectionSample *= smoothstep(0.1, 0.9, skyLight);
+		}
 
 		#ifdef VOLUMETRICCLOUDS_REFLECTED
-		#ifdef VOLUMETRICCLOUDS
 		if (skyLight > 0.1) {
 			vec4 clouds = volumetricClouds_calculate(position[1], screenSpaceToViewSpace(hitPos, projectionInverse), rayDir, !intersected);
+			clouds = mix(vec4(0.0, 0.0, 0.0, 1.0), clouds, smoothstep(0.1, 0.9, skyLight));
 			reflectionSample = reflectionSample * clouds.a + clouds.rgb;
 		}
-		#endif
 		#endif
 
 		reflection += reflectionSample * fresnel;
@@ -307,6 +288,10 @@ void main() {
 
 	if (mask.sky) {
 		composite = sky_render(composite, direction[0]);
+		#ifdef FLATCLOUDS
+		vec4 clouds = flatClouds_calculate(direction[0]);
+		composite = composite * clouds.a + clouds.rgb;
+		#endif
 	}
 	#ifdef MC_SPECULAR_MAP
 	else if (mat.reflectance > 0.0) {
@@ -319,10 +304,8 @@ void main() {
 	}
 	#endif
 
-	#ifdef VOLUMETRICCLOUDS
 	vec4 clouds = texture2D(colortex3, screenCoord);
 	composite = composite * clouds.a + clouds.rgb;
-	#endif
 
 	if (mask.water != (isEyeInWater == 1)) {
 		composite = water_calculateFog(composite, isEyeInWater == 1 ? distance(vec3(0.0), frontPosition[1]) : refractionDepth, frontSkylight);
@@ -331,7 +314,7 @@ void main() {
 	composite = mix(composite, tex5.rgb, tex5.a);
 
 	if (mask.water) {
-		vec3 specular = calculateSharpReflections(frontPosition, frontNormal, 0.02, frontSkylight);
+		vec3 specular = calculateReflections(frontPosition, direction[0], frontNormal, 0.02, 0.0, frontSkylight);
 		composite += specular;
 	}
 

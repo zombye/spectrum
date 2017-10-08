@@ -70,11 +70,9 @@ vec3 shadows(vec3 position) {
 float blockLight(float lightmap) {
 	return lightmap / (pow2(-4.0 * lightmap + 4.0) + 1.0);
 }
-#if DIRECTIONAL_SKY_DIFFUSE == OFF || PROGRAM == PROGRAM_WATER
 float skyLight(float lightmap, vec3 normal) {
 	return (dot(normal, upVector) * 0.2 + 0.8) * lightmap / (pow2(-4.0 * lightmap + 4.0) + 1.0);
 }
-#endif
 
 float handLight(mat3 position, vec3 normal) {
 	// TODO: Make this accurate to standard block lighting
@@ -104,7 +102,7 @@ float handLight(mat3 position, vec3 normal) {
 }
 
 vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, out vec3 sunVisibility) {
-	#if PROGRAM != PROGRAM_WATER && (defined CAUSTICS || defined RSM || DIRECTIONAL_SKY_DIFFUSE != OFF)
+	#if PROGRAM != PROGRAM_WATER && (CAUSTICS_SAMPLES > 0 || RSM_SAMPLES > 0)
 	vec4 filtered = bilateralResample(normal, position[1].z);
 	#endif
 
@@ -114,8 +112,14 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	shadowLight  = sunVisibility;
 	shadowLight *= lightmap.y * lightmap.y;
 	shadowLight *= mix(diffuse(normalize(position[1]), normal, shadowLightVector, mat.roughness), 1.0 / pi, mat.subsurface);
-	#if PROGRAM != PROGRAM_WATER && defined CAUSTICS
+	#if PROGRAM != PROGRAM_WATER && CAUSTICS_SAMPLES > 0
 	shadowLight *= filtered.a;
+	#endif
+
+	float
+	skyLight  = skyLight(lightmap.y, normal);
+	#if PROGRAM != PROGRAM_WATER && CAUSTICS_SAMPLES > 0
+	skyLight *= filtered.a * 0.4 + 0.6;
 	#endif
 
 	float
@@ -124,10 +128,8 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 
 	vec3
 	lighting  = shadowLightColor * shadowLight;
-	#if PROGRAM == PROGRAM_WATER || DIRECTIONAL_SKY_DIFFUSE == OFF
-	lighting += skyLightColor * skyLight(lightmap.y, normal);
-	#endif
-	#if PROGRAM != PROGRAM_WATER && (defined RSM || DIRECTIONAL_SKY_DIFFUSE != OFF)
+	lighting += skyLightColor * skyLight;
+	#if PROGRAM != PROGRAM_WATER && RSM_SAMPLES > 0
 	lighting += filtered.rgb;
 	#endif
 	lighting += blockLightColor * blockLight;

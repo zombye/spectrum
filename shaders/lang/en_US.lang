@@ -14,8 +14,9 @@ screen.atmospherics=Atmospherics
 option.PHYSICAL_ATMOSPHERE=Physically Based Atmosphere
 
 # Volumetric Clouds
-option.VOLUMETRICCLOUDS=Volumetric Clouds
 option.VOLUMETRICCLOUDS_QUALITY=Volumetric Clouds Quality
+value.VOLUMETRICCLOUDS_QUALITY.0=Off
+option.VOLUMETRICCLOUDS_SHADING_HQ=Volumetric Clouds HQ Shading
 
 # (Fake) Crepuscular rays
 option.FAKE_CREPUSCULAR_RAYS=Fake Crepuscular Rays
@@ -33,8 +34,8 @@ option.VOLUMETRIC_FOG=Volumetric Fog
 screen.lighting=Lighting
 
 # Caustics
-option.CAUSTICS=Water Caustics
 option.CAUSTICS_SAMPLES=Water Caustics Quality
+value.CAUSTICS_SAMPLES.0=Off
 option.CAUSTICS_DEFOCUS=Water Caustics Defocus
 option.CAUSTICS_DEFOCUS.comment=Essentially adjusts the "focus" of caustics. Higher values give blurrier caustics, which helps hide noise.
 
@@ -47,14 +48,10 @@ option.SHADOW_SPACE_QUANTIZATION=Shadow-space Quantization
 value.SHADOW_SPACE_QUANTIZATION.0=Off
 
 # Reflective Shadow Maps
-option.RSM=Bounced Sunlight
-option.RSM_RADIUS=Bounced Sunlight Range
 option.RSM_SAMPLES=Bounced Sunlight Quality
+value.RSM_SAMPLES.0=Off
+option.RSM_RADIUS=Bounced Sunlight Range
 option.RSM_BRIGHTNESS=Bounced Sunlight Brightness
-
-# Diffuse sky illumination
-option.DIRECTIONAL_SKY_DIFFUSE=Directional Sky Lighting
-option.DIRECTIONAL_SKY_DIFFUSE_SAMPLES=Directional Sky Lighting Quality
 
 ##--## Optics
 

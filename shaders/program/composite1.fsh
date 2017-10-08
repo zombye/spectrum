@@ -58,7 +58,6 @@ float get3DNoise(vec3 pos) {
 
 #include "/lib/fragment/masks.fsh"
 #include "/lib/fragment/materials.fsh"
-
 #include "/lib/fragment/raytracer.fsh"
 
 #include "/lib/fragment/volumetricClouds.fsh"
@@ -106,11 +105,7 @@ void main() {
 	position[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
 	position[1] = screenSpaceToViewSpace(position[0], projectionInverse);
 
-	#ifdef VOLUMETRICCLOUDS
 	gl_FragData[1] = volumetricClouds_calculate(vec3(0.0), position[1], normalize(position[1]), mask.sky);
-	#else
-	gl_FragData[1] = vec4(0.0, 0.0, 0.0, 1.0);
-	#endif
 
 	if (mask.sky) {
 		gl_FragData[0] = vec4(0.0);
