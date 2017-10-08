@@ -17,28 +17,24 @@ float water_calculateCaustics(vec3 pos, float lightmap) {
 
 	if (lightmap <= 0.0) return 1.0;
 
-	const float radius      = 0.3;
-	const float kernel      = 0.5 * (sqrt(CAUSTICS_SAMPLES) - 1.0);
-	const float sampleRange = radius / kernel;
-	const float distThresh  = kernel / (radius * CAUSTICS_DEFOCUS);
+	const float radius     = 0.3;
+	const float distThresh = (sqrt(CAUSTICS_SAMPLES) - 1.0) / (radius * CAUSTICS_DEFOCUS);
 
-	vec2  noise       = texture2D(noisetex, gl_FragCoord.st / 64.0).rg - 0.5;
 	vec3  lightVector = mat3(modelViewInverse) * -shadowLightVector;
 	float surfDistUp  = water_causticsSurfDist(pos.y, lightmap);
+	float dither      = bayer8(gl_FragCoord.st) * 16.0;
 
 	vec3 flatRefractVec = refract(lightVector, vec3(0.0, 1.0, 0.0), 0.75);
 	vec3 surfPos        = pos - flatRefractVec * (surfDistUp / flatRefractVec.y);
 
 	float result = 0.0;
-	for (float i = -kernel; i <= kernel; i += 1.0) {
-		for (float j = -kernel; j <= kernel; j += 1.0) {
-			vec3 samplePos     = surfPos;
-			     samplePos.xz += (vec2(i, j) + noise) * sampleRange;
-			vec3 refractVec    = refract(lightVector, water_calculateNormal(samplePos), 0.75);
-			     samplePos     = refractVec * (surfDistUp / refractVec.y) + samplePos;
+	for (float i = 0.0; i < CAUSTICS_SAMPLES; i++) {
+		vec3 samplePos     = surfPos;
+		     samplePos.xz += spiralPoint(i * 16.0 + dither, CAUSTICS_SAMPLES * 16.0) * radius;
+		vec3 refractVec    = refract(lightVector, water_calculateNormal(samplePos), 0.75);
+		     samplePos     = refractVec * (surfDistUp / refractVec.y) + samplePos;
 
-			result += 1.0 - clamp01(distance(pos, samplePos) * distThresh);
-		}
+		result += 1.0 - clamp01(distance(pos, samplePos) * distThresh);
 	}
 	result /= CAUSTICS_DEFOCUS * CAUSTICS_DEFOCUS;
 
