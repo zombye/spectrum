@@ -379,9 +379,11 @@ vec3 depthOfField() {
 
 	vec2 circleOfConfusion = aperture * focal * abs(depth - focus) / (depth * abs(focus - focal) * vec2(aspectRatio, 1.0));
 
+	float lod = log2(2.0 * viewHeight * circleOfConfusion.y / sqrt(dofOffsets.length()) + 1.0);
+
 	vec3 result = vec3(0.0);
 	for (int i = 0; i < dofOffsets.length(); i++) {
-		result += texture2DLod(colortex2, dofOffsets[i] * circleOfConfusion + screenCoord, 0).rgb;
+		result += texture2DLod(colortex2, dofOffsets[i] * circleOfConfusion + screenCoord, lod).rgb;
 	}
 	return result / dofOffsets.length();
 }

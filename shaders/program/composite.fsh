@@ -139,7 +139,7 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float skylight) {
 //--//
 
 void main() {
-	#if CAUSTICS_SAMPLES == 0 || RSM_SAMPLES == 0
+	#if CAUSTICS_SAMPLES == 0 && RSM_SAMPLES == 0
 	gl_FragData[0] = vec4(0.0, 0.0, 0.0, 1.0); return;
 	#endif
 

@@ -15,7 +15,8 @@ varying vec2 screenCoord;
 //----------------------------------------------------------------------------//
 
 void main() {
-	#ifdef GLARE
+	if (GLARE_AMOUNT == 0.0) discard; // can't throw floats at the preprocessor :(
+
 	vec2 px = 1.0 / vec2(viewWidth, viewHeight);
 
 	const float[5] weights = float[5](0.19947114, 0.29701803, 0.09175428, 0.01098007, 0.00050326);
@@ -31,7 +32,4 @@ void main() {
 /* DRAWBUFFERS:3 */
 
 	gl_FragData[0] = vec4(glare, 1.0);
-	#else
-	discard;
-	#endif
 }

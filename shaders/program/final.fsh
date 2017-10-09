@@ -24,8 +24,9 @@ varying vec2 screenCoord;
 #include "/lib/util/miscellaneous.glsl"
 #include "/lib/util/texture.glsl"
 
-#ifdef GLARE
 vec3 weighAndSumGlareTiles() {
+	if (GLARE_AMOUNT == 0.0) return vec3(0.0); // can't throw floats at the preprocessor :(
+
 	vec2 px = 1.0 / vec2(viewWidth, viewHeight);
 
 	vec3
@@ -39,9 +40,7 @@ vec3 weighAndSumGlareTiles() {
 
 	return glare;
 }
-#endif
 
-#ifdef DIFFRACTION_SPIKES
 vec3 diffractionSpikes(vec3 color) {
 	const float spikeCount   = APERTURE_BLADE_COUNT;
 	const float spikeSamples = 32.0;
@@ -65,7 +64,6 @@ vec3 diffractionSpikes(vec3 color) {
 
 	return color;
 }
-#endif
 
 vec3 tonemap(vec3 color) {
 	const vec3 a = vec3(0.46, 0.46, 0.46);
@@ -80,12 +78,10 @@ vec3 tonemap(vec3 color) {
 void main() {
 	vec3 color = texture2D(colortex2, screenCoord).rgb;
 
-	#ifdef GLARE
-	color = mix(color, weighAndSumGlareTiles(), 0.1);
-	#endif
+	color = mix(color, weighAndSumGlareTiles(), GLARE_AMOUNT / (1.0 + GLARE_AMOUNT));
 
 	#ifdef DIFFRACTION_SPIKES
-	color = mix(color, diffractionSpikes(color), 0.05);
+	color = mix(color, diffractionSpikes(color), 0.2);
 	#endif
 
 	color = tonemap(color);

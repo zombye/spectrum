@@ -37,7 +37,8 @@ vec3 generateGlareTileHor(vec2 coord, const float lod) {
 }
 
 void main() {
-	#ifdef GLARE
+	if (GLARE_AMOUNT == 0.0) discard; // can't throw floats at the preprocessor :(
+
 	vec2 px = 1.0 / vec2(viewWidth, viewHeight);
 
 	vec3
@@ -51,7 +52,4 @@ void main() {
 /* DRAWBUFFERS:3 */
 
 	gl_FragData[0] = vec4(glare, 1.0);
-	#else
-	discard;
-	#endif
 }

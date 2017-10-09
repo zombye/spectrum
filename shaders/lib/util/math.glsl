@@ -1,3 +1,5 @@
+#define logb(x, base) (log2(x) / log2(base))
+
 float pow2(float x) { return x * x; }
 vec2  pow2(vec2  x) { return x * x; }
 vec3  pow2(vec3  x) { return x * x; }

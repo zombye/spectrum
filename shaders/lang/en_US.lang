@@ -63,4 +63,4 @@ option.APERTURE_BLADE_ROTATION=Aperture Blade Rotation
 
 option.DOF=Depth of Field
 option.DIFFRACTION_SPIKES=Diffraction Spikes
-option.GLARE=Glare
+option.GLARE_AMOUNT=Glare Amount
