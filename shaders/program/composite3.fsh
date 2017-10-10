@@ -11,6 +11,7 @@ uniform float frameTime;
 
 // Viewport
 uniform float aspectRatio;
+uniform float viewHeight;
 uniform float centerDepth;
 
 // Samplers
