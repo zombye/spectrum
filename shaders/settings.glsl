@@ -1,7 +1,3 @@
-#define OFF   0
-#define FAST  1
-#define FANCY 2
-
 //--// Miscellaneous
 
 #define COMPOSITE0_SCALE 0.5 // [0.5 1.0]
