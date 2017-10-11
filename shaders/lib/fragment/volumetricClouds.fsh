@@ -1,5 +1,5 @@
 #define VOLUMETRICCLOUDS_QUALITY 10 // [0 8 9 10 11 12 13 14 15 16 17 18 19 20]
-#define VOLUMETRICCLOUDS_SHADING_HQ // Significantly improves quality of volumetric clouds, but has a much higher performance cost.
+#define VOLUMETRICCLOUDS_SHADING_HQ // Significantly improves quality of volumetric clouds, but has a higher performance cost.
 #define VOLUMETRICCLOUDS_CQR // Significantly improves quality of distant clouds. Can be up to 5x slower!
 
 #ifdef VOLUMETRICCLOUDS_SHADING_HQ
@@ -132,6 +132,11 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 	vec4 clouds = vec4(vec3(0.0), 1.0);
 	for (int i = 0; i < samples; i++, position += increment) {
 		float od = volumetricClouds_density(position, true);
+
+		#ifdef VOLUMETRICCLOUDS_SHADING_HQ
+		if (od <= 0.0) continue; // This is a tad slower when HQ shading is disabled.
+		#endif
+
 		vec3 sampleLighting  = volumetricClouds_sunVisibility(position, sunDirection, od) * shadowLightColor * phase;
 		     sampleLighting += volumetricClouds_skyVisibility(position, od) * skyLightColor * 0.5;
 		od *= stepSize;
