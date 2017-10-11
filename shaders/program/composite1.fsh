@@ -40,13 +40,6 @@ varying vec2 screenCoord;
 #include "/lib/util/spaceConversion.glsl"
 #include "/lib/util/texture.glsl"
 
-float get3DNoise(vec3 pos) {
-	float flr = floor(pos.z);
-	vec2 coord = (pos.xy * 0.015625) + (flr * 0.265625); // 1/64 | 17/64
-	vec2 noise = texture2D(noisetex, coord).xy;
-	return mix(noise.x, noise.y, pos.z - flr);
-}
-
 #include "/lib/uniform/colors.glsl"
 #include "/lib/uniform/gbufferMatrices.glsl"
 #include "/lib/uniform/shadowMatrices.glsl"
@@ -59,8 +52,6 @@ float get3DNoise(vec3 pos) {
 #include "/lib/fragment/masks.fsh"
 #include "/lib/fragment/materials.fsh"
 #include "/lib/fragment/raytracer.fsh"
-
-#include "/lib/fragment/volumetricClouds.fsh"
 
 vec4 bilateralResample(vec3 normal, float depth) {
 	const float range = 3.0;
@@ -101,33 +92,24 @@ void main() {
 
 	masks mask = calculateMasks(diff_id.a * 255.0);
 
-	mat3 position;
-	position[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
-	position[1] = screenSpaceToViewSpace(position[0], projectionInverse);
+	if (mask.sky) discard;
 
-	gl_FragData[1] = volumetricClouds_calculate(vec3(0.0), position[1], normalize(position[1]), mask.sky);
-
-	if (mask.sky) {
-		gl_FragData[0] = vec4(0.0);
-		gl_FragData[2] = vec4(0.0);
-		return;
-	}
-
-	position[2] = viewSpaceToSceneSpace(position[1], modelViewInverse);
+	mat3 backPosition;
+	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
+	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
+	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], modelViewInverse);
 
 	vec3 tex1 = textureRaw(colortex1, screenCoord).rgb;
 
-	material mat = calculateMaterial(diff_id.rgb, unpack2x8(tex1.b), mask);
+	material mat  = calculateMaterial(diff_id.rgb, unpack2x8(tex1.b), mask);
 	vec3 normal   = unpackNormal(tex1.rg);
 	vec2 lightmap = unpack2x8(tex0.b);
 
-	//--// Main calculations
-
 	vec3
-	composite  = calculateLighting(position, normal, lightmap, mat, gl_FragData[2].rgb);
+	composite  = calculateLighting(backPosition, normal, lightmap, mat, gl_FragData[1].rgb);
 	composite *= mat.albedo;
 
-/* DRAWBUFFERS:234 */
+/* DRAWBUFFERS:24 */
 
 	gl_FragData[0] = vec4(composite, 1.0);
 }

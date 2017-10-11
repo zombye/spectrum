@@ -126,7 +126,7 @@ vec3 volumetricFog(vec3 background, mat3 position, vec2 lightmap) {
 		transmittance *= exp(-transmittanceCoefficients * opticalDepth);
 	}
 
-	return background * transmittance + scattering * 10.0;
+	return background * transmittance + scattering;
 }
 
 #else
@@ -143,8 +143,7 @@ vec3 fakeCrepuscularRays(vec3 viewVector) {
 
 	float result = 0.0;
 	for (float i = 0.0; i < steps && floor(sampleCoord) == vec2(0.0); i++, sampleCoord += increment) {
-		float fakeCloudShadow = texture2D(colortex3, sampleCoord).a;
-		result += step(1.0, texture2D(depthtex1, sampleCoord).r) * fakeCloudShadow;
+		result += step(1.0, texture2D(depthtex1, sampleCoord).r);
 	}
 
 	float directionalMult = max0(dot(viewVector, shadowLightVector)); directionalMult *= directionalMult;
@@ -161,7 +160,7 @@ vec3 fog(vec3 background, vec3 position, vec2 lightmap) {
 	float phase = sky_rayleighPhase(dot(viewVector, shadowLightVector));
 
 	vec3
-	lighting = (shadowLightColor + skyLightColor) * max(eyeBrightness.y / 240.0, lightmap.y) * 10.0;
+	lighting = (shadowLightColor + skyLightColor) * max(eyeBrightness.y / 240.0, lightmap.y);
 
 	background *= exp(-transmittanceCoefficients[0] * opticalDepth);
 	background += lighting * scatteringCoefficients[0] * phase * transmittedScatteringIntegral(opticalDepth, transmittanceCoefficients[0]);
@@ -195,7 +194,7 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 	float alpha2 = roughness * roughness;
 
 	vec3 reflection = vec3(0.0);
-	float i = 0.0; /*for (float i = 0.0; i < REFLECTION_SAMPLES; i++) {*/
+	float i = 0.0; //for (float i = 0.0; i < REFLECTION_SAMPLES; i++) {
 		vec3 facetNormal = is_GGX(normal, hash42(vec2(i, dither)), alpha2);
 		if (dot(viewDirection, facetNormal) > 0.0) facetNormal = -facetNormal;
 		vec3 rayDir = reflect(viewDirection, facetNormal);
@@ -227,8 +226,7 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 		reflectionSample *= f_dielectric(max0(dot(facetNormal, -viewDirection)), 1.0, ior);
 
 		reflection += reflectionSample;
-	//}
-	//reflection /= REFLECTION_SAMPLES;
+	//} reflection /= REFLECTION_SAMPLES;
 
 	return reflection;
 }
@@ -256,6 +254,7 @@ vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction,
 //--//
 
 void main() {
+	// TODO: Only do these first bits if and when needed
 	vec3 tex0 = textureRaw(colortex0, screenCoord).rgb;
 	vec3 tex1 = textureRaw(colortex1, screenCoord).rgb;
 	vec4 tex5 = texture2D(colortex5, screenCoord);
@@ -283,11 +282,14 @@ void main() {
 	vec2 lightmap = unpack2x8(tex0.b);
 	float frontSkylight = unpack2x8(tex6.b).g;
 
+	bool transparentMask = tex5.a > 0.0;
+
 	//--//
 
 	float refractionDepth;
 	vec3 composite = calculateRefractions(frontPosition[1], backPosition[1], direction[0], frontNormal, mask, refractionDepth);
 
+	// TODO: Need to figure out how to deal with refractions for the sky
 	if (mask.sky) {
 		composite = sky_render(composite, direction[0]);
 		#ifdef FLATCLOUDS
@@ -306,29 +308,30 @@ void main() {
 	}
 	#endif
 
-	vec4 clouds = texture2D(colortex3, screenCoord);
+	vec4 clouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction[0], mask.sky);
 	composite = composite * clouds.a + clouds.rgb;
 
-	if (mask.water != (isEyeInWater == 1)) {
-		composite = water_calculateFog(composite, isEyeInWater == 1 ? distance(vec3(0.0), frontPosition[1]) : refractionDepth, frontSkylight);
-	}
+	// TODO: Need regular fog here as well
+	if (mask.water && isEyeInWater != 1) composite = water_calculateFog(composite, refractionDepth, frontSkylight);
 
 	composite = mix(composite, tex5.rgb, tex5.a);
-
 	if (mask.water) {
 		vec3 specular = calculateReflections(frontPosition, direction[0], frontNormal, 0.02, 0.0, frontSkylight);
 		composite += specular;
 	}
 
-	#ifdef VOLUMETRIC_FOG
-	composite = volumetricFog(composite, frontPosition, lightmap);
-	#elif defined SIMPLE_FOG
-	composite = fog(composite, frontPosition[1], lightmap);
-	#elif defined FAKE_CREPUSCULAR_RAYS
-	composite += fakeCrepuscularRays(direction[0]);
-	#endif
+	if (isEyeInWater == 1) composite = water_calculateFog(composite, length(frontPosition[1]), mask.water ? frontSkylight : lightmap.y);
+	else {
+		#ifdef VOLUMETRIC_FOG
+		composite = volumetricFog(composite, frontPosition, lightmap);
+		#elif defined SIMPLE_FOG
+		composite = fog(composite, frontPosition[1], lightmap);
+		#elif defined FAKE_CREPUSCULAR_RAYS
+		composite += fakeCrepuscularRays(direction[0]);
+		#endif
+	}
 
-	// Apply exposure - it needs to be done here for the sun to work properly.
+	// Exposure - it needs to be done here for the sun to look right
 	float prevLuminance = texture2D(colortex7, screenCoord).r;
 	if (prevLuminance == 0.0) prevLuminance = 0.35;
 	composite *= 0.35 / prevLuminance;

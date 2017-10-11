@@ -145,22 +145,20 @@ void main() {
 
 	vec3 tex0 = textureRaw(colortex0, screenCoord).rgb;
 
-	float id = round(unpack2x8(tex0.g).y * 255.0);
+	if (round(unpack2x8(tex0.g).y * 255.0) == 0.0 || floor(screenCoord) != vec2(0.0)) { gl_FragData[0] = vec4(0.0, 0.0, 0.0, 1.0); return; }
 
-	if (id == 0.0 || floor(screenCoord) != vec2(0.0)) { gl_FragData[0] = vec4(0.0, 0.0, 0.0, 1.0); return; }
-
-	mat3 position;
-	position[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
-	position[1] = screenSpaceToViewSpace(position[0], projectionInverse);
-	position[2] = viewSpaceToSceneSpace(position[1], modelViewInverse);
+	mat3 backPosition;
+	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
+	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
+	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], modelViewInverse);
 
 	vec3  normal   = unpackNormal(textureRaw(colortex1, screenCoord).rg);
 	float skylight = unpack2x8(tex0.b).y;
 
 	//--//
 
-	vec3 rsm = calculateReflectiveShadowMaps(position[2], normal, skylight) * shadowLightColor;
-	float caustics = calculateWaterCaustics(position[2] + cameraPosition, skylight);
+	vec3 rsm = calculateReflectiveShadowMaps(backPosition[2], normal, skylight) * shadowLightColor;
+	float caustics = calculateWaterCaustics(backPosition[2] + cameraPosition, skylight);
 
 /* DRAWBUFFERS:3 */
 
