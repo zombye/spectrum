@@ -2,6 +2,7 @@
 
 #define REFLECTION_SAMPLES 1 // [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64]
 #define REFLECTION_QUALITY 8.0
+#define REFLECTION_REFINEMENTS 4 // The number needed depends on your resolution and reflection quality setting.
 #define VOLUMETRICCLOUDS_REFLECTED // Can have a very high performance impact!
 
 #define REFRACTIONS
@@ -194,20 +195,19 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 	float alpha2 = roughness * roughness;
 
 	vec3 reflection = vec3(0.0);
-	for (float i = 0.0; i < REFLECTION_SAMPLES; i++) {
+	float i = 0.0; /*for (float i = 0.0; i < REFLECTION_SAMPLES; i++) {*/
 		vec3 facetNormal = is_GGX(normal, hash42(vec2(i, dither)), alpha2);
 		if (dot(viewDirection, facetNormal) > 0.0) facetNormal = -facetNormal;
 		vec3 rayDir = reflect(viewDirection, facetNormal);
 
-		float fresnel = f_dielectric(max0(dot(facetNormal, -viewDirection)), 1.0, ior);
-
 		vec3 hitPos;
-		bool intersected = raytraceIntersection(position[0], rayDir, hitPos, dither, REFLECTION_QUALITY);
+		bool intersected = raytraceIntersection(position[0], rayDir, hitPos, dither, REFLECTION_QUALITY, REFLECTION_REFINEMENTS);
 
 		vec3 reflectionSample = vec3(0.0);
 
-		if (intersected) reflectionSample = texture2DLod(colortex2, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
-		else if (skyLight > 0.1) {
+		if (intersected) {
+			reflectionSample = texture2DLod(colortex2, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
+		} else if (skyLight > 0.1) {
 			reflectionSample = sky_atmosphere(vec3(0.0), rayDir);
 			#ifdef FLATCLOUDS
 			vec4 clouds = flatClouds_calculate(rayDir);
@@ -224,9 +224,11 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 		}
 		#endif
 
-		reflection += reflectionSample * fresnel;
-	}
-	reflection /= REFLECTION_SAMPLES;
+		reflectionSample *= f_dielectric(max0(dot(facetNormal, -viewDirection)), 1.0, ior);
+
+		reflection += reflectionSample;
+	//}
+	//reflection /= REFLECTION_SAMPLES;
 
 	return reflection;
 }
