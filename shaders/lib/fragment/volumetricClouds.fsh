@@ -73,27 +73,15 @@ float volumetricClouds_density(vec3 position, const bool hq) {
 	return density;
 }
 
-float volumetricClouds_sunVisibility(vec3 position, vec3 direction, float odStartPos) {
-	const float stepSize = VOLUMETRICCLOUDS_VISIBILITY_RANGE_DIRECT / (VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT + 0.5);
+float volumetricClouds_visibility(vec3 position, vec3 direction, float odAtStart, const float range, const float samples, const bool hq) {
+	const float stepSize = range / (samples + 0.5);
 
 	direction *= stepSize;
 	position += direction * 0.75;
 
-	float od = -0.5 * odStartPos;
-	for (float i = 0.0; i < VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT; i++, position += direction) {
-		od -= volumetricClouds_density(position, true);
-	}
-	return exp(volumetricClouds_coeffTransmit * stepSize * od);
-}
-float volumetricClouds_skyVisibility(vec3 position, float odStartPos) {
-	const float stepSize = VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT / (VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT + 0.5);
-
-	const vec3 increment = vec3(0.0, 1.0, 0.0) * stepSize;
-	position += increment * 0.75;
-
-	float od = -0.5 * odStartPos;
-	for (float i = 0.0; i < VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT; i++, position += increment) {
-		od -= volumetricClouds_density(position, true);
+	float od = -0.5 * odAtStart;
+	for (float i = 0.0; i < samples; i++, position += direction) {
+		od -= volumetricClouds_density(position, hq);
 	}
 	return exp(volumetricClouds_coeffTransmit * stepSize * od);
 }
@@ -127,7 +115,8 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 	vec3 increment = direction * stepSize;
 	vec3 position = increment * bayer8(gl_FragCoord.st) + (direction * distances.x + worldStart);
 
-	vec3 sunDirection = mat3(modelViewInverse) * shadowLightVector;
+	      vec3 sunDirection = mat3(modelViewInverse) * shadowLightVector;
+	const vec3 skyDirection = vec3(0.0, 1.0, 0.0);
 
 	vec4 clouds = vec4(vec3(0.0), 1.0);
 	for (int i = 0; i < samples; i++, position += increment) {
@@ -137,8 +126,8 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 		if (od <= 0.0) continue; // This is a tad slower when HQ shading is disabled.
 		#endif
 
-		vec3 sampleLighting  = volumetricClouds_sunVisibility(position, sunDirection, od) * shadowLightColor * phase;
-		     sampleLighting += volumetricClouds_skyVisibility(position, od) * skyLightColor * 0.5;
+		vec3 sampleLighting  = volumetricClouds_visibility(position, sunDirection, od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_DIRECT,   VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT,   true) * shadowLightColor * phase;
+		     sampleLighting += volumetricClouds_visibility(position, skyDirection, od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT, VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT, true) * skyLightColor * 0.5;
 		od *= stepSize;
 
 		clouds.rgb += sampleLighting * transmittedScatteringIntegral(od, volumetricClouds_coeffTransmit) * clouds.a;
