@@ -123,8 +123,12 @@ vec3 sky_atmosphere(vec3 background, vec3 viewVector) {
 }
 #else
 vec2 sky_opticalDepth(vec3 position, vec3 dir) {
-	return 1.0 / (max(dot(dir, upVector), 0.0001) * inverseScaleHeights);
+	vec2 sr = pow2(planetRadius + scaleHeights);
+	vec2 od = vec2(dot(position, dir));
+	     od = sqrt(od * od + sr - dot(position, position)) - od;
+	return od;
 
+	/* reference
 	const float steps = 16.0;
 
 	float stepSize  = dot(position, dir);
@@ -138,6 +142,7 @@ vec2 sky_opticalDepth(vec3 position, vec3 dir) {
 	}
 
 	return od * stepSize;
+	//*/
 }
 
 vec3 sky_atmosphere(vec3 bg, vec3 viewVector) {
