@@ -7,6 +7,11 @@
 
 #define REFRACTIONS
 
+#define FAKE_CREPUSCULAR_RAYS // Automatically disabled when volumetric fog is enabled.
+#define SIMPLE_FOG            // Automatically disabled when volumetric fog is enabled.
+
+#define VOLUMETRIC_FOG
+
 const bool colortex2MipmapEnabled = true;
 
 //----------------------------------------------------------------------------//

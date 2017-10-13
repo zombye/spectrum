@@ -11,11 +11,6 @@
 #define RSM_RADIUS     4.0 // [4.0 5.0 6.0 7.0 8.0]
 #define RSM_BRIGHTNESS 1.0 // [1.0 2.0 3.0 4.0 5.0]
 
-#define FAKE_CREPUSCULAR_RAYS
-#define SIMPLE_FOG
-
-//#define VOLUMETRIC_FOG
-
 //--// Optics
 
 #define APERTURE_RADIUS          0.05 // [0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09]
