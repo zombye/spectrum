@@ -81,9 +81,6 @@ float get3DNoise(vec3 pos) {
 
 #include "/lib/fragment/masks.fsh"
 #include "/lib/fragment/materials.fsh"
-
-#include "/lib/fragment/water/fog.fsh"
-
 //--//
 
 #include "/lib/fragment/sky.fsh"
@@ -178,6 +175,17 @@ vec3 fog(vec3 background, vec3 position, vec2 lightmap) {
 #endif
 
 #endif
+
+vec3 waterFog(vec3 background, float waterDepth, float skylight) {
+	const vec3 scatterCoeff = vec3(0.3e-2, 1.8e-2, 2.0e-2);
+	const vec3 absorbCoeff  = vec3(0.8, 0.45, 0.11);
+	const vec3 attenCoeff   = scatterCoeff + absorbCoeff;
+
+	vec3 transmittance = exp(-attenCoeff * waterDepth);
+	vec3 scattered  = skyLightColor * skylight * scatterCoeff * (1.0 - transmittance) / attenCoeff;
+
+	return background * transmittance + scattered;
+}
 
 //--//
 
@@ -316,8 +324,10 @@ void main() {
 	vec4 clouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction[0], mask.sky);
 	composite = composite * clouds.a + clouds.rgb;
 
-	// TODO: Need regular fog here as well
-	if (mask.water && isEyeInWater != 1) composite = water_calculateFog(composite, refractionDepth, frontSkylight);
+	if (mask.water && isEyeInWater != 1) composite = waterFog(composite, refractionDepth, frontSkylight);
+	else {
+		// TODO: Do regular fog here
+	}
 
 	composite = mix(composite, tex5.rgb, tex5.a);
 	if (mask.water) {
@@ -325,7 +335,7 @@ void main() {
 		composite += specular;
 	}
 
-	if (isEyeInWater == 1) composite = water_calculateFog(composite, length(frontPosition[1]), mask.water ? frontSkylight : lightmap.y);
+	if (isEyeInWater == 1) composite = waterFog(composite, length(frontPosition[1]), mask.water ? frontSkylight : lightmap.y);
 	else {
 		#ifdef VOLUMETRIC_FOG
 		composite = volumetricFog(composite, frontPosition, lightmap);
