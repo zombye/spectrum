@@ -176,10 +176,12 @@ vec3 fog(vec3 background, vec3 position, vec2 lightmap) {
 
 #endif
 
-vec3 waterFog(vec3 background, float waterDepth, float skylight) {
+vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skylight) {
 	const vec3 scatterCoeff = vec3(0.3e-2, 1.8e-2, 2.0e-2);
 	const vec3 absorbCoeff  = vec3(0.8, 0.45, 0.11);
 	const vec3 attenCoeff   = scatterCoeff + absorbCoeff;
+
+	float waterDepth = distance(startPosition, endPosition);
 
 	vec3 transmittance = exp(-attenCoeff * waterDepth);
 	vec3 scattered  = skyLightColor * skylight * scatterCoeff * (1.0 - transmittance) / attenCoeff;
@@ -246,20 +248,18 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 
 //--//
 
-vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction, vec3 normal, masks mask, out float refractionDepth) {
-	refractionDepth = distance(frontPosition, backPosition);
+vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction, vec3 normal, masks mask, out vec3 hitPosition) {
+	float refractionDepth = distance(frontPosition, backPosition);
 
 	#ifdef REFRACTIONS
 	if (refractionDepth == 0.0)
 	#endif
 		return texture2D(colortex2, screenCoord).rgb;
 
-	vec3 hitPosition = refract(direction, normal, 0.75) * clamp01(refractionDepth) + frontPosition;
+	hitPosition = refract(direction, normal, 0.75) * clamp01(refractionDepth) + frontPosition;
 	vec3 hitCoord = viewSpaceToScreenSpace(hitPosition, projection);
 	hitCoord.z = texture2D(depthtex1, hitCoord.st).r;
 	hitPosition = screenSpaceToViewSpace(hitCoord, projectionInverse);
-
-	refractionDepth = distance(frontPosition, hitPosition);
 
 	return texture2D(colortex2, hitCoord.xy).rgb;
 }
@@ -299,8 +299,8 @@ void main() {
 
 	//--//
 
-	float refractionDepth;
-	vec3 composite = calculateRefractions(frontPosition[1], backPosition[1], direction[0], frontNormal, mask, refractionDepth);
+	vec3 refractedPosition;
+	vec3 composite = calculateRefractions(frontPosition[1], backPosition[1], direction[0], frontNormal, mask, refractedPosition);
 
 	// TODO: Need to figure out how to deal with refractions for the sky
 	if (mask.sky) {
@@ -324,7 +324,7 @@ void main() {
 	vec4 clouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction[0], mask.sky);
 	composite = composite * clouds.a + clouds.rgb;
 
-	if (mask.water && isEyeInWater != 1) composite = waterFog(composite, refractionDepth, frontSkylight);
+	if (mask.water && isEyeInWater != 1) composite = waterFog(composite, frontPosition[1], refractedPosition, frontSkylight);
 	else {
 		// TODO: Do regular fog here
 	}
@@ -335,7 +335,7 @@ void main() {
 		composite += specular;
 	}
 
-	if (isEyeInWater == 1) composite = waterFog(composite, length(frontPosition[1]), mask.water ? frontSkylight : lightmap.y);
+	if (isEyeInWater == 1) composite = waterFog(composite, vec3(0.0), frontPosition[1], mask.water ? frontSkylight : lightmap.y);
 	else {
 		#ifdef VOLUMETRIC_FOG
 		composite = volumetricFog(composite, frontPosition, lightmap);
