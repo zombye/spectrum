@@ -1,6 +1,5 @@
-#define VOLUMETRICCLOUDS_QUALITY 10 // [0 8 9 10 11 12 13 14 15 16 17 18 19 20]
+#define VOLUMETRICCLOUDS_QUALITY 5 // [0 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20]
 #define VOLUMETRICCLOUDS_SHADING_HQ // Significantly improves quality of volumetric clouds, but has a higher performance cost.
-#define VOLUMETRICCLOUDS_CQR // Significantly improves quality of distant clouds. Can be up to 5x slower!
 
 #ifdef VOLUMETRICCLOUDS_SHADING_HQ
 #define VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT   1 // Using more than one sample has very little impact on actual quality unless range is incresed.
@@ -94,11 +93,7 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 	vec3 worldStart = mat3(modelViewInverse) * startPosition + modelViewInverse[3].xyz + cameraPosition;
 	vec3 direction  = mat3(modelViewInverse) * viewDirection;
 
-	#ifdef VOLUMETRICCLOUDS_CQR
-	float samples = floor(VOLUMETRICCLOUDS_QUALITY / max(abs(direction.y), 0.2));
-	#else
-	const float samples = VOLUMETRICCLOUDS_QUALITY;
-	#endif
+	float samples = floor(VOLUMETRICCLOUDS_QUALITY / max(abs(direction.y), 0.1));
 
 	// .x = start, .y = end
 	vec2 distances = vec2(VOLUMETRICCLOUDS_ALTITUDE_MIN, VOLUMETRICCLOUDS_ALTITUDE_MAX); // top of clouds is y by default
@@ -127,7 +122,7 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 		#endif
 
 		vec3 sampleLighting  = volumetricClouds_visibility(position, sunDirection, od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_DIRECT,   VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT,   true) * shadowLightColor * phase;
-		     sampleLighting += volumetricClouds_visibility(position, skyDirection, od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT, VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT, true) * skyLightColor * 0.5;
+		     sampleLighting += volumetricClouds_visibility(position, skyDirection, od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT, VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT, true) * skyLightColor    * 0.5;
 		od *= stepSize;
 
 		clouds.rgb += sampleLighting * transmittedScatteringIntegral(od, volumetricClouds_coeffTransmit) * clouds.a;
