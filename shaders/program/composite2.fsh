@@ -341,7 +341,7 @@ void main() {
 	}
 
 	composite = mix(composite, tex5.rgb, tex5.a);
-	if (mask.water) { composite = calculateReflections(frontPosition, direction[0], frontNormal, 0.02, 0.0, frontSkylight); }
+	if (mask.water) { composite += calculateReflections(frontPosition, direction[0], frontNormal, 0.02, 0.0, frontSkylight); }
 
 	if (isEyeInWater == 1) {
 		composite = waterFog(composite, vec3(0.0), frontPosition[1], mask.water ? frontSkylight : lightmap.y);
