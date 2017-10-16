@@ -1,8 +1,8 @@
 #include "/settings.glsl"
 
-#define REFLECTION_SAMPLES 1 // [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64]
+#define REFLECTION_SAMPLES 1 // [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16]
 #define REFLECTION_QUALITY 8.0
-#define REFLECTION_REFINEMENTS 4 // The number needed depends on your resolution and reflection quality setting.
+#define REFLECTION_REFINEMENTS 4 // The max number needed depends on your resolution and reflection quality setting.
 #define VOLUMETRICCLOUDS_REFLECTED // Can have a very high performance impact!
 
 #define REFRACTIONS
@@ -92,22 +92,24 @@ float get3DNoise(vec3 pos) {
 
 #ifdef VOLUMETRIC_FOG
 
-vec3 volumetricFog(vec3 background, mat3 position, vec2 lightmap) {
+vec3 volumetricFog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
 	vec3 skylightBrightness = skyLightColor * max(eyeBrightness.y / 240.0, lightmap.y);
 
 	const float steps = 16.0;
 
-	vec3 phase = vec3(dot(normalize(position[1]), shadowLightVector));
+	vec3 direction = normalize(endPosition - startPosition);
+
+	vec3 phase = vec3(dot(direction, shadowLightVector));
 	phase = vec3(sky_rayleighPhase(phase.x), sky_miePhase(phase.x, 0.8), 0.5);
 
-	float stepSize = length(position[1]) / steps;
+	float stepSize = distance(startPosition, endPosition) / steps;
 
-	vec3 worldPos = modelViewInverse[3].xyz + cameraPosition;
-	vec3 worldIncrement = mat3(modelViewInverse) * normalize(position[1]) * stepSize;
-	vec3 shadowPos = mat3(projectionShadow) * (mat3(modelViewShadow) * modelViewInverse[3].xyz + modelViewShadow[3].xyz) + projectionShadow[3].xyz;
+	vec3 worldPos = mat3(modelViewInverse) * startPosition + modelViewInverse[3].xyz + cameraPosition;
+	vec3 worldIncrement = mat3(modelViewInverse) * direction * stepSize;
+	vec3 shadowPos = mat3(projectionShadow) * (mat3(modelViewShadow) * (worldPos - cameraPosition) + modelViewShadow[3].xyz) + projectionShadow[3].xyz;
 	vec3 shadowIncrement = mat3(projectionShadow) * mat3(modelViewShadow) * worldIncrement;
 
-	worldPos += worldIncrement * bayer8(gl_FragCoord.st);
+	worldPos  += worldIncrement * bayer8(gl_FragCoord.st);
 	shadowPos += shadowIncrement * bayer8(gl_FragCoord.st);
 
 	vec3 transmittance = vec3(1.0);
@@ -133,8 +135,30 @@ vec3 volumetricFog(vec3 background, mat3 position, vec2 lightmap) {
 
 #else
 
-#ifdef FAKE_CREPUSCULAR_RAYS
+vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
+	#ifndef SIMPLE_FOG
+	return background;
+	#endif
+
+	float opticalDepth = distance(startPosition, endPosition);
+	vec3 viewVector = (endPosition - startPosition) / opticalDepth;
+
+	float phase = sky_rayleighPhase(dot(viewVector, shadowLightVector));
+
+	vec3
+	lighting = (shadowLightColor + skyLightColor) * max(eyeBrightness.y / 240.0, lightmap.y);
+
+	background *= exp(-transmittanceCoefficients[0] * opticalDepth);
+	background += lighting * scatteringCoefficients[0] * phase * transmittedScatteringIntegral(opticalDepth, transmittanceCoefficients[0]);
+
+	return background;
+}
+
 vec3 fakeCrepuscularRays(vec3 viewVector) {
+	#ifndef FAKE_CREPUSCULAR_RAYS
+	return vec3(0.0);
+	#endif
+
 	const float steps = 6.0;
 
 	vec4 lightPosition = projection * vec4(shadowLightVector, 1.0);
@@ -152,27 +176,6 @@ vec3 fakeCrepuscularRays(vec3 viewVector) {
 
 	return result * directionalMult * 0.01 * shadowLightColor / steps;
 }
-#endif
-
-#ifdef SIMPLE_FOG
-vec3 fog(vec3 background, vec3 position, vec2 lightmap) {
-	float opticalDepth = length(position);
-	vec3 viewVector = position / opticalDepth;
-	
-	float phase = sky_rayleighPhase(dot(viewVector, shadowLightVector));
-
-	vec3
-	lighting = (shadowLightColor + skyLightColor) * max(eyeBrightness.y / 240.0, lightmap.y);
-
-	background *= exp(-transmittanceCoefficients[0] * opticalDepth);
-	background += lighting * scatteringCoefficients[0] * phase * transmittedScatteringIntegral(opticalDepth, transmittanceCoefficients[0]);
-	#ifdef FAKE_CREPUSCULAR_RAYS
-	background += fakeCrepuscularRays(viewVector);
-	#endif
-
-	return background;
-}
-#endif
 
 #endif
 
@@ -209,7 +212,7 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 	float alpha2 = roughness * roughness;
 
 	vec3 reflection = vec3(0.0);
-	float i = 0.0; //for (float i = 0.0; i < REFLECTION_SAMPLES; i++) {
+	for (float i = 0.0; i < REFLECTION_SAMPLES; i++) {
 		vec3 facetNormal = is_GGX(normal, hash42(vec2(i, dither)), alpha2);
 		if (dot(viewDirection, facetNormal) > 0.0) facetNormal = -facetNormal;
 		vec3 rayDir = reflect(viewDirection, facetNormal);
@@ -241,7 +244,7 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 		reflectionSample *= f_dielectric(max0(dot(facetNormal, -viewDirection)), 1.0, ior);
 
 		reflection += reflectionSample;
-	//} reflection /= REFLECTION_SAMPLES;
+	} reflection /= REFLECTION_SAMPLES;
 
 	return reflection;
 }
@@ -324,24 +327,29 @@ void main() {
 	vec4 clouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction[0], mask.sky);
 	composite = composite * clouds.a + clouds.rgb;
 
-	if (mask.water && isEyeInWater != 1) composite = waterFog(composite, frontPosition[1], refractedPosition, frontSkylight);
-	else {
-		// TODO: Do regular fog here
+	if (mask.water) {
+		if (isEyeInWater != 1) {
+			composite = waterFog(composite, frontPosition[1], refractedPosition, frontSkylight);
+		} else {
+			#ifdef VOLUMETRIC_FOG
+			composite = volumetricFog(composite, frontPosition[1], refractedPosition, lightmap);
+			#else
+			composite = fog(composite, frontPosition[1], refractedPosition, lightmap);
+			// TODO: Fake crepuscular rays here as well
+			#endif
+		}
 	}
 
 	composite = mix(composite, tex5.rgb, tex5.a);
-	if (mask.water) {
-		vec3 specular = calculateReflections(frontPosition, direction[0], frontNormal, 0.02, 0.0, frontSkylight);
-		composite += specular;
-	}
+	if (mask.water) { composite = calculateReflections(frontPosition, direction[0], frontNormal, 0.02, 0.0, frontSkylight); }
 
-	if (isEyeInWater == 1) composite = waterFog(composite, vec3(0.0), frontPosition[1], mask.water ? frontSkylight : lightmap.y);
-	else {
+	if (isEyeInWater == 1) {
+		composite = waterFog(composite, vec3(0.0), frontPosition[1], mask.water ? frontSkylight : lightmap.y);
+	} else {
 		#ifdef VOLUMETRIC_FOG
-		composite = volumetricFog(composite, frontPosition, lightmap);
-		#elif defined SIMPLE_FOG
-		composite = fog(composite, frontPosition[1], lightmap);
-		#elif defined FAKE_CREPUSCULAR_RAYS
+		composite = volumetricFog(composite, vec3(0.0), frontPosition[1], lightmap);
+		#else
+		composite  = fog(composite, vec3(0.0), frontPosition[1], lightmap);
 		composite += fakeCrepuscularRays(direction[0]);
 		#endif
 	}
