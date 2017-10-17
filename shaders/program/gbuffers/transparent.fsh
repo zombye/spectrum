@@ -140,8 +140,7 @@ void main() {
 
 	composite *= 0.35 / prevLuminance;
 
-/* DRAWBUFFERS:24 */
+/* DRAWBUFFERS:2 */
 
 	gl_FragData[0] = vec4(composite, base.a);
-	gl_FragData[1] = gl_FragData[0];
 }

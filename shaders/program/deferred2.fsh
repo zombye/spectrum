@@ -257,9 +257,11 @@ void main() {
 	if (mask.sky) {
 		composite = sky_render(composite, direction[0]);
 		#ifdef FLATCLOUDS
-		vec4 clouds = flatClouds_calculate(direction[0]);
-		composite = composite * clouds.a + clouds.rgb;
+		vec4 flatClouds = flatClouds_calculate(direction[0]);
+		composite = composite * flatClouds.a + flatClouds.rgb;
 		#endif
+		vec4 volumetricClouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction[0], mask.sky);
+		composite = composite * volumetricClouds.a + volumetricClouds.rgb;
 	}
 	/*
 	#ifdef MC_SPECULAR_MAP
@@ -272,9 +274,6 @@ void main() {
 		composite = blendMaterial(composite, specular, mat);
 	}
 	#endif
-
-	vec4 clouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction[0], mask.sky);
-	composite = composite * clouds.a + clouds.rgb;
 
 	if (mask.water) {
 		if (isEyeInWater != 1) {

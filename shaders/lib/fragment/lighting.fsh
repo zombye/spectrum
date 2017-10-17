@@ -87,7 +87,7 @@ float handLight(mat3 position, vec3 normal) {
 	vec2 dist = clamp01((vec2(heldBlockLightValue, heldBlockLightValue2) - vec2(length(lightVector[0]), length(lightVector[1]))) * 0.0625);
 	vec2 lm   = dist / (pow2(-4.0 * dist + 4.0) + 1.0);
 
-	#if PROGRAM != PROGRAM_WATER && defined HAND_LIGHT_SHADOWS
+	#ifdef HAND_LIGHT_SHADOWS
 	vec3 temp;
 	if (heldBlockLightValue  > 0) lm.x *= float(!raytraceIntersection(position[0], normalize(lightVector[0]), temp, bayer8(gl_FragCoord.st), 32.0));
 	if (heldBlockLightValue2 > 0) lm.y *= float(!raytraceIntersection(position[0], normalize(lightVector[1]), temp, bayer8(gl_FragCoord.st), 32.0));
@@ -102,10 +102,6 @@ float handLight(mat3 position, vec3 normal) {
 }
 
 vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, out vec3 sunVisibility) {
-	#if PROGRAM != PROGRAM_WATER && (CAUSTICS_SAMPLES > 0 || RSM_SAMPLES > 0)
-	vec4 filtered = bilateralResample(normal, position[1].z);
-	#endif
-
 	sunVisibility = shadows(position[2]);
 
 	vec3
@@ -119,17 +115,12 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	blockLight  = blockLight(lightmap.x);
 	blockLight += handLight(position, normal);
 
-	#if PROGRAM != PROGRAM_WATER && CAUSTICS_SAMPLES > 0
-	shadowLight *= filtered.a;
-	skyLight    *= filtered.a * 0.4 + 0.6;
-	#endif
-
 	vec3
 	lighting  = shadowLightColor * shadowLight;
 	lighting += skyLightColor * skyLight;
 	lighting += blockLightColor * blockLight;
 	#if PROGRAM != PROGRAM_WATER && RSM_SAMPLES > 0
-	lighting += filtered.rgb;
+	lighting += bilateralResample(normal, position[1].z).rgb;
 	#endif
 
 	return lighting;
