@@ -35,6 +35,14 @@
 #define PROGRAM_SHADOW             30
 #define PROGRAM_SHADOW_SOLID       31
 #define PROGRAM_SHADOW_CUTOUT      32
+#define PROGRAM_DEFERRED           33
+#define PROGRAM_DEFERRED1          34
+#define PROGRAM_DEFERRED2          35
+#define PROGRAM_DEFERRED3          36
+#define PROGRAM_DEFERRED4          37
+#define PROGRAM_DEFERRED5          38
+#define PROGRAM_DEFERRED6          39
+#define PROGRAM_DEFERRED7          40
 
 #define WORLD_NETHER    -1
 #define WORLD_OVERWORLD  0

@@ -62,7 +62,7 @@ float calculateWaterCaustics(vec3 position, float skylight) {
 	const float radius     = 0.3;
 	const float distThresh = (sqrt(CAUSTICS_SAMPLES) - 1.0) / (radius * CAUSTICS_DEFOCUS);
 
-	vec3  lightVector = mat3(modelViewInverse) * -shadowLightVector;
+	vec3  lightVector = mat3(gbufferModelViewInverse) * -shadowLightVector;
 	float surfDistUp  = position.y - 62.9;
 	float dither      = bayer8(gl_FragCoord.st) * 16.0;
 
@@ -98,7 +98,7 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float skylight) {
 
 	vec3  shadowPosition     = mat3(modelViewShadow) * position + modelViewShadow[3].xyz;
 	vec3  shadowClipPosition = projectionScale * shadowPosition + projectionShadow[3].xyz;
-	vec3  shadowNormal       = mat3(modelViewShadow) * mat3(modelViewInverse) * -normal;
+	vec3  shadowNormal       = mat3(modelViewShadow) * mat3(gbufferModelViewInverse) * -normal;
 	float dither             = bayer16(gl_FragCoord.st) * 256.0;
 
 	vec3 rsm = vec3(0.0);
@@ -149,7 +149,7 @@ void main() {
 	mat3 backPosition;
 	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
 	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
-	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], modelViewInverse);
+	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], gbufferModelViewInverse);
 
 	vec3  normal   = unpackNormal(textureRaw(colortex1, screenCoord).rg);
 	float skylight = unpack2x8(tex0.b).y;

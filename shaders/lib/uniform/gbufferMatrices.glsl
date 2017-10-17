@@ -1,14 +1,13 @@
-flat varying mat4 modelView, projection;
-flat varying mat4 modelViewInverse, projectionInverse;
+uniform mat4 gbufferModelView, gbufferModelViewInverse;
+
+flat varying mat4 projection;
+flat varying mat4 projectionInverse;
 
 #if STAGE == STAGE_VERTEX
-uniform mat4 gbufferModelView, gbufferProjection;
-uniform mat4 gbufferModelViewInverse, gbufferProjectionInverse;
+uniform mat4 gbufferProjection, gbufferProjectionInverse;
 
 void calculateGbufferMatrices() {
-	modelView = gbufferModelView;
 	projection = gbufferProjection;
-	modelViewInverse = gbufferModelViewInverse;
 	projectionInverse = gbufferProjectionInverse;
 
 	// TODO: Correct underwater FOV

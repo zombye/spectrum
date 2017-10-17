@@ -1,4 +1,6 @@
 /*
+const int noiseTextureResolution = 64; // for some reason this has to be set for the custom noise texture to work.
+
 const float sunPathRotation = -40.0;
 
 const float centerDepthHalflife = 2.0;

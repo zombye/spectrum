@@ -1,10 +1,5 @@
 #include "/settings.glsl"
 
-#define REFLECTION_SAMPLES 1 // [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16]
-#define REFLECTION_QUALITY 8.0
-#define REFLECTION_REFINEMENTS 4 // The max number needed depends on your resolution and reflection quality setting.
-#define VOLUMETRICCLOUDS_REFLECTED // Can have a very high performance impact!
-
 #define REFRACTIONS
 
 #define FAKE_CREPUSCULAR_RAYS // Automatically disabled when volumetric fog is enabled.
@@ -104,8 +99,8 @@ vec3 volumetricFog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 l
 
 	float stepSize = distance(startPosition, endPosition) / steps;
 
-	vec3 worldPos = mat3(modelViewInverse) * startPosition + modelViewInverse[3].xyz + cameraPosition;
-	vec3 worldIncrement = mat3(modelViewInverse) * direction * stepSize;
+	vec3 worldPos = mat3(gbufferModelViewInverse) * startPosition + gbufferModelViewInverse[3].xyz + cameraPosition;
+	vec3 worldIncrement = mat3(gbufferModelViewInverse) * direction * stepSize;
 	vec3 shadowPos = mat3(projectionShadow) * (mat3(modelViewShadow) * (worldPos - cameraPosition) + modelViewShadow[3].xyz) + projectionShadow[3].xyz;
 	vec3 shadowIncrement = mat3(projectionShadow) * mat3(modelViewShadow) * worldIncrement;
 
@@ -198,60 +193,13 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 
 #include "/lib/fragment/raytracer.fsh"
 
-float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDistance, float alpha2) {
-	float NoH = dot(normal, normalize(view + light));
-
-	float p = (NoH * alpha2 - NoH) * NoH + 1.0;
-	return max0(0.25 * log2(4.0 * projection[1].y * viewHeight * viewHeight * zDistance * dot(view, normalize(view + light)) * p * p / (REFLECTION_SAMPLES * alpha2 * NoH)));
-}
-
-vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float reflectance, float roughness, float skyLight) {
-	float dither = bayer8(gl_FragCoord.st);
-
-	float ior    = f0ToIOR(reflectance);
-	float alpha2 = roughness * roughness;
-
-	vec3 reflection = vec3(0.0);
-	for (float i = 0.0; i < REFLECTION_SAMPLES; i++) {
-		vec3 facetNormal = is_GGX(normal, hash42(vec2(i, dither)), alpha2);
-		if (dot(viewDirection, facetNormal) > 0.0) facetNormal = -facetNormal;
-		vec3 rayDir = reflect(viewDirection, facetNormal);
-
-		vec3 hitPos;
-		bool intersected = raytraceIntersection(position[0], rayDir, hitPos, dither, REFLECTION_QUALITY, REFLECTION_REFINEMENTS);
-
-		vec3 reflectionSample = vec3(0.0);
-
-		if (intersected) {
-			reflectionSample = texture2DLod(colortex2, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
-		} else if (skyLight > 0.1) {
-			reflectionSample = sky_atmosphere(vec3(0.0), rayDir);
-			#ifdef FLATCLOUDS
-			vec4 clouds = flatClouds_calculate(rayDir);
-			reflectionSample = reflectionSample * clouds.a + clouds.rgb;
-			#endif
-			reflectionSample *= smoothstep(0.1, 0.9, skyLight);
-		}
-
-		#ifdef VOLUMETRICCLOUDS_REFLECTED
-		if (skyLight > 0.1) {
-			vec4 clouds = volumetricClouds_calculate(position[1], screenSpaceToViewSpace(hitPos, projectionInverse), rayDir, !intersected);
-			clouds = mix(vec4(0.0, 0.0, 0.0, 1.0), clouds, smoothstep(0.1, 0.9, skyLight));
-			reflectionSample = reflectionSample * clouds.a + clouds.rgb;
-		}
-		#endif
-
-		reflectionSample *= f_dielectric(max0(dot(facetNormal, -viewDirection)), 1.0, ior);
-
-		reflection += reflectionSample;
-	} reflection /= REFLECTION_SAMPLES;
-
-	return reflection;
-}
+#include "/lib/fragment/reflections.fsh"
 
 //--//
 
 vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction, vec3 normal, masks mask, out vec3 hitPosition) {
+	return texture2D(colortex2, screenCoord).rgb;
+
 	float refractionDepth = distance(frontPosition, backPosition);
 
 	#ifdef REFRACTIONS
@@ -284,14 +232,14 @@ void main() {
 	mat3 frontPosition;
 	frontPosition[0] = vec3(screenCoord, texture2D(depthtex0, screenCoord).r);
 	frontPosition[1] = screenSpaceToViewSpace(frontPosition[0], projectionInverse);
-	frontPosition[2] = viewSpaceToSceneSpace(frontPosition[1], modelViewInverse);
+	frontPosition[2] = viewSpaceToSceneSpace(frontPosition[1], gbufferModelViewInverse);
 	mat3 backPosition;
 	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
 	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
-	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], modelViewInverse);
+	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], gbufferModelViewInverse);
 	mat2x3 direction;
 	direction[0] = normalize(frontPosition[1]);
-	direction[1] = mat3(modelViewInverse) * direction[0];
+	direction[1] = mat3(gbufferModelViewInverse) * direction[0];
 
 	vec3 frontNormal = unpackNormal(tex6.rg);
 	vec3 backNormal  = unpackNormal(tex1.rg);
@@ -313,6 +261,7 @@ void main() {
 		composite = composite * clouds.a + clouds.rgb;
 		#endif
 	}
+	/*
 	#ifdef MC_SPECULAR_MAP
 	else if (mat.reflectance > 0.0) {
 		vec3 specular = calculateReflections(backPosition, direction[0], backNormal, mat.reflectance, mat.roughness, lightmap.y);
@@ -353,13 +302,15 @@ void main() {
 		composite += fakeCrepuscularRays(direction[0]);
 		#endif
 	}
+	*/
 
 	// Exposure - it needs to be done here for the sun to look right
 	float prevLuminance = texture2D(colortex7, screenCoord).r;
 	if (prevLuminance == 0.0) prevLuminance = 0.35;
 	composite *= 0.35 / prevLuminance;
 
-/* DRAWBUFFERS:2 */
+/* DRAWBUFFERS:24 */
 
 	gl_FragData[0] = vec4(composite, 1.0);
+	gl_FragData[1] = gl_FragData[0];
 }

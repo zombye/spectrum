@@ -42,7 +42,7 @@ varying mat3 position;
 mat3 calculateTBN() {
 	vec3 tangent = normalize(at_tangent.xyz / at_tangent.w);
 	vec3 normal  = normalize(gl_Normal);
-	return mat3(modelView) * mat3(tangent, cross(tangent, normal), normal);
+	return mat3(gbufferModelView) * mat3(tangent, cross(tangent, normal), normal);
 }
 
 void main() {
@@ -56,11 +56,11 @@ void main() {
 	lightmap = getEngineLightmap();
 	metadata = max(mc_Entity.xz, vec2(1.0, 0.0));
 
-	position[2] = mat3(modelViewInverse) * (mat3(gl_ModelViewMatrix) * gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz) + modelViewInverse[3].xyz;
+	position[2] = mat3(gbufferModelViewInverse) * (mat3(gl_ModelViewMatrix) * gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz) + gbufferModelViewInverse[3].xyz;
 	position[2] = calculateDisplacement(position[2]);
-	position[1] = mat3(modelView) * position[2] + modelView[3].xyz;
+	position[1] = mat3(gbufferModelView) * position[2] + gbufferModelView[3].xyz;
 	gl_Position = projectVertex(position[1]);
-	position[0] = gl_Position.xyz * 0.5 + 0.5;
+	position[0] = (gl_Position.xyz / gl_Position.w) * 0.5 + 0.5;
 
 	tbn = calculateTBN();
 }

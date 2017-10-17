@@ -97,7 +97,7 @@ void main() {
 	mat3 backPosition;
 	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
 	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
-	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], modelViewInverse);
+	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], gbufferModelViewInverse);
 
 	vec3 tex1 = textureRaw(colortex1, screenCoord).rgb;
 

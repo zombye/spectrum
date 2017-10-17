@@ -15,7 +15,7 @@ float flatClouds_phase(float cosTheta) {
 }
 
 vec4 flatClouds_calculate(vec3 viewDirection) {
-	vec3 direction = mat3(modelViewInverse) * viewDirection;
+	vec3 direction = mat3(gbufferModelViewInverse) * viewDirection;
 
 	float planeDistance = FLATCLOUDS_ALTITUDE / direction.y;
 	if (planeDistance < 0.0) return vec4(0.0, 0.0, 0.0, 1.0);
