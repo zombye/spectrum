@@ -13,8 +13,8 @@ masks calculateMasks(float id) {
 
 	mask.id = id;
 
-	mask.sky         = id == 0;
-	mask.opaque      = id != 0;
+	mask.sky    = id == 0;
+	mask.opaque = id != 0;
 
 	mask.plant = id == 18 || id == 31;
 	mask.water = id > 7.9 && id < 9.1;
@@ -26,8 +26,8 @@ masks calculateMasks(float backID, float frontID) {
 
 	mask.id = backID;
 
-	mask.sky         = backID == 0;
-	mask.opaque      = backID != 0;
+	mask.sky    = backID == 0;
+	mask.opaque = backID != 0;
 
 	mask.plant = backID == 18 || backID == 31;
 	mask.water = frontID > 7.9 && frontID < 9.1;

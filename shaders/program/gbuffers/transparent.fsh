@@ -59,7 +59,6 @@ varying mat3 position;
 #include "/lib/fragment/materials.fsh"
 
 #include "/lib/fragment/water/waves.fsh"
-#include "/lib/fragment/water/parallax.fsh"
 #include "/lib/fragment/water/normal.fsh"
 
 #include "/lib/fragment/specularBRDF.fsh"

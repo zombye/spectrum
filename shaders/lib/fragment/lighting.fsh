@@ -112,27 +112,25 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	shadowLight  = sunVisibility;
 	shadowLight *= lightmap.y * lightmap.y;
 	shadowLight *= mix(diffuse(normalize(position[1]), normal, shadowLightVector, mat.roughness), 1.0 / pi, mat.subsurface);
-	#if PROGRAM != PROGRAM_WATER && CAUSTICS_SAMPLES > 0
-	shadowLight *= filtered.a;
-	#endif
 
-	float
-	skyLight  = skyLight(lightmap.y, normal);
-	#if PROGRAM != PROGRAM_WATER && CAUSTICS_SAMPLES > 0
-	skyLight *= filtered.a * 0.4 + 0.6;
-	#endif
+	float skyLight = skyLight(lightmap.y, normal);
 
 	float
 	blockLight  = blockLight(lightmap.x);
 	blockLight += handLight(position, normal);
 
+	#if PROGRAM != PROGRAM_WATER && CAUSTICS_SAMPLES > 0
+	shadowLight *= filtered.a;
+	skyLight    *= filtered.a * 0.4 + 0.6;
+	#endif
+
 	vec3
 	lighting  = shadowLightColor * shadowLight;
 	lighting += skyLightColor * skyLight;
+	lighting += blockLightColor * blockLight;
 	#if PROGRAM != PROGRAM_WATER && RSM_SAMPLES > 0
 	lighting += filtered.rgb;
 	#endif
-	lighting += blockLightColor * blockLight;
 
 	return lighting;
 }

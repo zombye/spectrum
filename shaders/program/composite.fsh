@@ -51,7 +51,6 @@ vec2 spiralPoint(float angle, float scale) {
 //--//
 
 #include "/lib/fragment/water/waves.fsh"
-#include "/lib/fragment/water/parallax.fsh"
 #include "/lib/fragment/water/normal.fsh"
 
 float calculateWaterCaustics(vec3 position, float skylight) {
