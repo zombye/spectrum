@@ -194,7 +194,7 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 //--//
 
 vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction, vec3 normal, masks mask, out vec3 hitPosition) {
-	float refractionDepth = distance(frontPosition, backPosition) * 0.0;
+	float refractionDepth = distance(frontPosition, backPosition);
 
 	#ifdef REFRACTIONS
 	if (refractionDepth == 0.0)
