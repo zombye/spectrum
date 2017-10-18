@@ -3,4 +3,4 @@
 #define STAGE   STAGE_VERTEX
 #define PROGRAM PROGRAM_WATER
 #include "/lib/postHeader.glsl"
-#include "/program/gbuffers/transparent.vsh"
+#include "/program/forward.vsh"

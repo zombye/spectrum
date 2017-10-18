@@ -102,12 +102,19 @@ float handLight(mat3 position, vec3 normal) {
 }
 
 vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, out vec3 sunVisibility) {
+	#if PROGRAM != PROGRAM_WATER && (CAUSTICS_SAMPLES > 0 || RSM_SAMPLES > 0)
+	vec4 filtered = bilateralResample(normal, position[1].z);
+	#endif
+
 	sunVisibility = shadows(position[2]);
 
 	vec3
 	shadowLight  = sunVisibility;
 	shadowLight *= lightmap.y * lightmap.y;
 	shadowLight *= mix(diffuse(normalize(position[1]), normal, shadowLightVector, mat.roughness), 1.0 / pi, mat.subsurface);
+	#if PROGRAM != PROGRAM_WATER && CAUSTICS_SAMPLES > 0
+	shadowLight *= filtered.a;
+	#endif
 
 	float skyLight = skyLight(lightmap.y, normal);
 
@@ -120,7 +127,7 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	lighting += skyLightColor * skyLight;
 	lighting += blockLightColor * blockLight;
 	#if PROGRAM != PROGRAM_WATER && RSM_SAMPLES > 0
-	lighting += bilateralResample(normal, position[1].z).rgb;
+	lighting += filtered.rgb;
 	#endif
 
 	return lighting;

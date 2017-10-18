@@ -21,6 +21,8 @@ vec2 lightmap;
 
 varying vec3 normal;
 
+varying vec4 metadata;
+
 //----------------------------------------------------------------------------//
 
 #include "/lib/util/constants.glsl"
@@ -44,6 +46,7 @@ void main() {
 	baseUV   = getTextureCoordinates();
 	lightmap = getEngineLightmap();
 	normal   = mat3(modelViewShadow) * gl_Normal;
+	metadata = mc_Entity;
 
 	gl_Position.xyz = mat3(modelViewShadowInverse) * (mat3(gl_ModelViewMatrix) * gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz) + modelViewShadowInverse[3].xyz;
 	gl_Position.xyz = calculateDisplacement(gl_Position.xyz);

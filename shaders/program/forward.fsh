@@ -45,7 +45,8 @@ varying mat3 tbn;
 
 varying vec2 metadata;
 
-varying mat3 position;
+varying vec3 positionView;
+varying vec3 positionScene;
 
 //----------------------------------------------------------------------------//
 
@@ -59,11 +60,11 @@ varying mat3 position;
 #include "/lib/util/spaceConversion.glsl"
 #include "/lib/util/texture.glsl"
 
-float get3DNoise(vec3 pos) {
-	float flr = floor(pos.z);
-	vec2 coord = (pos.xy * 0.015625) + (flr * 0.265625); // 1/64 | 17/64
+float get3DNoise(vec3 position) {
+	float flr = floor(position.z);
+	vec2 coord = (position.xy * 0.015625) + (flr * 0.265625); // 1/64 | 17/64
 	vec2 noise = texture2D(noisetex, coord).xy;
-	return mix(noise.x, noise.y, pos.z - flr);
+	return mix(noise.x, noise.y, position.z - flr);
 }
 
 #include "/lib/uniform/vectors.glsl"
@@ -108,6 +109,8 @@ void main() {
 
 	masks mask = calculateMasks(metadata.x);
 
+	mat3 position = mat3(vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z), positionView, positionScene);
+
 	if (mask.water) {
 		base = vec4(0.02, 0.03, 0.06, 0.15);
 		norm.xyz = water_calculateNormal(position[2] + cameraPosition, tbn, normalize(position[1]));
@@ -120,15 +123,10 @@ void main() {
 	// kinda hacky
 	base.a = mix(base.a, 1.0, f_dielectric(max0(dot(normal, -normalize(position[1]))), 1.0, f0ToIOR(mat.reflectance)));
 
-	mat3 pos = position;
-	pos[0] = vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z);
-
 	vec3 sunVisibility;
-	vec3
-	composite  = calculateLighting(pos, normal, lightmap, mat, sunVisibility);
-	composite *= mat.albedo;
-	composite += calculateReflections(pos, normalize(position[1]), normal, mat.reflectance, mat.roughness, lightmap.y) / base.a;
-	composite += sunVisibility * shadowLightColor * specularBRDF(-normalize(position[1]), normal, mrp_sphere(reflect(normalize(position[1]), normal), shadowLightVector, sunAngularRadius), mat.reflectance, mat.roughness * mat.roughness) / base.a;
+	vec3 diffuse   = calculateLighting(position, normal, lightmap, mat, sunVisibility) * mat.albedo;
+	vec3 specular  = calculateReflections(position, normalize(position[1]), normal, mat.reflectance, mat.roughness, lightmap.y, sunVisibility) / base.a;
+	vec3 composite = blendMaterial(diffuse, specular, mat);
 
 /* DRAWBUFFERS:56 */
 

@@ -258,10 +258,7 @@ void main() {
 	}
 	#ifdef MC_SPECULAR_MAP
 	else if (mat.reflectance > 0.0) {
-		vec3 specular = calculateReflections(backPosition, direction[0], backNormal, mat.reflectance, mat.roughness, lightmap.y);
-
-		// Sun specular
-		specular += texture2D(colortex3, screenCoord).rgb * shadowLightColor * specularBRDF(-direction[0], backNormal, mrp_sphere(reflect(direction[0], backNormal), shadowLightVector, sunAngularRadius), mat.reflectance, mat.roughness * mat.roughness);
+		vec3 specular = calculateReflections(backPosition, direction[0], backNormal, mat.reflectance, mat.roughness, lightmap.y, texture2D(colortex3, screenCoord).rgb);
 
 		composite = blendMaterial(composite, specular, mat);
 	}

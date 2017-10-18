@@ -33,12 +33,8 @@ varying vec2 metadata;
 
 #include "/lib/vertex/displacement.vsh"
 #include "/lib/vertex/projectVertex.vsh"
+#include "/lib/vertex/tbn.vsh"
 #include "/lib/vertex/uv.vsh"
-mat3 calculateTBN() {
-	vec3 tangent = normalize(at_tangent.xyz / at_tangent.w);
-	vec3 normal  = normalize(gl_Normal);
-	return mat3(gbufferModelView) * mat3(tangent, cross(tangent, normal), normal);
-}
 
 void main() {
 	calculateGbufferMatrices();

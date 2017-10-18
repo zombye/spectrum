@@ -10,7 +10,9 @@ float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDista
 	return max0(0.25 * log2(4.0 * projection[1].y * viewHeight * viewHeight * zDistance * dot(view, normalize(view + light)) * p * p / (REFLECTION_SAMPLES * alpha2 * NoH)));
 }
 
-vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float reflectance, float roughness, float skyLight) {
+vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float reflectance, float roughness, float skyLight, vec3 sunVisibility) {
+	if (reflectance == 0.0) return vec3(0.0);
+
 	float dither = bayer8(gl_FragCoord.st);
 
 	float ior    = f0ToIOR(reflectance);
@@ -50,6 +52,9 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 
 		reflection += reflectionSample;
 	} reflection /= REFLECTION_SAMPLES;
+
+	vec3 slmrp = mrp_sphere(reflect(normalize(position[1]), normal), shadowLightVector, sunAngularRadius);
+	reflection += sunVisibility * shadowLightColor * specularBRDF(-normalize(position[1]), normal, slmrp, reflectance, alpha2);
 
 	return reflection;
 }
