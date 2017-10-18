@@ -340,7 +340,7 @@ void main() {
 		}
 	}
 
-	composite = mix(composite, tex5.rgb, tex5.a);
+	composite = composite * (1.0 - tex5.a) + tex5.rgb;
 	if (mask.water) { composite += calculateReflections(frontPosition, direction[0], frontNormal, 0.02, 0.0, frontSkylight); }
 
 	if (isEyeInWater == 1) {
