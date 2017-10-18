@@ -25,9 +25,8 @@ uniform sampler2D specular;
 #endif
 
 uniform sampler2D gaux1;
-uniform sampler2D gaux4;
+#define colortex2 gaux1
 
-uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
 uniform sampler2D depthtex2;
 
@@ -119,17 +118,10 @@ void main() {
 	vec3 normal = norm.xyz;
 
 	// kinda hacky
-	base.a = mix(base.a, 1.0, f_dielectric(dot(normal, -normalize(position[1])), 1.0, f0ToIOR(mat.reflectance)));
+	base.a = mix(base.a, 1.0, f_dielectric(max0(dot(normal, -normalize(position[1]))), 1.0, f0ToIOR(mat.reflectance)));
 
-	// Exposure - it needs to be done here for the sun to look right
-	float prevLuminance = texture2D(gaux4, vec2(0.5)).r;
-	if (prevLuminance == 0.0) prevLuminance = 0.35;
-
-	mat3 pos = mat3(
-		vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z),
-		position[1],
-		position[2]
-	);
+	mat3 pos = position;
+	pos[0] = vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z);
 
 	vec3 sunVisibility;
 	vec3
@@ -138,9 +130,8 @@ void main() {
 	composite += calculateReflections(pos, normalize(position[1]), normal, mat.reflectance, mat.roughness, lightmap.y) / base.a;
 	composite += sunVisibility * shadowLightColor * specularBRDF(-normalize(position[1]), normal, mrp_sphere(reflect(normalize(position[1]), normal), shadowLightVector, sunAngularRadius), mat.reflectance, mat.roughness * mat.roughness) / base.a;
 
-	composite *= 0.35 / prevLuminance;
-
-/* DRAWBUFFERS:2 */
+/* DRAWBUFFERS:56 */
 
 	gl_FragData[0] = vec4(composite, base.a);
+	gl_FragData[1] = vec4(packNormal(norm.xyz), pack2x8(vec2(metadata.x / 255.0, lightmap.y)), 1.0);
 }

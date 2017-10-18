@@ -11,8 +11,6 @@ float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDista
 }
 
 vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float reflectance, float roughness, float skyLight) {
-	if (reflectance <= 0.0) return vec3(0.0);
-
 	float dither = bayer8(gl_FragCoord.st);
 
 	float ior    = f0ToIOR(reflectance);
@@ -30,14 +28,7 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 		vec3 reflectionSample = vec3(0.0);
 
 		if (intersected) {
-			#if PROGRAM != PROGRAM_WATER
 			reflectionSample = texture2DLod(colortex2, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
-			#else
-			float prevLuminance = texture2D(gaux4, vec2(0.5)).r;
-			if (prevLuminance == 0.0) prevLuminance = 0.35;
-			reflectionSample  = texture2DLod(gaux1, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
-			reflectionSample *= prevLuminance / 0.35;
-			#endif
 		} else if (skyLight > 0.1) {
 			reflectionSample = sky_atmosphere(vec3(0.0), rayDir);
 			#ifdef FLATCLOUDS

@@ -1,6 +1,4 @@
 /*
-const int noiseTextureResolution = 64; // for some reason this has to be set for the custom noise texture to work.
-
 const float sunPathRotation = -40.0;
 
 const float centerDepthHalflife = 2.0;
@@ -15,7 +13,7 @@ const int colortex0Format = RGB16;          // Core MC: Albedo(1.5), Material ID
 const int colortex1Format = RGB16;          // Shaders: Normal(2), Reflectance(0.5), Smoothness(0.5)
 const int colortex2Format = R11F_G11F_B10F; // Composite
 const int colortex3Format = RGBA16F;        // Auxiliary
-const int colortex4Format = RGB10_A2;       // Auxiliary
+const int colortex4Format = RGBA16F;        // Auxiliary
 const int colortex5Format = RGBA32F;        // Transparent composite - temporarily RGBA32F
 const int colortex6Format = RGB16;          // Transparent normal, id, and skylight
 const int colortex7Format = R16F;           // Exposure

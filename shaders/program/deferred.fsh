@@ -157,9 +157,9 @@ void main() {
 	//--//
 
 	vec3 rsm = calculateReflectiveShadowMaps(backPosition[2], normal, skylight) * shadowLightColor;
-	float caustics = calculateWaterCaustics(backPosition[2] + cameraPosition, skylight);
+	//float caustics = calculateWaterCaustics(backPosition[2] + cameraPosition, skylight);
 
 /* DRAWBUFFERS:3 */
 
-	gl_FragData[0] = vec4(rsm, caustics);
+	gl_FragData[0] = vec4(rsm, 1.0);
 }

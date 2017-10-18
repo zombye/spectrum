@@ -109,7 +109,8 @@ void main() {
 	composite  = calculateLighting(backPosition, normal, lightmap, mat, gl_FragData[1].rgb);
 	composite *= mat.albedo;
 
-/* DRAWBUFFERS:24 */
+/* DRAWBUFFERS:234 */
 
 	gl_FragData[0] = vec4(composite, 1.0);
+	gl_FragData[2] = gl_FragData[0];
 }

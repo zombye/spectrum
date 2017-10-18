@@ -83,6 +83,10 @@ float get3DNoise(vec3 pos) {
 #include "/lib/fragment/flatClouds.fsh"
 #include "/lib/fragment/volumetricClouds.fsh"
 
+#include "/lib/fragment/raytracer.fsh"
+#include "/lib/fragment/specularBRDF.fsh"
+#include "/lib/fragment/reflections.fsh"
+
 //--//
 
 #ifdef VOLUMETRIC_FOG
@@ -189,18 +193,8 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 
 //--//
 
-#include "/lib/fragment/specularBRDF.fsh"
-
-#include "/lib/fragment/raytracer.fsh"
-
-#include "/lib/fragment/reflections.fsh"
-
-//--//
-
 vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction, vec3 normal, masks mask, out vec3 hitPosition) {
-	return texture2D(colortex2, screenCoord).rgb;
-
-	float refractionDepth = distance(frontPosition, backPosition);
+	float refractionDepth = distance(frontPosition, backPosition) * 0.0;
 
 	#ifdef REFRACTIONS
 	if (refractionDepth == 0.0)
@@ -257,23 +251,23 @@ void main() {
 	if (mask.sky) {
 		composite = sky_render(composite, direction[0]);
 		#ifdef FLATCLOUDS
-		vec4 flatClouds = flatClouds_calculate(direction[0]);
-		composite = composite * flatClouds.a + flatClouds.rgb;
+		vec4 clouds = flatClouds_calculate(direction[0]);
+		composite = composite * clouds.a + clouds.rgb;
 		#endif
-		vec4 volumetricClouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction[0], mask.sky);
-		composite = composite * volumetricClouds.a + volumetricClouds.rgb;
 	}
-	/*
 	#ifdef MC_SPECULAR_MAP
 	else if (mat.reflectance > 0.0) {
 		vec3 specular = calculateReflections(backPosition, direction[0], backNormal, mat.reflectance, mat.roughness, lightmap.y);
 
 		// Sun specular
-		specular += texture2D(colortex4, screenCoord).rgb * shadowLightColor * specularBRDF(-direction[0], backNormal, mrp_sphere(reflect(direction[0], backNormal), shadowLightVector, sunAngularRadius), mat.reflectance, mat.roughness * mat.roughness);
+		specular += texture2D(colortex3, screenCoord).rgb * shadowLightColor * specularBRDF(-direction[0], backNormal, mrp_sphere(reflect(direction[0], backNormal), shadowLightVector, sunAngularRadius), mat.reflectance, mat.roughness * mat.roughness);
 
 		composite = blendMaterial(composite, specular, mat);
 	}
 	#endif
+
+	vec4 clouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction[0], mask.sky);
+	composite = composite * clouds.a + clouds.rgb;
 
 	if (mask.water) {
 		if (isEyeInWater != 1) {
@@ -289,7 +283,6 @@ void main() {
 	}
 
 	composite = mix(composite, tex5.rgb, tex5.a);
-	if (mask.water) { composite += calculateReflections(frontPosition, direction[0], frontNormal, 0.02, 0.0, frontSkylight); }
 
 	if (isEyeInWater == 1) {
 		composite = waterFog(composite, vec3(0.0), frontPosition[1], mask.water ? frontSkylight : lightmap.y);
@@ -301,15 +294,13 @@ void main() {
 		composite += fakeCrepuscularRays(direction[0]);
 		#endif
 	}
-	*/
 
 	// Exposure - it needs to be done here for the sun to look right
 	float prevLuminance = texture2D(colortex7, screenCoord).r;
 	if (prevLuminance == 0.0) prevLuminance = 0.35;
 	composite *= 0.35 / prevLuminance;
 
-/* DRAWBUFFERS:24 */
+/* DRAWBUFFERS:2 */
 
 	gl_FragData[0] = vec4(composite, 1.0);
-	gl_FragData[1] = gl_FragData[0];
 }
