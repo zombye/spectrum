@@ -14,7 +14,6 @@ uniform vec3 cameraPosition;
 // Samplers
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
-uniform sampler2D colortex6;
 
 uniform sampler2D depthtex1;
 
@@ -33,6 +32,7 @@ varying vec2 screenCoord;
 #include "/lib/util/clamping.glsl"
 #include "/lib/util/constants.glsl"
 #include "/lib/util/dither.glsl"
+#include "/lib/util/math.glsl"
 #include "/lib/util/packing.glsl"
 #include "/lib/util/spaceConversion.glsl"
 #include "/lib/util/texture.glsl"
@@ -56,32 +56,35 @@ vec2 spiralPoint(float angle, float scale) {
 float calculateWaterCaustics(vec3 position, float skylight) {
 	#if CAUSTICS_SAMPLES > 0
 	vec2 shadowCoord = shadows_distortShadowSpace((mat3(projectionShadow) * (mat3(modelViewShadow) * (position - cameraPosition) + modelViewShadow[3].xyz) + projectionShadow[3].xyz).xy) * 0.5 + 0.5;
-	if (texture2D(shadowcolor1, shadowCoord).a < 0.5 || skylight == 0.0)
+	if (texture2D(shadowcolor1, shadowCoord).a < 0.5)
 	#endif
 		return 1.0;
 
-	const float radius     = 0.3;
-	const float distThresh = (sqrt(CAUSTICS_SAMPLES) - 1.0) / (radius * CAUSTICS_DEFOCUS);
+	const int   samples           = CAUSTICS_SAMPLES;
+	const float radius            = CAUSTICS_RADIUS;
+	const float defocus           = CAUSTICS_DEFOCUS;
+	const float distancePower     = CAUSTICS_DISTANCE_POWER;
+	const float distanceThreshold = (sqrt(samples) - 1.0) / (radius * defocus);
+	const float resultPower       = CAUSTICS_RESULT_POWER;
 
 	vec3  lightVector = mat3(gbufferModelViewInverse) * -shadowLightVector;
 	float surfDistUp  = position.y - 62.9;
-	float dither      = bayer8(gl_FragCoord.st) * 16.0;
+	float dither      = bayer4(gl_FragCoord.st) * 16.0;
 
 	vec3 flatRefractVec = refract(lightVector, vec3(0.0, 1.0, 0.0), 0.75);
 	vec3 surfPos        = position - flatRefractVec * (surfDistUp / flatRefractVec.y);
 
 	float result = 0.0;
-	for (float i = 0.0; i < CAUSTICS_SAMPLES; i++) {
+	for (float i = 0.0; i < samples; i++) {
 		vec3 samplePos     = surfPos;
-		     samplePos.xz += spiralPoint(i * 16.0 + dither, CAUSTICS_SAMPLES * 16.0) * radius;
+		     samplePos.xz += spiralPoint(i * 16.0 + dither, samples * 16.0) * radius;
 		vec3 refractVec    = refract(lightVector, water_calculateNormal(samplePos), 0.75);
 		     samplePos     = refractVec * (surfDistUp / refractVec.y) + samplePos;
 
-		result += 1.0 - clamp01(distance(position, samplePos) * distThresh);
+		result += pow(1.0 - clamp01(distance(position, samplePos) * distanceThreshold), distancePower);
 	}
-	result /= CAUSTICS_DEFOCUS * CAUSTICS_DEFOCUS;
 
-	return result;
+	return pow(result * distancePower / (defocus * defocus), resultPower);
 }
 
 vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float skylight) {

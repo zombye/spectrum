@@ -38,6 +38,7 @@ option.CAUSTICS_SAMPLES=Water Caustics Quality
 value.CAUSTICS_SAMPLES.0=Off
 option.CAUSTICS_DEFOCUS=Water Caustics Defocus
 option.CAUSTICS_DEFOCUS.comment=Essentially adjusts the "focus" of caustics. Higher values give blurrier caustics, which helps hide noise.
+option.CAUSTICS_DISTANCE_POWER.comment=1.0 is most realistic, but higher values tend to look better, especially with lower sample counts.
 
 # Reflections
 option.REFLECTION_SAMPLES=Reflection Samples
