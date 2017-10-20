@@ -198,7 +198,7 @@ vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction,
 	hitPosition = backPosition;
 
 	#ifdef REFRACTIONS
-	//if (refractionDepth == 0.0)
+	if (refractionDepth == 0.0)
 	#endif
 		return texture2D(colortex2, screenCoord).rgb;
 
