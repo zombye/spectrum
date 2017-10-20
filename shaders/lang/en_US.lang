@@ -18,16 +18,11 @@ option.VOLUMETRICCLOUDS_QUALITY=Volumetric Clouds Quality
 value.VOLUMETRICCLOUDS_QUALITY.0=Off
 option.VOLUMETRICCLOUDS_SHADING_HQ=Volumetric Clouds HQ Shading
 
-# (Fake) Crepuscular rays
-option.FAKE_CREPUSCULAR_RAYS=Fake Crepuscular Rays
-option.FAKE_CREPUSCULAR_RAYS.comment=Automatically disabled when volumetric fog is enabled, as volumetric fog includes "real" crepuscular rays.
-
-# Fog
-option.SIMPLE_FOG=Simple Fog
-option.SIMPLE_FOG.comment=Disabled when volumetric fog is enabled.
-
-# Volumetric fog
-option.VOLUMETRIC_FOG=Volumetric Fog
+# Crepuscular rays / Volumetrically lit fog
+option.CREPUSCULAR_RAYS=Crepuscular Rays
+value.CREPUSCULAR_RAYS.0=Off
+value.CREPUSCULAR_RAYS.1=Fast
+value.CREPUSCULAR_RAYS.2=Fancy
 
 ##--## Lighting
 

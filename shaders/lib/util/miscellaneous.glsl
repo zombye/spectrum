@@ -1,3 +1,5 @@
+#define transformPosition(x, matrix) (mat3(matrix) * x + matrix[3].xyz)
+
 void swap(inout float a, inout float b) { float c = a; a = b; b = c; }
 
 vec3 linearTosRGB(vec3 color) {
