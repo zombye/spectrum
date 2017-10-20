@@ -25,11 +25,10 @@ uniform vec3 cameraPosition;
 uniform sampler2D colortex0; // Albedo, ID, Lightmap
 uniform sampler2D colortex1; // Normal, Specular
 uniform sampler2D colortex2; // Composite
-uniform sampler2D colortex3; // Volumetric clouds
-uniform sampler2D colortex4; // Sunlight visibility
+uniform sampler2D colortex3; // Sunlight visibility
 uniform sampler2D colortex5; // Transparent composite
 uniform sampler2D colortex6; // Transparent normal, id, skylight
-uniform sampler2D colortex7;
+uniform sampler2D colortex7; // Average luminance
 
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
@@ -87,29 +86,31 @@ float get3DNoise(vec3 pos) {
 
 //--//
 
-#if CREPUSCULAR_RAYS == 2
-vec3 volumetricFog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
+vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
+	vec3 direction = endPosition - startPosition;
+	float stepSize = length(direction);
+	direction /= stepSize;
+
+	#if CREPUSCULAR_RAYS == 2
 	vec3 skylightBrightness = skyLightColor * max(eyeBrightness.y / 240.0, lightmap.y);
 
 	const float steps = 16.0;
 
-	vec3 direction = normalize(endPosition - startPosition);
+	stepSize /= steps;
 
 	vec3 phase = vec3(dot(direction, shadowLightVector));
 	phase = vec3(sky_rayleighPhase(phase.x), sky_miePhase(phase.x, 0.8), 0.5);
 
-	float stepSize = distance(startPosition, endPosition) / steps;
-
-	vec3 worldPos = mat3(gbufferModelViewInverse) * startPosition + gbufferModelViewInverse[3].xyz + cameraPosition;
+	vec3 worldPos = transformPosition(startPosition, gbufferModelViewInverse) + cameraPosition;
 	vec3 worldIncrement = mat3(gbufferModelViewInverse) * direction * stepSize;
-	vec3 shadowPos = mat3(projectionShadow) * (mat3(modelViewShadow) * (worldPos - cameraPosition) + modelViewShadow[3].xyz) + projectionShadow[3].xyz;
+	vec3 shadowPos = transformPosition(transformPosition(worldPos - cameraPosition, modelViewShadow), projectionShadow);
 	vec3 shadowIncrement = mat3(projectionShadow) * mat3(modelViewShadow) * worldIncrement;
 
-	worldPos  += worldIncrement * bayer8(gl_FragCoord.st);
+	worldPos  += worldIncrement  * bayer8(gl_FragCoord.st);
 	shadowPos += shadowIncrement * bayer8(gl_FragCoord.st);
 
 	vec3 transmittance = vec3(1.0);
-	vec3 scattering = vec3(0.0);
+	vec3 scattering    = vec3(0.0);
 
 	for (float i = 0.0; i < steps; i++, worldPos += worldIncrement, shadowPos += shadowIncrement) {
 		vec2 opticalDepth = exp(-inverseScaleHeights * worldPos.y) * stepSize;
@@ -125,23 +126,16 @@ vec3 volumetricFog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 l
 		scattering += (sunlight + skylight) * transmittance;
 		transmittance *= exp(-transmittanceCoefficients * opticalDepth);
 	}
+	#else
+	float phase = sky_rayleighPhase(dot(direction, shadowLightVector));
+
+	vec3 lighting = (shadowLightColor + skyLightColor) * max(eyeBrightness.y / 240.0, lightmap.y);
+
+	vec3 transmittance = exp(-transmittanceCoefficients[0] * stepSize);
+	vec3 scattering    = lighting * scatteringCoefficients[0] * phase * transmittedScatteringIntegral(stepSize, transmittanceCoefficients[0]);
+	#endif
 
 	return background * transmittance + scattering;
-}
-#else
-vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
-	float opticalDepth = distance(startPosition, endPosition);
-	vec3 viewVector = (endPosition - startPosition) / opticalDepth;
-
-	float phase = sky_rayleighPhase(dot(viewVector, shadowLightVector));
-
-	vec3
-	lighting = (shadowLightColor + skyLightColor) * max(eyeBrightness.y / 240.0, lightmap.y);
-
-	background *= exp(-transmittanceCoefficients[0] * opticalDepth);
-	background += lighting * scatteringCoefficients[0] * phase * transmittedScatteringIntegral(opticalDepth, transmittanceCoefficients[0]);
-
-	return background;
 }
 
 vec3 fakeCrepuscularRays(vec3 viewVector) {
@@ -166,7 +160,6 @@ vec3 fakeCrepuscularRays(vec3 viewVector) {
 
 	return result * directionalMult * 0.01 * shadowLightColor / steps;
 }
-#endif
 
 vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skylight) {
 	const vec3 scatterCoeff = vec3(0.3e-2, 1.8e-2, 2.0e-2) * 0.4;
@@ -285,12 +278,8 @@ void main() {
 		if (isEyeInWater != 1) {
 			composite = waterFog(composite, frontPosition[1], refractedPosition, frontSkylight);
 		} else {
-			#if CREPUSCULAR_RAYS == 2
-			composite = volumetricFog(composite, frontPosition[1], refractedPosition, lightmap);
-			#else
 			composite = fog(composite, frontPosition[1], refractedPosition, lightmap);
 			// TODO: Fake crepuscular rays here as well
-			#endif
 		}
 	}
 
@@ -299,12 +288,8 @@ void main() {
 	if (isEyeInWater == 1) {
 		composite = waterFog(composite, vec3(0.0), frontPosition[1], mask.water ? frontSkylight : lightmap.y);
 	} else {
-		#if CREPUSCULAR_RAYS == 2
-		composite = volumetricFog(composite, vec3(0.0), frontPosition[1], lightmap);
-		#else
 		composite  = fog(composite, vec3(0.0), frontPosition[1], lightmap);
 		composite += fakeCrepuscularRays(direction[0]);
-		#endif
 	}
 
 	// Exposure - it needs to be done here for the sun to look right

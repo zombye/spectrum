@@ -1,4 +1,4 @@
-#define transformPosition(x, matrix) (mat3(matrix) * x + matrix[3].xyz)
+#define transformPosition(x, matrix) (mat3(matrix) * (x) + matrix[3].xyz)
 
 void swap(inout float a, inout float b) { float c = a; a = b; b = c; }
 
