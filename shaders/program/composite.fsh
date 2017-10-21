@@ -89,6 +89,7 @@ float get3DNoise(vec3 pos) {
 vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
 	vec3 direction = endPosition - startPosition;
 	float stepSize = length(direction);
+	if (stepSize == 0.0) return background; // Prevent divide by 0
 	direction /= stepSize;
 
 	#if CREPUSCULAR_RAYS == 2
@@ -201,7 +202,7 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 
 //--//
 
-vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction, vec3 normal, masks mask, out vec3 hitPosition) {
+vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction, vec3 normal, masks mask, inout vec3 hitPosition) {
 	float refractionDepth = distance(frontPosition, backPosition);
 
 	#ifdef REFRACTIONS
