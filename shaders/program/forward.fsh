@@ -27,6 +27,7 @@ uniform sampler2D specular;
 #endif
 
 uniform sampler2D gaux3; // composite
+uniform sampler2D gaux4; // temporal
 
 uniform sampler2D depthtex1;
 uniform sampler2D depthtex2;
@@ -128,6 +129,10 @@ void main() {
 	vec3 diffuse   = calculateLighting(position, normal, lightmap, mat, sunVisibility) * mat.albedo;
 	vec3 specular  = calculateReflections(position, normalize(position[1]), normal, mat.reflectance, mat.roughness, lightmap.y, sunVisibility) / base.a;
 	vec3 composite = blendMaterial(diffuse, specular, mat);
+
+	float prevLuminance = texture2D(gaux4, position[0].st).r;
+	if (prevLuminance == 0.0) prevLuminance = 0.35;
+	composite *= 0.35 / prevLuminance;
 
 /* DRAWBUFFERS:45 */
 

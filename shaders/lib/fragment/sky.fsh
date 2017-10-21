@@ -49,15 +49,31 @@ float sky_miePhase(float cosTheta, float g) {
 }
 
 #ifdef PHYSICAL_ATMOSPHERE
+vec2 sky_opticalDepth(vec3 position, vec3 dir, const float steps) {
+	float stepSize  = dot(position, dir);
+	      stepSize  = sqrt((stepSize * stepSize) + atmosphereRadiusSquared - dot(position, position)) - stepSize;
+	      stepSize /= steps;
+	vec3  increment = dir * stepSize;
+	position += increment * 0.5;
+
+	vec2 od = vec2(0.0);
+	for (float i = 0.0; i < steps; i++, position += increment) {
+		od += exp(length(position) * -inverseScaleHeights + scaledPlanetRadius);
+	}
+
+	return od * stepSize;
+}
+
 vec3 sky_atmosphere(vec3 background, vec3 viewVector) {
 	const float iSteps = 50.0;
 	const float jSteps = 3.0;
-	
+
 	vec3 viewPosition = upVector * (planetRadius + cameraPosition.y - 63.0);
 
 	float iStepSize  = dot(viewPosition, viewVector);
 	      iStepSize  = sqrt((iStepSize * iStepSize) + atmosphereRadiusSquared - dot(viewPosition, viewPosition)) - iStepSize;
 	      iStepSize /= iSteps;
+	      iStepSize *= pow(0.01 * min(dot(viewVector, upVector), 0.0) + 1.0, 700.0); // stop before getting to regions that would have little to no impact on the result
 	vec3  iIncrement = viewVector * iStepSize;
 	vec3  iPosition  = iIncrement * bayer8(gl_FragCoord.st) + viewPosition;
 
@@ -80,37 +96,8 @@ vec3 sky_atmosphere(vec3 background, vec3 viewVector) {
 		 	scatteringCoefficients[1] * transmittedScatteringIntegral(odIStep.y, transmittanceCoefficients[1])
 		);
 
-		{ // Sun
-			float jStepSize  = dot(iPosition, sunVector);
-			      jStepSize  = sqrt((jStepSize * jStepSize) + atmosphereRadiusSquared - dot(iPosition, iPosition)) - jStepSize;
-			      jStepSize /= jSteps;
-			vec3  jIncrement = sunVector * jStepSize;
-			vec3  jPosition  = jIncrement * 0.5 + iPosition;
-
-			vec2 jOpticalDepth = vec2(0.0);
-			for (float j = 0.0; j < jSteps; j++, jPosition += jIncrement) {
-				jOpticalDepth -= exp(length(jPosition) * -inverseScaleHeights + scaledPlanetRadius);
-			}
-			jOpticalDepth = jOpticalDepth * jStepSize + iOpticalDepth;
-
-			scatteringSun += (scatteringScale * sunPhase) * exp(transmittanceCoefficients * jOpticalDepth);
-		}
-
-		{ // Moon
-			float jStepSize  = dot(iPosition, moonVector);
-			      jStepSize  = sqrt((jStepSize * jStepSize) + atmosphereRadiusSquared - dot(iPosition, iPosition)) - jStepSize;
-			      jStepSize /= jSteps;
-			vec3  jIncrement = moonVector * jStepSize;
-			vec3  jPosition  = jIncrement * 0.5 + iPosition;
-
-			vec2 jOpticalDepth = vec2(0.0);
-			for (float j = 0.0; j < jSteps; j++, jPosition += jIncrement) {
-				jOpticalDepth -= exp(length(jPosition) * -inverseScaleHeights + scaledPlanetRadius);
-			}
-			jOpticalDepth = jOpticalDepth * jStepSize + iOpticalDepth;
-
-			scatteringMoon += (scatteringScale * moonPhase) * exp(transmittanceCoefficients * jOpticalDepth);
-		}
+		scatteringSun  += (scatteringScale * sunPhase)  * exp(transmittanceCoefficients * (-sky_opticalDepth(iPosition, sunVector,  jSteps) + iOpticalDepth));
+		scatteringMoon += (scatteringScale * moonPhase) * exp(transmittanceCoefficients * (-sky_opticalDepth(iPosition, moonVector, jSteps) + iOpticalDepth));
 	}
 
 	scatteringSun  *= sunIlluminance;
@@ -122,36 +109,20 @@ vec3 sky_atmosphere(vec3 background, vec3 viewVector) {
 	return background * transmittance + scattering;
 }
 #else
-vec2 sky_opticalDepth(vec3 position, vec3 dir) {
-	vec2 sr = pow2(planetRadius + scaleHeights);
-	vec2 od = vec2(dot(position, dir));
+vec2 sky_opticalDepthApprox(vec3 position, vec3 direction) {
+	const vec2 sr = (planetRadius + scaleHeights) * (planetRadius + scaleHeights);
+	vec2 od = vec2(dot(position, direction));
 	     od = sqrt(od * od + sr - dot(position, position)) - od;
 	return od;
-
-	/* reference
-	const float steps = 16.0;
-
-	float stepSize  = dot(position, dir);
-	      stepSize  = sqrt((stepSize * stepSize) + atmosphereRadiusSquared - dot(position, position)) - stepSize;
-	      stepSize /= steps;
-	vec3  increment = dir * stepSize;
-
-	vec2 od = vec2(0.0);
-	for (float i = 0.0; i < steps; i++, position += increment) {
-		od += exp(length(position) * -inverseScaleHeights + scaledPlanetRadius);
-	}
-
-	return od * stepSize;
-	//*/
 }
 
 vec3 sky_atmosphere(vec3 bg, vec3 viewVector) {
 	vec3 viewPosition = upVector * planetRadius;
 
-	vec2 sunOD = sky_opticalDepth(viewPosition, sunVector);
+	vec2 sunOD = sky_opticalDepthApprox(viewPosition, sunVector);
 	vec3 sunTransmittance = max0(exp(scatteringCoefficients * -sunOD));
 
-	vec2 od = sky_opticalDepth(viewPosition, viewVector);
+	vec2 od = sky_opticalDepthApprox(viewPosition, viewVector);
 
 	float rayleighPhase = sky_rayleighPhase(dot(viewVector, sunVector));
 	float miePhase = sky_miePhase(dot(viewVector, sunVector), 0.8);
@@ -159,7 +130,7 @@ vec3 sky_atmosphere(vec3 bg, vec3 viewVector) {
 	vec3 rlgs  = rayleighCoeff * rayleighPhase * transmittedScatteringIntegral(od.x, transmittanceCoefficients[0]);
 	     rlgs *= mix(sunTransmittance.ggg, sunTransmittance, sunTransmittance.g); // unrealistic but it works
 	vec3 mies  = mieCoeff * miePhase * transmittedScatteringIntegral(od.y, transmittanceCoefficients[1]);
-	     mies *= sqrt(sunTransmittance); // also unrealistic, but it works
+	     mies *= sunTransmittance; // also unrealistic, but it works
 	vec3 scattering = rlgs + mies;
 
 	vec3 transmittance = exp(transmittanceCoefficients * -od);
