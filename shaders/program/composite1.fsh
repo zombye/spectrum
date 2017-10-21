@@ -2,7 +2,7 @@
 
 //#define DOF // Currently does not take into account aperture blades
 
-const bool colortex2MipmapEnabled = true;
+const bool colortex6MipmapEnabled = true;
 
 //----------------------------------------------------------------------------//
 
@@ -15,8 +15,8 @@ uniform float viewHeight;
 uniform float centerDepth;
 
 // Samplers
-uniform sampler2D colortex2;
-uniform sampler2D colortex7;
+uniform sampler2D colortex6; // composite
+uniform sampler2D colortex7; // temporal
 
 uniform sampler2D depthtex0;
 
@@ -384,7 +384,7 @@ vec3 depthOfField() {
 
 	vec3 result = vec3(0.0);
 	for (int i = 0; i < dofOffsets.length(); i++) {
-		result += texture2DLod(colortex2, dofOffsets[i] * circleOfConfusion + screenCoord, lod).rgb;
+		result += texture2DLod(colortex6, dofOffsets[i] * circleOfConfusion + screenCoord, lod).rgb;
 	}
 	return result / dofOffsets.length();
 }
@@ -392,7 +392,7 @@ vec3 depthOfField() {
 
 float calculateSmoothLuminance() {
 	float prevLuminance = texture2D(colortex7, screenCoord).r;
-	float currLuminance = clamp(dot(texture2DLod(colortex2, vec2(0.5), 100).rgb, lumacoeff_rec709) / (0.35 / prevLuminance), 20.0, 2e4);
+	float currLuminance = clamp(dot(texture2DLod(colortex6, vec2(0.5), 100).rgb, lumacoeff_rec709) / (0.35 / prevLuminance), 20.0, 2e4);
 
 	if (prevLuminance == 0.0) prevLuminance = 0.35;
 
@@ -403,10 +403,10 @@ void main() {
 	#ifdef DOF
 	vec3 color = depthOfField();
 	#else
-	vec3 color = texture2D(colortex2, screenCoord).rgb;
+	vec3 color = texture2D(colortex6, screenCoord).rgb;
 	#endif
 
-/* DRAWBUFFERS:237 */
+/* DRAWBUFFERS:637 */
 
 	gl_FragData[0] = vec4(color, 1.0);
 	gl_FragData[1] = vec4(calculateSmoothLuminance());

@@ -12,8 +12,8 @@ uniform float frameTimeCounter;
 uniform vec3 cameraPosition;
 
 // Samplers
-uniform sampler2D colortex0;
-uniform sampler2D colortex1;
+uniform sampler2D colortex0; // gbuffer0
+uniform sampler2D colortex1; // gbuffer1
 
 uniform sampler2D depthtex1;
 
@@ -143,7 +143,7 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float skylight) {
 
 void main() {
 	#if CAUSTICS_SAMPLES == 0 && RSM_SAMPLES == 0
-	gl_FragData[0] = vec4(0.0, 0.0, 0.0, 1.0); return;
+	discard;
 	#endif
 
 	vec3 tex0 = textureRaw(colortex0, screenCoord).rgb;

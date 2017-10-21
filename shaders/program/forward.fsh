@@ -1,5 +1,7 @@
 #include "/settings.glsl"
 
+const bool gaux3MipmapEnabled = true;
+
 //----------------------------------------------------------------------------//
 
 // Viewport
@@ -24,8 +26,7 @@ uniform sampler2D normals;
 uniform sampler2D specular;
 #endif
 
-uniform sampler2D gaux1;
-#define colortex2 gaux1
+uniform sampler2D gaux3; // composite
 
 uniform sampler2D depthtex1;
 uniform sampler2D depthtex2;
@@ -114,7 +115,7 @@ void main() {
 	if (mask.water) {
 		base = vec4(0.02, 0.03, 0.06, 0.15);
 		norm.xyz = water_calculateNormal(position[2] + cameraPosition, tbn, normalize(position[1]));
-		spec = vec4(pow(0.02, 1.0 / 3.0), 0.0, 0.99, 0.0);
+		spec = vec4(pow(0.02, 1.0 / 3.0), 0.0, 0.9999, 0.0);
 	}
 
 	material mat = calculateMaterial(base.rgb, spec.rb, mask);
@@ -128,7 +129,7 @@ void main() {
 	vec3 specular  = calculateReflections(position, normalize(position[1]), normal, mat.reflectance, mat.roughness, lightmap.y, sunVisibility) / base.a;
 	vec3 composite = blendMaterial(diffuse, specular, mat);
 
-/* DRAWBUFFERS:56 */
+/* DRAWBUFFERS:45 */
 
 	gl_FragData[0] = vec4(composite, base.a);
 	gl_FragData[1] = vec4(packNormal(norm.xyz), pack2x8(vec2(metadata.x / 255.0, lightmap.y)), 1.0);

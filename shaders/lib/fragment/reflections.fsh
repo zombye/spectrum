@@ -1,5 +1,5 @@
 #define REFLECTION_SAMPLES 1 // [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16]
-#define REFLECTION_QUALITY 8.0
+#define REFLECTION_QUALITY 4.0
 #define REFLECTION_REFINEMENTS 4 // The max number needed depends on your resolution and reflection quality setting.
 #define VOLUMETRICCLOUDS_REFLECTED // Can have a very high performance impact!
 
@@ -31,7 +31,7 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 		vec3 reflectionSample = vec3(0.0);
 
 		if (intersected) {
-			reflectionSample = texture2DLod(colortex2, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
+			reflectionSample = texture2DLod(gaux3, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
 		} else if (skyLight > 0.1) {
 			reflectionSample = sky_atmosphere(vec3(0.0), rayDir);
 			#ifdef FLATCLOUDS

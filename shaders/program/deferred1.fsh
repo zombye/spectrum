@@ -15,9 +15,11 @@ uniform vec3 cameraPosition;
 uniform int heldBlockLightValue, heldBlockLightValue2;
 
 // Samplers
-uniform sampler2D colortex0;
-uniform sampler2D colortex1;
-uniform sampler2D colortex3;
+uniform sampler2D colortex0; // gbuffer0
+uniform sampler2D colortex1; // gbuffer1
+uniform sampler2D colortex2; // gbuffer2
+
+uniform sampler2D colortex3; // aux0 | GI & Water caustics
 
 uniform sampler2D depthtex1;
 
@@ -109,8 +111,7 @@ void main() {
 	composite  = calculateLighting(backPosition, normal, lightmap, mat, gl_FragData[1].rgb);
 	composite *= mat.albedo;
 
-/* DRAWBUFFERS:234 */
+/* DRAWBUFFERS:63 */
 
 	gl_FragData[0] = vec4(composite, 1.0);
-	gl_FragData[2] = gl_FragData[0];
 }
