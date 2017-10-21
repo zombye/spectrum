@@ -119,23 +119,23 @@ vec2 sky_opticalDepthApprox(vec3 position, vec3 direction) {
 vec3 sky_atmosphere(vec3 bg, vec3 viewVector) {
 	vec3 viewPosition = upVector * planetRadius;
 
-	vec2 sunOD = sky_opticalDepthApprox(viewPosition, sunVector);
-	vec3 sunTransmittance = max0(exp(scatteringCoefficients * -sunOD));
+	vec2 opticalDepth  = sky_opticalDepthApprox(viewPosition, viewVector);
+	vec3 transmittance = exp(transmittanceCoefficients * -opticalDepth);
 
-	vec2 od = sky_opticalDepthApprox(viewPosition, viewVector);
+	vec3 baseRayleigh = rayleighCoeff * transmittedScatteringIntegral(opticalDepth.x, transmittanceCoefficients[0]);
+	vec3 baseMie      = mieCoeff      * transmittedScatteringIntegral(opticalDepth.y, transmittanceCoefficients[1]);
 
-	float rayleighPhase = sky_rayleighPhase(dot(viewVector, sunVector));
-	float miePhase = sky_miePhase(dot(viewVector, sunVector), 0.8);
+	vec3 sunTransmittance  = max0(exp(transmittanceCoefficients * -sky_opticalDepthApprox(viewPosition, sunVector)));
+	vec3 sunScattering     = baseRayleigh * sky_rayleighPhase(dot(viewVector, sunVector)) * mix(sunTransmittance.ggg, sunTransmittance, sunTransmittance.g);
+	     sunScattering    += baseMie      * sky_miePhase(dot(viewVector, sunVector), 0.8) * sunTransmittance;
+	     sunScattering    *= sunIlluminance;
 
-	vec3 rlgs  = rayleighCoeff * rayleighPhase * transmittedScatteringIntegral(od.x, transmittanceCoefficients[0]);
-	     rlgs *= mix(sunTransmittance.ggg, sunTransmittance, sunTransmittance.g); // unrealistic but it works
-	vec3 mies  = mieCoeff * miePhase * transmittedScatteringIntegral(od.y, transmittanceCoefficients[1]);
-	     mies *= sunTransmittance; // also unrealistic, but it works
-	vec3 scattering = rlgs + mies;
+	vec3 moonTransmittance = max0(exp(transmittanceCoefficients * -sky_opticalDepthApprox(viewPosition, moonVector)));
+	vec3 moonScattering    = baseRayleigh * sky_rayleighPhase(dot(viewVector, moonVector)) * mix(moonTransmittance.ggg, moonTransmittance, moonTransmittance.g);
+	     moonScattering   += baseMie      * sky_miePhase(dot(viewVector, moonVector), 0.8) * moonTransmittance;
+	     moonScattering   *= moonIlluminance;
 
-	vec3 transmittance = exp(transmittanceCoefficients * -od);
-
-	return bg * transmittance + scattering * sunIlluminance;
+	return bg * transmittance + sunScattering + moonScattering;
 }
 #endif
 
