@@ -17,8 +17,8 @@ uniform mat4 gbufferModelViewInverse, gbufferProjectionInverse;
 uniform mat4 gbufferPreviousModelView, gbufferPreviousProjection;
 
 // Samplers
-uniform sampler2D colortex2;
 uniform sampler2D colortex3;
+uniform sampler2D colortex6;
 
 uniform sampler2D depthtex0;
 
@@ -50,7 +50,7 @@ vec3 motionBlur() {
 
 	vec3 color = vec3(0.0);
 	for (float i = 0.0; i < MOTION_BLUR_SAMPLES; i++, sampleCoord += velocity) {
-		color += texture2DLod(colortex2, clampToScreen(sampleCoord), 0.0).rgb;
+		color += texture2DLod(colortex6, clampToScreen(sampleCoord), 0.0).rgb;
 	}
 	return color / MOTION_BLUR_SAMPLES;
 }
@@ -59,10 +59,10 @@ void main() {
 	#ifdef MOTION_BLUR
 	vec3 color = motionBlur();
 	#else
-	vec3 color = texture2D(colortex2, screenCoord).rgb;
+	vec3 color = texture2D(colortex6, screenCoord).rgb;
 	#endif
 
-/* DRAWBUFFERS:27 */
+/* DRAWBUFFERS:67 */
 
 	gl_FragData[0] = vec4(color, 1.0);
 	gl_FragData[1] = texture2D(colortex3, screenCoord);
