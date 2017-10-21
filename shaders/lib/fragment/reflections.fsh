@@ -19,6 +19,7 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 	float alpha2 = roughness * roughness;
 
 	vec3 reflection = vec3(0.0);
+	#if REFLECTION_SAMPLES > 0
 	for (float i = 0.0; i < REFLECTION_SAMPLES; i++) {
 		vec3 facetNormal = is_GGX(normal, hash42(vec2(i, dither)), alpha2);
 		if (dot(viewDirection, facetNormal) > 0.0) facetNormal = -facetNormal;
@@ -52,6 +53,24 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 
 		reflection += reflectionSample;
 	} reflection /= REFLECTION_SAMPLES;
+	#else
+	vec3 rayDir = reflect(viewDirection, normal);
+	if (skyLight > 0.1) {
+		reflection = sky_atmosphere(vec3(0.0), rayDir);
+
+		#ifdef FLATCLOUDS
+		vec4 flatClouds = flatClouds_calculate(rayDir);
+		reflection = reflection * flatClouds.a + flatClouds.rgb;
+		#endif
+		#ifdef VOLUMETRICCLOUDS_REFLECTED
+		vec4 clouds = volumetricClouds_calculate(position[1], position[1] + rayDir, rayDir, true);
+		reflection = reflection * clouds.a + clouds.rgb;
+		#endif
+
+		reflection *= smoothstep(0.1, 0.9, skyLight);
+		reflection *= f_dielectric(max0(dot(normal, -viewDirection)), 1.0, ior);
+	}
+	#endif
 
 	vec3 slmrp = mrp_sphere(reflect(normalize(position[1]), normal), shadowLightVector, sunAngularRadius);
 	reflection += sunVisibility * shadowLightColor * specularBRDF(-normalize(position[1]), normal, slmrp, reflectance, alpha2);
