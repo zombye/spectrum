@@ -56,7 +56,7 @@ vec2 spiralPoint(float angle, float scale) {
 float calculateWaterCaustics(vec3 position, float skylight) {
 	#if CAUSTICS_SAMPLES > 0
 	vec2 shadowCoord = shadows_distortShadowSpace((mat3(projectionShadow) * (mat3(modelViewShadow) * (position - cameraPosition) + modelViewShadow[3].xyz) + projectionShadow[3].xyz).xy) * 0.5 + 0.5;
-	if (texture2D(shadowcolor1, shadowCoord).a < 0.5)
+	if (texture2D(shadowcolor1, shadowCoord).a < 0.5 || skylight == 0.0)
 	#endif
 		return 1.0;
 
