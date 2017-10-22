@@ -53,7 +53,6 @@ varying vec2 screenCoord;
 
 #include "/lib/fragment/masks.fsh"
 #include "/lib/fragment/materials.fsh"
-#include "/lib/fragment/raytracer.fsh"
 
 vec4 bilateralResample(vec3 normal, float depth) {
 	const float range = 3.0;
