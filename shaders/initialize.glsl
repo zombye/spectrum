@@ -16,7 +16,7 @@ const int colortex3Format = RGBA16F;        // aux0
 const int colortex4Format = RGBA16F;        // aux1
 const int colortex5Format = RGB16;          // aux2
 const int colortex6Format = R11F_G11F_B10F; // composite
-const int colortex7Format = R16F;           // temporal
+const int colortex7Format = RGBA16F;        // temporal
 
 const bool colortex0Clear = false;
 const bool colortex1Clear = false;

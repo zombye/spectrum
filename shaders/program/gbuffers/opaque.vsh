@@ -6,7 +6,11 @@
 uniform vec3 cameraPosition;
 
 // Time
+uniform int   frameCounter;
 uniform float frameTimeCounter;
+
+// Viewport
+uniform float viewWidth, viewHeight;
 
 //----------------------------------------------------------------------------//
 
@@ -28,6 +32,8 @@ varying vec2 metadata;
 //----------------------------------------------------------------------------//
 
 #include "/lib/util/constants.glsl"
+
+#include "/lib/misc/temporalAA.glsl"
 
 #include "/lib/uniform/gbufferMatrices.glsl"
 

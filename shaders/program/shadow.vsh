@@ -27,7 +27,6 @@ varying vec4 metadata;
 
 #include "/lib/util/constants.glsl"
 
-#include "/lib/uniform/gbufferMatrices.glsl"
 #include "/lib/uniform/shadowMatrices.glsl"
 
 #include "/lib/misc/shadowDistortion.glsl"
@@ -39,7 +38,6 @@ varying vec4 metadata;
 //--//
 
 void main() {
-	calculateGbufferMatrices();
 	calculateShadowMatrices();
 
 	tint     = gl_Color;

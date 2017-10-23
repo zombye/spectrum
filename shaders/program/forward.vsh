@@ -6,7 +6,11 @@
 uniform vec3 cameraPosition;
 
 // Time
+uniform int   frameCounter;
 uniform float frameTimeCounter;
+
+// Viewport
+uniform float viewWidth, viewHeight;
 
 //----------------------------------------------------------------------------//
 
@@ -32,6 +36,8 @@ varying vec3 positionScene;
 
 #include "/lib/util/constants.glsl"
 
+#include "/lib/misc/temporalAA.glsl"
+
 #include "/lib/uniform/vectors.glsl"
 #include "/lib/uniform/colors.glsl"
 #include "/lib/uniform/gbufferMatrices.glsl"
@@ -56,7 +62,7 @@ void main() {
 	positionScene = mat3(gbufferModelViewInverse) * (mat3(gl_ModelViewMatrix) * gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz) + gbufferModelViewInverse[3].xyz;
 	positionScene = calculateDisplacement(positionScene);
 	positionView  = mat3(gbufferModelView) * positionScene + gbufferModelView[3].xyz;
-	gl_Position   = projectVertex(positionView);
+	gl_Position = projectVertex(positionView);
 
 	tbn = calculateTBN();
 }

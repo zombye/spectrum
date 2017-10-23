@@ -2,12 +2,22 @@
 
 //----------------------------------------------------------------------------//
 
+// Time
+uniform int frameCounter;
+
+// Viewport
+uniform float viewWidth, viewHeight;
+
+//----------------------------------------------------------------------------//
+
 varying vec2 screenCoord;
 
 //----------------------------------------------------------------------------//
 
 #include "/lib/util/constants.glsl"
 #include "/lib/util/math.glsl"
+
+#include "/lib/misc/temporalAA.glsl"
 
 #include "/lib/uniform/vectors.glsl"
 #include "/lib/uniform/colors.glsl"
