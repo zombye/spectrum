@@ -9,7 +9,7 @@ Expect a lot of bugs.
 
 I try to keep Spectrum compatible with most hardware, and as far as I know there are no particular hardware requirements.
 
-* Optifine 1.12.1 HD U C6 (or newer)
+* Optifine 1.12.1 HD U C7 pre (or newer)
 
 ## Installation
 
