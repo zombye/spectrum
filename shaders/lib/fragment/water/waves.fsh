@@ -10,7 +10,7 @@ struct waveParams {
 
 float water_calculateWave(vec2 pos, const waveParams params) {
 	pos += frameTimeCounter * params.translation;
-	pos /= params.scale * 64.0;
+	pos *= 0.015625 / params.scale;
 	pos += pos.yx * params.skew;
 	float wave = textureSmooth(noisetex, pos).r;
 	if (params.sharpen)

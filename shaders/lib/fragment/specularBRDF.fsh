@@ -24,10 +24,9 @@ float f_dielectric(float NoV, float n1, float n2) {
 	float p = 1.0 - (pow2(n1 / n2) * (1.0 - NoV * NoV));
 	if (p <= 0.0) return 1.0; p = sqrt(p);
 
-	float Rs = pow2((n1 * NoV - n2 * p  ) / (n1 * NoV + n2 * p  ));
-	float Rp = pow2((n1 * p   - n2 * NoV) / (n1 * p   + n2 * NoV));
-
-	return 0.5 * (Rs + Rp);
+	vec2 r = vec2(NoV, p);
+	r = (n1 * r - n2 * r.yx) / (n1 * r + n2 * r.yx);
+	r *= r; r *= 0.5; return r.x + r.y;
 }
 float v_smithGGXCorrelated(float NoV, float NoL, float alpha2) {
 	vec2 delta = vec2(NoV, NoL);

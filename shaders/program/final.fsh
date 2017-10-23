@@ -9,8 +9,9 @@ uniform float viewWidth, viewHeight;
 uniform float aspectRatio;
 
 // Samplers
-uniform sampler2D colortex2;
-uniform sampler2D colortex3;
+uniform sampler2D colortex3; // aux0
+
+uniform sampler2D colortex6; // composite
 
 //----------------------------------------------------------------------------//
 
@@ -25,8 +26,6 @@ varying vec2 screenCoord;
 #include "/lib/util/texture.glsl"
 
 vec3 weighAndSumGlareTiles() {
-	if (GLARE_AMOUNT == 0.0) return vec3(0.0); // can't throw floats at the preprocessor :(
-
 	vec2 px = 1.0 / vec2(viewWidth, viewHeight);
 
 	vec3
@@ -56,7 +55,7 @@ vec3 diffractionSpikes(vec3 color) {
 		for (float j = 1.0; j < spikeSamples; j++) {
 			float weight = j / spikeSamples;
 			weight = (1.0 - weight) / (spikeFalloff * weight * weight);
-			color += texture2D(colortex2, direction * j + screenCoord).rgb * weight;
+			color += texture2D(colortex6, direction * j + screenCoord).rgb * weight;
 			totalWeight += weight;
 		}
 	}
@@ -76,9 +75,9 @@ vec3 tonemap(vec3 color) {
 }
 
 void main() {
-	vec3 color = texture2D(colortex2, screenCoord).rgb;
+	vec3 color = texture2D(colortex6, screenCoord).rgb;
 
-	color = mix(color, weighAndSumGlareTiles(), GLARE_AMOUNT / (1.0 + GLARE_AMOUNT));
+	if (GLARE_AMOUNT != 0.0) color = mix(color, weighAndSumGlareTiles(), GLARE_AMOUNT / (1.0 + GLARE_AMOUNT));
 
 	#ifdef DIFFRACTION_SPIKES
 	color = mix(color, diffractionSpikes(color), 0.2);

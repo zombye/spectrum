@@ -90,8 +90,8 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 	return vec4(0.0, 0.0, 0.0, 1.0);
 	#endif
 
-	vec3 worldStart = mat3(modelViewInverse) * startPosition + modelViewInverse[3].xyz + cameraPosition;
-	vec3 direction  = mat3(modelViewInverse) * viewDirection;
+	vec3 worldStart = mat3(gbufferModelViewInverse) * startPosition + gbufferModelViewInverse[3].xyz + cameraPosition;
+	vec3 direction  = mat3(gbufferModelViewInverse) * viewDirection;
 
 	float samples = floor(VOLUMETRICCLOUDS_QUALITY / max(abs(direction.y), 0.1));
 
@@ -110,7 +110,7 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 	vec3 increment = direction * stepSize;
 	vec3 position = increment * bayer8(gl_FragCoord.st) + (direction * distances.x + worldStart);
 
-	      vec3 sunDirection = mat3(modelViewInverse) * shadowLightVector;
+	      vec3 sunDirection = mat3(gbufferModelViewInverse) * shadowLightVector;
 	const vec3 skyDirection = vec3(0.0, 1.0, 0.0);
 
 	vec4 clouds = vec4(vec3(0.0), 1.0);

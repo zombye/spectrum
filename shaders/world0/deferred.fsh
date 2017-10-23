@@ -1,6 +1,6 @@
 #version 120
 #include "/lib/header.glsl"
 #define STAGE   STAGE_FRAGMENT
-#define PROGRAM PROGRAM_COMPOSITE6
+#define PROGRAM PROGRAM_DEFERRED
 #include "/lib/postHeader.glsl"
-#include "/program/composite6.fsh"
+#include "/program/deferred.fsh"

@@ -1,26 +1,12 @@
 #include "/settings.glsl"
 
-//#define MOTION_BLUR
-#define MOTION_BLUR_SAMPLES 8
-
 //----------------------------------------------------------------------------//
-
-// Positions
-uniform vec3 cameraPosition;
-uniform vec3 previousCameraPosition;
 
 // Viewport
 uniform float viewWidth, viewHeight;
 
-// Matrices
-uniform mat4 gbufferModelViewInverse, gbufferProjectionInverse;
-uniform mat4 gbufferPreviousModelView, gbufferPreviousProjection;
-
 // Samplers
-uniform sampler2D colortex2;
 uniform sampler2D colortex3;
-
-uniform sampler2D depthtex0;
 
 //----------------------------------------------------------------------------//
 
@@ -28,42 +14,22 @@ varying vec2 screenCoord;
 
 //----------------------------------------------------------------------------//
 
-#include "/lib/util/dither.glsl"
-
-vec2 clampToScreen(vec2 coord) {
-	vec2 lim = 0.5 / vec2(viewWidth, viewHeight);
-	return clamp(coord, lim, 1.0 - lim);
-}
-
-vec3 motionBlur() {
-	vec4 position = vec4(screenCoord, texture2D(depthtex0, screenCoord).r, 1.0) * 2.0 - 1.0;
-	vec4 previousPosition = gbufferModelViewInverse * gbufferProjectionInverse * position;
-	previousPosition /= previousPosition.w;
-	previousPosition.xyz += cameraPosition - previousCameraPosition;
-	previousPosition = gbufferPreviousProjection * gbufferPreviousModelView * previousPosition;
-	previousPosition /= previousPosition.w;
-
-	vec2 velocity = position.xy - previousPosition.xy;
-	velocity *= 0.5 / MOTION_BLUR_SAMPLES;
-
-	vec2 sampleCoord = velocity * bayer8(gl_FragCoord.st) + screenCoord;
-
-	vec3 color = vec3(0.0);
-	for (float i = 0.0; i < MOTION_BLUR_SAMPLES; i++, sampleCoord += velocity) {
-		color += texture2DLod(colortex2, clampToScreen(sampleCoord), 0.0).rgb;
-	}
-	return color / MOTION_BLUR_SAMPLES;
-}
-
 void main() {
-	#ifdef MOTION_BLUR
-	vec3 color = motionBlur();
-	#else
-	vec3 color = texture2D(colortex2, screenCoord).rgb;
-	#endif
+	if (GLARE_AMOUNT == 0.0) discard; // can't throw floats at the preprocessor :(
 
-/* DRAWBUFFERS:27 */
+	vec2 px = 1.0 / vec2(viewWidth, viewHeight);
 
-	gl_FragData[0] = vec4(color, 1.0);
-	gl_FragData[1] = texture2D(colortex3, screenCoord);
+	const float[5] weights = float[5](0.19947114, 0.29701803, 0.09175428, 0.01098007, 0.00050326);
+	const float[5] offsets = float[5](0.00000000, 1.40733340, 3.29421497, 5.20181322, 7.13296424);
+
+	vec3 glare = texture2D(colortex3, screenCoord).rgb * weights[0];
+	for (int i = 1; i < 5; i++) {
+		vec2 offset = offsets[i] * vec2(0.0, 1.0 / viewHeight);
+		glare += texture2D(colortex3, screenCoord + offset).rgb * weights[i];
+		glare += texture2D(colortex3, screenCoord - offset).rgb * weights[i];
+	}
+
+/* DRAWBUFFERS:3 */
+
+	gl_FragData[0] = vec4(glare, 1.0);
 }
