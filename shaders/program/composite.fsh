@@ -290,7 +290,7 @@ void main() {
 	float prevLuminance = texture2D(colortex7, screenCoord).r;
 	if (prevLuminance == 0.0) prevLuminance = 0.35;
 
-	composite = composite * (1.0 - tex5.a) + tex5.rgb * (prevLuminance / 0.35);
+	composite = composite * (1.0 - tex5.a) + tex5.rgb * (prevLuminance / EXPOSURE);
 
 	if (isEyeInWater == 1) {
 		composite = waterFog(composite, vec3(0.0), frontPosition[1], mask.water ? frontSkylight : lightmap.y);
@@ -299,7 +299,7 @@ void main() {
 		composite += fakeCrepuscularRays(direction[0]);
 	}
 
-	composite *= 0.35 / prevLuminance;
+	composite *= EXPOSURE / prevLuminance;
 
 /* DRAWBUFFERS:6 */
 

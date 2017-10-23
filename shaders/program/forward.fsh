@@ -132,7 +132,7 @@ void main() {
 
 	float prevLuminance = texture2D(gaux4, position[0].st).r;
 	if (prevLuminance == 0.0) prevLuminance = 0.35;
-	composite *= 0.35 / prevLuminance;
+	composite *= EXPOSURE / prevLuminance;
 
 /* DRAWBUFFERS:45 */
 

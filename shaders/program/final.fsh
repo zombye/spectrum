@@ -64,14 +64,35 @@ vec3 diffractionSpikes(vec3 color) {
 	return color;
 }
 
-vec3 tonemap(vec3 color) {
-	const vec3 a = vec3(0.46, 0.46, 0.46);
-	const vec3 b = vec3(0.60, 0.60, 0.60);
+vec3 tonemap_zombye(vec3 color) {
+	// a and b control toe & overall contrast
+	// c controls how much it tends to desaturate (or oversaturate)
+	// defaults are pretty neutral
 
-	vec3 cr = mix(vec3(dot(color, lumacoeff_rec709)), color, 0.5) + 1.0;
+	const vec3 a = vec3(0.45, 0.45, 0.45);
+	const vec3 b = vec3(0.63, 0.63, 0.63);
+	const vec3 c = vec3(0.70, 0.70, 0.70);
+
+	vec3 cr = mix(vec3(dot(color, lumacoeff_rec709)), color, c) + 1.0;
 
 	color = pow(color / (1.0 + color), a);
 	return pow(color * color * (-2.0 * color + 3.0), cr / b);
+}
+
+vec3 tonemap(vec3 color) {
+	// Desaturates everything, decreases contrast a lot. Not recommended.
+	//return color / (1.0 + color);
+
+	// Mostly neutral, but does desaturate a little. Almost linear until ~0.33
+	//color *= color; color /= 1.0 + color; return sqrt(color);
+
+	// Mostly neutral, good mainly for scenes with few bright spots. Almost linear until ~0.5
+	//color *= color * color; color /= 1.0 + color; return pow(color, vec3(1.0 / 3.0));
+
+	// More filmlike, generally gives a more saturated result.
+	return tonemap_zombye(color);
+
+	return color; // Reference. This should always look acceptable.
 }
 
 void main() {

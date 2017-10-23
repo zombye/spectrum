@@ -1,5 +1,7 @@
 //--// Miscellaneous
 
+#define EXPOSURE 0.15
+
 #define COMPOSITE0_SCALE 1.0 // [0.5 1.0]
 
 //--// Lighting
