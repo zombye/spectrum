@@ -56,7 +56,7 @@ void main() {
 	tint     = gl_Color;
 	baseUV   = getTextureCoordinates();
 	lightmap = getEngineLightmap();
-	normal   = mat3(modelViewShadow) * gl_Normal;
+	normal   = gl_NormalMatrix * gl_Normal;
 	metadata = mc_Entity;
 
 	gl_Position.xyz = mat3(modelViewShadowInverse) * (mat3(gl_ModelViewMatrix) * gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz) + modelViewShadowInverse[3].xyz;
