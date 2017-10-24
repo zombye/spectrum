@@ -22,18 +22,6 @@ float diffuse_burley(vec3 view, vec3 normal, vec3 light, float roughness) {
 #define diffuse(v, n, l, r) diffuse_lambertian(n, l)
 #endif
 
-float calculateAntiAcneOffset(float sampleRadius, vec3 normal, float distortFactor) {
-	normal.xy = abs(normalize(normal.xy));
-	normal    = clamp01(normal);
-
-	float projectionScale = projectionShadow[2].z * 2.0 / projectionShadow[0].x;
-
-	float baseOffset = sampleRadius * projectionScale / (textureSize2D(shadowtex1, 0).x * distortFactor * distortFactor);
-	float normalScaling = (normal.x + normal.y) * tanacos(normal.z);
-
-	return baseOffset * min(normalScaling, 9.0);
-}
-
 vec3 shadows(vec3 position) {
 	position = mat3(modelViewShadow) * position + modelViewShadow[3].xyz;
 	vec3 normal = normalize(cross(dFdx(position), dFdy(position)));
@@ -43,9 +31,6 @@ vec3 shadows(vec3 position) {
 
 	position.xy *= distortFactor;
 	position = position * 0.5 + 0.5;
-
-	position.z += calculateAntiAcneOffset(0.5, normal, distortFactor);
-	position.z -= 0.0001 * distortFactor;
 
 	float result = textureShadow(shadowtex1, position);
 

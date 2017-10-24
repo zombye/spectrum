@@ -26,10 +26,23 @@ varying vec4 metadata;
 //----------------------------------------------------------------------------//
 
 #include "/lib/util/constants.glsl"
+#include "/lib/util/math.glsl"
 
 #include "/lib/uniform/shadowMatrices.glsl"
 
 #include "/lib/misc/shadowDistortion.glsl"
+
+float calculateAntiAcneOffset(float sampleDiameter, vec3 normal, float distortFactor) {
+	normal.xy = abs(normalize(normal.xy));
+	normal    = clamp(normal, 0.0, 1.0);
+
+	float projectionScale = projectionShadow[2].z * 2.0 / projectionShadow[0].x;
+
+	float baseOffset = sampleDiameter * projectionScale / (shadowMapResolution * distortFactor * distortFactor);
+	float normalScaling = (normal.x + normal.y) * tanacos(normal.z);
+
+	return baseOffset * min(normalScaling, 9.0) - 0.0001 * distortFactor;
+}
 
 #include "/lib/vertex/displacement.vsh"
 #include "/lib/vertex/projectVertex.vsh"

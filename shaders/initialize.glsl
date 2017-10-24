@@ -4,7 +4,6 @@ const float sunPathRotation = -40.0;
 const float centerDepthHalflife = 2.0;
 
 // Shadow maps
-const int   shadowMapResolution     = 2048; // [1024 2048 4096 8192]
 const float shadowDistance          = 32.0;
 const float shadowRenderDistanceMul = -1.0;
 
