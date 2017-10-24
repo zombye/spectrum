@@ -22,6 +22,19 @@ float diffuse_burley(vec3 view, vec3 normal, vec3 light, float roughness) {
 #define diffuse(v, n, l, r) diffuse_lambertian(n, l)
 #endif
 
+vec3 shadowSample(vec3 position) {
+	float opaque = textureShadow(shadowtex1, position);
+	
+	#ifdef SHADOWS_COLORED
+	vec4 colorSample = texture2D(shadowcolor0, position.st);
+
+	vec3 transparent = mix(vec3(1.0), colorSample.rgb, (1.0 - textureShadow(shadowtex0, position)) * colorSample.a);
+	#else
+	vec3 transparent = vec3(1.0);
+	#endif
+
+	return transparent * opaque;
+}
 vec3 softShadow(vec3 position) {
 	const vec2[12] offset = vec2[12](
 		vec2(-0.5, 1.5),
@@ -40,13 +53,10 @@ vec3 softShadow(vec3 position) {
 
 	vec2 pixel = 1.0 / textureSize2D(shadowtex1, 0);
 
-	float result = 0.0;
-	for (int i = 0; i < offset.length(); i++) {
-		result += textureShadow(shadowtex1, position + vec3(offset[i] * pixel, 0.0));
-	}
-	result /= offset.length();
+	vec3 result = vec3(0.0);
+	for (int i = 0; i < offset.length(); i++) result += shadowSample(position + vec3(offset[i] * pixel, 0.0));
 
-	return vec3(result * result);
+	return result / offset.length();
 }
 vec3 shadows(vec3 position) {
 	position = mat3(modelViewShadow) * position + modelViewShadow[3].xyz;
@@ -61,8 +71,7 @@ vec3 shadows(vec3 position) {
 	#if SHADOWS_MODE == 1
 	return softShadow(position);
 	#else
-	float result = textureShadow(shadowtex1, position);
-	return vec3(result * result * (-2.0 * result + 3.0));
+	return shadowSample(position);
 	#endif
 }
 

@@ -32,7 +32,9 @@ uniform sampler2D gaux4; // temporal
 uniform sampler2D depthtex1;
 uniform sampler2D depthtex2;
 
+uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
+uniform sampler2D shadowcolor0;
 
 uniform sampler2D noisetex;
 
