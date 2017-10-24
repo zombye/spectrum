@@ -48,23 +48,10 @@ float calculateSmoothLuminance() {
 }
 
 void main() {
-	vec3 color = texture2D(colortex6, screenCoord).rgb;
-
 	#ifdef TEMPORAL_AA
-	// Reproject for previous color
-	vec3 reprojectedPosition = taa_reproject(vec3(screenCoord, texture2D(depthtex0, screenCoord).r));
-
-	float blendWeight = 0.85;
-	if (floor(reprojectedPosition.xy) != vec2(0.0)) blendWeight = 0.0;
-
-	// Get the color for the previous frame
-	vec3 prevColor = texture2D(colortex7, reprojectedPosition.st).rgb;
-
-	// Apply a simple tonemap, blend with previous frame, and reverse the tonemap
-	color     /= 1.0 + color;
-	prevColor /= 1.0 + prevColor;
-	color = mix(color, prevColor, blendWeight);
-	color /= 1.0 - color;
+	vec3 color = taa_apply();
+	#else
+	vec3 color = texture2D(colortex6, screenCoord).rgb;
 	#endif
 
 /* DRAWBUFFERS:67 */

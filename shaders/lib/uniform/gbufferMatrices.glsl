@@ -8,8 +8,6 @@ flat varying mat4 projectionInverse;
 uniform mat4 gbufferProjection, gbufferProjectionInverse;
 #endif
 
-#extension GL_ARB_gpu_shader5 : enable
-
 void calculateGbufferMatrices() {
 	#if PROGRAM != PROGRAM_HAND
 	projection = gbufferProjection;
@@ -21,8 +19,7 @@ void calculateGbufferMatrices() {
 
 	// Add per-frame offset for TAA
 	vec2 offset = taa_offset();
-	projection[2].xy        += offset;
-	projectionInverse[3].xy += offset;
+	projection[2].xy += offset; // TODO: Apply to inverse projection properly
 
 	// TODO: Correct underwater FOV
 }
