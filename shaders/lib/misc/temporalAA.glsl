@@ -52,9 +52,9 @@ vec3 taa_velocity(vec3 position) {
 }
 
 vec3 taa_apply() {
-	vec2 pixel = 1.0 / vec2(viewWidth, viewHeight);
+	vec2 resolution = vec2(viewWidth, viewHeight);
+	vec2 pixel = 1.0 / resolution;
 	vec3 position = vec3(screenCoord, texture2D(depthtex0, screenCoord).r);
-
 	float blendWeight = 0.85; // Base blend weight
 
 	// Get velocity from closest fragment in 3x3 to camera rather than current fragment, gives nicer edges in motion.
@@ -66,6 +66,9 @@ vec3 taa_apply() {
 
 	// Offscreen fragments should be ignored
 	if (floor(reprojectedPosition.xy) != vec2(0.0)) blendWeight = 0.0;
+
+	// Reduce weight when further from a texel center, reduces blurring
+	blendWeight *= sqrt(dot(0.5 - abs(fract(reprojectedPosition.xy * resolution) - 0.5), vec2(1.0)));
 
 	// Get color values in 3x3 around current fragment
 	vec3 centerColor, minColor, maxColor;
