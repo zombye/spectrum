@@ -22,6 +22,32 @@ float diffuse_burley(vec3 view, vec3 normal, vec3 light, float roughness) {
 #define diffuse(v, n, l, r) diffuse_lambertian(n, l)
 #endif
 
+vec3 softShadow(vec3 position) {
+	const vec2[12] offset = vec2[12](
+		vec2(-0.5, 1.5),
+		vec2( 0.5, 1.5),
+		vec2(-1.5, 0.5),
+		vec2(-0.5, 0.5),
+		vec2( 0.5, 0.5),
+		vec2( 1.5, 0.5),
+		vec2(-1.5,-0.5),
+		vec2(-0.5,-0.5),
+		vec2( 0.5,-0.5),
+		vec2( 1.5,-0.5),
+		vec2(-0.5,-1.5),
+		vec2( 0.5,-1.5)
+	);
+
+	vec2 pixel = 1.0 / textureSize2D(shadowtex1, 0);
+
+	float result = 0.0;
+	for (int i = 0; i < offset.length(); i++) {
+		result += textureShadow(shadowtex1, position + vec3(offset[i] * pixel, 0.0));
+	}
+	result /= offset.length();
+
+	return vec3(result * result);
+}
 vec3 shadows(vec3 position) {
 	position = mat3(modelViewShadow) * position + modelViewShadow[3].xyz;
 	vec3 normal = normalize(cross(dFdx(position), dFdy(position)));
@@ -32,9 +58,12 @@ vec3 shadows(vec3 position) {
 	position.xy *= distortFactor;
 	position = position * 0.5 + 0.5;
 
+	#if SHADOWS_MODE == 1
+	return softShadow(position);
+	#else
 	float result = textureShadow(shadowtex1, position);
-
 	return vec3(result * result * (-2.0 * result + 3.0));
+	#endif
 }
 
 float blockLight(float lightmap) {
