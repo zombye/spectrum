@@ -2,21 +2,18 @@ flat varying vec3 shadowLightColor;
 flat varying vec3 blockLightColor;
 flat varying vec3 skyLightColor;
 
-#define SUN_ANGULAR_DIAMETER  2.510 // [0.536]
-#define MOON_ANGULAR_DIAMETER 2.500 // [0.528]
-
-const float sunAngularDiameter = radians(SUN_ANGULAR_DIAMETER);
+const float sunAngularDiameter = radians(2.5); // earth-like: 0.536
 const float sunAngularRadius   = sunAngularDiameter / 2.0;
-const float sunBrightness      = 128e3;
+const float sunBrightness      = 6.4e3; // earth-like: 128e3
 const vec3  sunColor           = vec3(1.0, 0.96, 0.95);
 const vec3  sunIlluminance     = sunBrightness * sunColor;
 const vec3  sunLuminance       = sunIlluminance / (tau * (1.0 - cos(sunAngularRadius)));
 
-const float moonAngularDiameter = radians(MOON_ANGULAR_DIAMETER);
+const float moonAngularDiameter = radians(2.5); // earth-like: 0.528
 const float moonAngularRadius   = moonAngularDiameter / 2.0;
 const vec3  moonColor           = vec3(0.136, 0.136, 0.136);
 const vec3  moonLuminance       = sunIlluminance * moonColor;
-const vec3  moonIlluminance     = moonLuminance * (tau * (1.0 - cos(sunAngularRadius)));
+const vec3  moonIlluminance     = moonLuminance * (tau * (1.0 - cos(moonAngularRadius)));
 
 #if STAGE == STAGE_VERTEX
 const float planetRadius     = 6731e3;
