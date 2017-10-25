@@ -232,7 +232,7 @@ void main() {
 
 	vec4 diff_id = vec4(unpack2x8(tex0.r), unpack2x8(tex0.g));
 
-	masks mask = calculateMasks(diff_id.a * 255.0, unpack2x8(tex6.b).r * 255.0);
+	masks mask = calculateMasks(round(diff_id.a * 255.0), round(unpack2x8(tex6.b).r * 255.0));
 	material mat = calculateMaterial(diff_id.rgb, unpack2x8(tex1.b), mask);
 
 	mat3 frontPosition;
@@ -252,8 +252,6 @@ void main() {
 	vec2 lightmap = unpack2x8(tex0.b);
 	float frontSkylight = unpack2x8(tex6.b).g;
 
-	bool transparentMask = tex5.a > 0.0;
-
 	//--//
 
 	vec3 refractedPosition = backPosition[1];
@@ -267,13 +265,13 @@ void main() {
 		composite = composite * clouds.a + clouds.rgb;
 		#endif
 	}
+	vec3 specular =
 	#ifdef MC_SPECULAR_MAP
-	else if (mat.reflectance > 0.0) {
-		vec3 specular = calculateReflections(backPosition, direction[0], backNormal, mat.reflectance, mat.roughness, lightmap.y, texture2D(colortex3, screenCoord).rgb);
-
-		composite = blendMaterial(composite, specular, mat);
-	}
+	calculateReflections(backPosition, direction[0], backNormal, mat.reflectance, mat.roughness, lightmap.y, texture2D(colortex3, screenCoord).rgb);
+	#else
+	vec3(0.0);
 	#endif
+	composite = blendMaterial(composite, specular, mat);
 
 	vec4 clouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction[0], mask.sky);
 	composite = composite * clouds.a + clouds.rgb;

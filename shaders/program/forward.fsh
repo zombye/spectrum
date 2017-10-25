@@ -111,7 +111,7 @@ void main() {
 	vec4 spec = vec4(0.0, 0.0, 0.0, 0.0);
 	#endif
 
-	masks mask = calculateMasks(metadata.x);
+	masks mask = calculateMasks(round(metadata.x));
 
 	mat3 position = mat3(vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z), positionView, positionScene);
 
