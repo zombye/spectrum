@@ -65,8 +65,8 @@ void main() {
 	normal   = gl_NormalMatrix * gl_Normal;
 	metadata = mc_Entity;
 
-	gl_Position.xyz = mat3(modelViewShadowInverse) * (mat3(gl_ModelViewMatrix) * gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz) + modelViewShadowInverse[3].xyz;
+	gl_Position.xyz = mat3(shadowModelViewInverse) * (mat3(gl_ModelViewMatrix) * gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz) + shadowModelViewInverse[3].xyz;
 	gl_Position.xyz = calculateDisplacement(gl_Position.xyz);
-	gl_Position.xyz = mat3(modelViewShadow) * gl_Position.xyz + modelViewShadow[3].xyz;
+	gl_Position.xyz = mat3(shadowModelView) * gl_Position.xyz + shadowModelView[3].xyz;
 	gl_Position     = projectVertex(gl_Position.xyz);
 }

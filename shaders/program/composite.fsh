@@ -107,8 +107,8 @@ vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
 
 	vec3 worldPos = transformPosition(startPosition, gbufferModelViewInverse) + cameraPosition;
 	vec3 worldIncrement = mat3(gbufferModelViewInverse) * direction * stepSize;
-	vec3 shadowPos = transformPosition(transformPosition(worldPos - cameraPosition, modelViewShadow), projectionShadow);
-	vec3 shadowIncrement = mat3(projectionShadow) * mat3(modelViewShadow) * worldIncrement;
+	vec3 shadowPos = transformPosition(transformPosition(worldPos - cameraPosition, shadowModelView), projectionShadow);
+	vec3 shadowIncrement = mat3(projectionShadow) * mat3(shadowModelView) * worldIncrement;
 
 	worldPos  += worldIncrement  * bayer8(gl_FragCoord.st);
 	shadowPos += shadowIncrement * bayer8(gl_FragCoord.st);
@@ -178,8 +178,8 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 	float stepSize = length(increment);
 	vec3 stepIntegral = transmittedScatteringIntegral(stepSize, attenCoeff);
 
-	increment = mat3(projectionShadow) * mat3(modelViewShadow) * mat3(gbufferModelViewInverse) * increment;
-	vec3 position = transformPosition(transformPosition(transformPosition(startPosition, gbufferModelViewInverse), modelViewShadow), projectionShadow);
+	increment = mat3(projectionShadow) * mat3(shadowModelView) * mat3(gbufferModelViewInverse) * increment;
+	vec3 position = transformPosition(transformPosition(transformPosition(startPosition, gbufferModelViewInverse), shadowModelView), projectionShadow);
 
 	position += increment * bayer8(gl_FragCoord.st);
 

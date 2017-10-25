@@ -55,7 +55,7 @@ vec2 spiralPoint(float angle, float scale) {
 
 float calculateWaterCaustics(vec3 position, float skylight) {
 	#if CAUSTICS_SAMPLES > 0
-	vec2 shadowCoord = shadows_distortShadowSpace((mat3(projectionShadow) * (mat3(modelViewShadow) * (position - cameraPosition) + modelViewShadow[3].xyz) + projectionShadow[3].xyz).xy) * 0.5 + 0.5;
+	vec2 shadowCoord = shadows_distortShadowSpace((mat3(projectionShadow) * (mat3(shadowModelView) * (position - cameraPosition) + shadowModelView[3].xyz) + projectionShadow[3].xyz).xy) * 0.5 + 0.5;
 	if (texture2D(shadowcolor1, shadowCoord).a < 0.5 || skylight == 0.0)
 	#endif
 		return 1.0;
@@ -100,9 +100,9 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float skylight) {
 	vec3 projectionScale        = vec3(projectionShadow[0].x, projectionShadow[1].y, projectionShadow[2].z);
 	vec3 projectionInverseScale = vec3(projectionShadowInverse[0].x, projectionShadowInverse[1].y, projectionShadowInverse[2].z);
 
-	vec3  shadowPosition     = mat3(modelViewShadow) * position + modelViewShadow[3].xyz;
+	vec3  shadowPosition     = mat3(shadowModelView) * position + shadowModelView[3].xyz;
 	vec3  shadowClipPosition = projectionScale * shadowPosition + projectionShadow[3].xyz;
-	vec3  shadowNormal       = mat3(modelViewShadow) * mat3(gbufferModelViewInverse) * -normal;
+	vec3  shadowNormal       = mat3(shadowModelView) * mat3(gbufferModelViewInverse) * -normal;
 	float dither             = bayer16(gl_FragCoord.st) * 256.0;
 
 	vec3 rsm = vec3(0.0);

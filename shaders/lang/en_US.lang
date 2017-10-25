@@ -42,8 +42,11 @@ option.REFLECTION_SAMPLES=Reflection Samples
 
 # Shadow mapping
 option.shadowMapResolution=Shadow Map Resolution
-option.SHADOW_SPACE_QUANTIZATION=Shadow-space Quantization
-value.SHADOW_SPACE_QUANTIZATION.0=Off
+option.SHADOW_FILTER_TYPE=Shadow Filter Type
+value.SHADOW_FILTER_TYPE.0=PCF (LQ)
+value.SHADOW_FILTER_TYPE.1=PCF (HQ)
+value.SHADOW_FILTER_TYPE.2=PCSS
+option.SHADOW_COLORED=Colored Shadows
 
 # Reflective Shadow Maps
 option.RSM_SAMPLES=Bounced Sunlight Quality

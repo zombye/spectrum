@@ -8,9 +8,9 @@
 
 //--// Lighting
 
-#define SHADOWS_MODE 1 // [0 1]
-#define SHADOWS_COLORED
 const int shadowMapResolution = 2048; // [1024 2048 4096 8192]
+#define SHADOW_FILTER_TYPE 1 // [0 1 2]
+#define SHADOW_COLORED
 
 #define CAUSTICS_SAMPLES        9   // SEUS V11 = 9   [0 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50]
 #define CAUSTICS_RADIUS         0.3 // SEUS V11 = 0.2 [0.2 0.3 0.4]

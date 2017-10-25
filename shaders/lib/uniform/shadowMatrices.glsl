@@ -1,13 +1,11 @@
-flat varying mat4 modelViewShadow, projectionShadow;
-flat varying mat4 modelViewShadowInverse, projectionShadowInverse;
+flat varying mat4 projectionShadow, projectionShadowInverse;
+
+uniform mat4 shadowModelView, shadowModelViewInverse;
 
 #if STAGE == STAGE_VERTEX
-uniform mat4 shadowModelView, shadowProjection;
-uniform mat4 shadowModelViewInverse, shadowProjectionInverse;
+uniform mat4 shadowProjection, shadowProjectionInverse;
 
 void calculateShadowMatrices() {
-	modelViewShadow         = shadowModelView;
-	modelViewShadowInverse  = shadowModelViewInverse;
 	projectionShadow        = shadowProjection;
 	projectionShadowInverse = shadowProjectionInverse;
 
