@@ -39,8 +39,9 @@ void main() {
 	vec4 spec = vec4(0.0, 0.0, 0.0, 0.0);
 	#endif
 
-/* DRAWBUFFERS:01 */
+/* DRAWBUFFERS:012 */
 
-	gl_FragData[0] = vec4(pack2x8(base.rg), pack2x8(vec2(base.b, metadata.x / 255.0)), pack2x8(lightmap), 1.0);
-	gl_FragData[1] = vec4(packNormal(norm.xyz), pack2x8(spec.rb), 1.0);
+	gl_FragData[0] = vec4(base.rgb, 1.0);
+	gl_FragData[1] = vec4(metadata.x / 255.0, lightmap, 1.0);
+	gl_FragData[2] = vec4(packNormal(norm.xyz), pack2x8(spec.rb), 1.0);
 }

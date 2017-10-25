@@ -12,8 +12,8 @@ uniform float frameTimeCounter;
 uniform vec3 cameraPosition;
 
 // Samplers
-uniform sampler2D colortex0; // gbuffer0
-uniform sampler2D colortex1; // gbuffer1
+uniform sampler2D colortex1; // gbuffer1 | ID, lightmap
+uniform sampler2D colortex2; // gbuffer2 | Normal, Specular
 
 uniform sampler2D depthtex1;
 
@@ -146,17 +146,17 @@ void main() {
 	discard;
 	#endif
 
-	vec3 tex0 = textureRaw(colortex0, screenCoord).rgb;
+	vec3 tex1 = textureRaw(colortex1, screenCoord).rgb;
 
-	if (round(unpack2x8(tex0.g).y * 255.0) == 0.0 || floor(screenCoord) != vec2(0.0)) { gl_FragData[0] = vec4(0.0, 0.0, 0.0, 1.0); return; }
+	if (round(tex1.r * 255.0) == 0.0 || floor(screenCoord) != vec2(0.0)) { gl_FragData[0] = vec4(0.0, 0.0, 0.0, 1.0); return; }
 
 	mat3 backPosition;
 	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
 	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
 	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], gbufferModelViewInverse);
 
-	vec3  normal   = unpackNormal(textureRaw(colortex1, screenCoord).rg);
-	float skylight = unpack2x8(tex0.b).y;
+	vec3  normal   = unpackNormal(textureRaw(colortex2, screenCoord).rg);
+	float skylight = tex1.b;
 
 	//--//
 

@@ -15,11 +15,11 @@ uniform vec3 cameraPosition;
 uniform int heldBlockLightValue, heldBlockLightValue2;
 
 // Samplers
-uniform sampler2D colortex0; // gbuffer0
-uniform sampler2D colortex1; // gbuffer1
-uniform sampler2D colortex2; // gbuffer2
+uniform sampler2D colortex0; // gbuffer0 | Albedo
+uniform sampler2D colortex1; // gbuffer1 | ID, lightmap
+uniform sampler2D colortex2; // gbuffer2 | Normal, Specular
 
-uniform sampler2D colortex3; // aux0 | GI & Water caustics
+uniform sampler2D colortex3; // aux0 | RSM & Water caustics
 
 uniform sampler2D depthtex1;
 
@@ -67,7 +67,7 @@ vec4 bilateralResample(vec3 normal, float depth) {
 			vec2 offset = vec2(i, j) * px;
 			vec2 coord = clamp01(screenCoord + offset);
 
-			vec3 normalSample = unpackNormal(texture2D(colortex1, coord).rg);
+			vec3 normalSample = unpackNormal(texture2D(colortex2, coord).rg);
 			float depthSample = linearizeDepth(texture2D(depthtex1, coord).r, projectionInverse);
 
 			vec2 weight = vec2(max0(dot(normal, normalSample)), float(i == 0.0 && j == 0.0));
@@ -89,12 +89,10 @@ vec4 bilateralResample(vec3 normal, float depth) {
 //--//
 
 void main() {
-	vec3 tex0 = textureRaw(colortex0, screenCoord).rgb;
+	vec3 tex1 = texture2D(colortex1, screenCoord).rgb;
 
-	vec4 diff_id = vec4(unpack2x8(tex0.r), unpack2x8(tex0.g));
-
-	masks mask = calculateMasks(diff_id.a * 255.0);
-
+	masks mask = calculateMasks(tex1.r * 255.0);
+	
 	if (mask.sky) discard;
 
 	mat3 backPosition;
@@ -102,11 +100,11 @@ void main() {
 	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
 	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], gbufferModelViewInverse);
 
-	vec3 tex1 = textureRaw(colortex1, screenCoord).rgb;
+	vec3 tex2 = texture2D(colortex2, screenCoord).rgb;
 
-	material mat  = calculateMaterial(diff_id.rgb, unpack2x8(tex1.b), mask);
-	vec3 normal   = unpackNormal(tex1.rg);
-	vec2 lightmap = unpack2x8(tex0.b);
+	material mat  = calculateMaterial(texture2D(colortex0, screenCoord).rgb, unpack2x8(tex2.b), mask);
+	vec3 normal   = unpackNormal(tex2.rg);
+	vec2 lightmap = tex1.gb;
 
 	vec3
 	composite  = calculateLighting(backPosition, normal, lightmap, mat, gl_FragData[1].rgb);

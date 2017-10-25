@@ -22,16 +22,16 @@ uniform float frameTimeCounter;
 uniform vec3 cameraPosition;
 
 // Samplers
-uniform sampler2D colortex0; // gbuffer0  | Albedo, ID, Lightmap
-uniform sampler2D colortex1; // gbuffer1  | Normal, Specular
-uniform sampler2D colortex2; // gbuffer2  |
+uniform sampler2D colortex0; // gbuffer0 | Albedo
+uniform sampler2D colortex1; // gbuffer1 | ID, lightmap
+uniform sampler2D colortex2; // gbuffer2 | Normal, Specular
 
-uniform sampler2D colortex3; // aux0      | Sunlight visibility
-uniform sampler2D colortex4; // aux1      | Transparent composite
-uniform sampler2D colortex5; // aux2      | Transparent normal, id, skylight
+uniform sampler2D colortex3; // aux0 | Sunlight visibility
+uniform sampler2D colortex4; // aux1 | Transparent composite
+uniform sampler2D colortex5; // aux2 | Transparent normal, id, skylight
 
-uniform sampler2D gaux3;     // composite | Render of previous pass
-uniform sampler2D colortex7; // temporal  | Average luminance
+uniform sampler2D gaux3;     // composite
+uniform sampler2D colortex7; // temporal
 
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
@@ -225,15 +225,13 @@ vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction,
 
 void main() {
 	// TODO: Only do these first bits if and when needed
-	vec3 tex0 = textureRaw(colortex0, screenCoord).rgb;
-	vec3 tex1 = textureRaw(colortex1, screenCoord).rgb;
+	vec3 tex1 = texture2D(colortex1, screenCoord).rgb;
+	vec3 tex2 = texture2D(colortex2, screenCoord).rgb;
 	vec4 tex5 = texture2D(colortex4, screenCoord);
 	vec3 tex6 = textureRaw(colortex5, screenCoord).rgb;
 
-	vec4 diff_id = vec4(unpack2x8(tex0.r), unpack2x8(tex0.g));
-
-	masks mask = calculateMasks(round(diff_id.a * 255.0), round(unpack2x8(tex6.b).r * 255.0));
-	material mat = calculateMaterial(diff_id.rgb, unpack2x8(tex1.b), mask);
+	masks mask = calculateMasks(round(tex1.r * 255.0), round(unpack2x8(tex6.b).r * 255.0));
+	material mat = calculateMaterial(texture2D(colortex0, screenCoord).rgb, unpack2x8(tex2.b), mask);
 
 	mat3 frontPosition;
 	frontPosition[0] = vec3(screenCoord, texture2D(depthtex0, screenCoord).r);
@@ -248,8 +246,8 @@ void main() {
 	direction[1] = mat3(gbufferModelViewInverse) * direction[0];
 
 	vec3 frontNormal = unpackNormal(tex6.rg);
-	vec3 backNormal  = unpackNormal(tex1.rg);
-	vec2 lightmap = unpack2x8(tex0.b);
+	vec3 backNormal  = unpackNormal(tex2.rg);
+	vec2 lightmap = tex1.gb;
 	float frontSkylight = unpack2x8(tex6.b).g;
 
 	//--//
