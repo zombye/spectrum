@@ -284,7 +284,7 @@ void main() {
 	}
 
 	float prevLuminance = texture2D(colortex7, screenCoord).a;
-	if (prevLuminance == 0.0) prevLuminance = 0.35;
+	if (prevLuminance == 0.0) prevLuminance = 3.0;
 
 	composite = composite * (1.0 - tex5.a) + tex5.rgb * (prevLuminance / EXPOSURE);
 

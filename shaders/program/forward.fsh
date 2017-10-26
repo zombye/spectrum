@@ -133,7 +133,7 @@ void main() {
 	vec3 composite = blendMaterial(diffuse, specular, mat);
 
 	float prevLuminance = texture2D(gaux4, position[0].st).a;
-	if (prevLuminance == 0.0) prevLuminance = 0.35;
+	if (prevLuminance == 0.0) prevLuminance = 3.0;
 	composite *= EXPOSURE / prevLuminance;
 
 /* DRAWBUFFERS:45 */
