@@ -28,7 +28,7 @@ vec3 shadowSample(vec3 position) {
 	#ifdef SHADOW_COLORED
 	opaque = sqrt(opaque);
 	vec4 colorSample = texture2D(shadowcolor0, position.st);
-	colorSample.rgb = mix(vec3(1.0), colorSample.rgb * 1.0 - colorSample.a, colorSample.a);
+	colorSample.rgb = mix(vec3(1.0), colorSample.rgb * (1.0 - colorSample.a), colorSample.a);
 	float transparentShadow = sqrt(textureShadow(shadowtex0, position));
 
 	vec3 transparent = colorSample.rgb * (1.0 - transparentShadow) + transparentShadow;
