@@ -117,14 +117,14 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float skylight) {
 		      sampleCoord *= distortCoeff;
 		      sampleCoord  = sampleCoord * 0.5 + 0.5;
 
-		vec3 samplePosition = projectionInverseScale * vec3(shadowClipPosition.xy + sampleOffset, texture2DLod(shadowtex0, sampleCoord, 1.0 / distortCoeff).r * 2.0 - 1.0) + projectionShadowInverse[3].xyz;
+		vec3 samplePosition = projectionInverseScale * vec3(shadowClipPosition.xy + sampleOffset, texture2D(shadowtex0, sampleCoord).r * 2.0 - 1.0) + projectionShadowInverse[3].xyz;
 
 		vec3  sampleVector = shadowPosition - samplePosition;
 		float sampleDistSq = dot(sampleVector, sampleVector);
 		if (sampleDistSq > radiusSquared) continue;
 		      sampleVector = sampleVector * inversesqrt(sampleDistSq);
 
-		vec3 sampleNormal = texture2DLod(shadowcolor1, sampleCoord.st, 3.0 / distortCoeff).rgb * 2.0 - 1.0;
+		vec3 sampleNormal = texture2D(shadowcolor1, sampleCoord.st).rgb * 2.0 - 1.0;
 		float sampleVis = max0(dot(sampleVector, shadowNormal)) * max0(dot(sampleVector, sampleNormal)) * sampleNormal.z;
 
 		if (sampleVis <= 0.0) continue;
@@ -132,7 +132,7 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float skylight) {
 		// Kind of approximate an area light
 		sampleDistSq += perSampleArea;
 
-		vec4 sampleAlbedo = texture2DLod(shadowcolor0, sampleCoord.st, 3.0 / distortCoeff);
+		vec4 sampleAlbedo = texture2D(shadowcolor0, sampleCoord.st);
 		rsm += sampleAlbedo.rgb * sampleAlbedo.a * sampleVis / sampleDistSq;
 	}
 

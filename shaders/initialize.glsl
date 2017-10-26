@@ -6,10 +6,10 @@ const float shadowDistance          = 16.0;
 const float shadowRenderDistanceMul = -1.0;
 
 // Shadow mipmaps
-const bool shadowtex0Mipmap   = true;
+const bool shadowtex0Mipmap   = false;
 const bool shadowtex1Mipmap   = false;
-const bool shadowcolor0Mipmap = true;
-const bool shadowcolor1Mipmap = true;
+const bool shadowcolor0Mipmap = false;
+const bool shadowcolor1Mipmap = false;
 
 // Buffers
 const int colortex0Format = RGB8;           // gbuffer0
