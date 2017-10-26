@@ -26,9 +26,12 @@ vec3 shadowSample(vec3 position) {
 	float opaque = textureShadow(shadowtex1, position);
 	
 	#ifdef SHADOW_COLORED
+	opaque = sqrt(opaque);
 	vec4 colorSample = texture2D(shadowcolor0, position.st);
+	colorSample.rgb = mix(vec3(1.0), colorSample.rgb * 1.0 - colorSample.a, colorSample.a);
+	float transparentShadow = sqrt(textureShadow(shadowtex0, position));
 
-	vec3 transparent = mix(vec3(1.0), colorSample.rgb, (1.0 - textureShadow(shadowtex0, position)) * colorSample.a);
+	vec3 transparent = colorSample.rgb * (1.0 - transparentShadow) + transparentShadow;
 	#else
 	vec3 transparent = vec3(1.0);
 	#endif
@@ -58,74 +61,114 @@ vec3 softShadow(vec3 position) {
 
 	return result / offset.length();
 }
-vec3 pcssShadow(vec3 position) {
-	float spread = tan(sunAngularRadius) * 2.0 * projectionShadowInverse[2].z * projectionShadow[0].x;
-	float searchRadius = spread * 0.01;
+
+const vec2[36] pcss_offset = vec2[36](
+	vec2(-0.90167680,  0.34867350),
+	vec2(-0.98685560, -0.03261871),
+	vec2(-0.67581730,  0.60829530),
+	vec2(-0.47958790,  0.23570540),
+	vec2(-0.45314310,  0.48728980),
+	vec2(-0.30706600, -0.15843290),
+	vec2(-0.09606075, -0.01807100),
+	vec2(-0.60807480,  0.01524314),
+	vec2(-0.02638345,  0.27449020),
+	vec2(-0.17485240,  0.49767420),
+	vec2( 0.08868586, -0.19452260),
+	vec2( 0.18764890,  0.45603400),
+	vec2( 0.39509670,  0.07532994),
+	vec2(-0.14323580,  0.75790890),
+	vec2(-0.52281310, -0.28745570),
+	vec2(-0.78102060, -0.44097930),
+	vec2(-0.40987180, -0.51410110),
+	vec2(-0.12428560, -0.78665660),
+	vec2(-0.52554520, -0.80657600),
+	vec2(-0.01482044, -0.48689910),
+	vec2(-0.45758520,  0.83156060),
+	vec2( 0.18829080,  0.71168610),
+	vec2( 0.23589650, -0.95054530),
+	vec2( 0.26197550, -0.61955050),
+	vec2( 0.47952230,  0.32172530),
+	vec2( 0.52478220,  0.61679990),
+	vec2( 0.85708400,  0.47555550),
+	vec2( 0.75702890,  0.08125463),
+	vec2( 0.48267020,  0.86368290),
+	vec2( 0.33045960, -0.31044460),
+	vec2( 0.59658700, -0.35501270),
+	vec2( 0.69684450, -0.61393110),
+	vec2( 0.88014110, -0.41306840),
+	vec2( 0.07468465,  0.99449370),
+	vec2( 0.92697510, -0.10826900),
+	vec2( 0.45471010, -0.78973980)
+);
+vec3 pcss(vec3 position) {
+	const float searchScale = 0.05;
+	float spread = -tan(sunAngularRadius) * projectionShadowInverse[2].z * projectionShadow[0].x;
+	float searchRadius = spread * searchScale;
 
 	float dither = bayer8(gl_FragCoord.st) * tau;
 	mat2 ditherRotaion = mat2(cos(dither), sin(dither), -sin(dither), cos(dither));
 
-	// Sampling offsets (Poisson disk)
-	const vec2[36] offset = vec2[36](
-		vec2(-0.90167680,  0.34867350),
-		vec2(-0.98685560, -0.03261871),
-		vec2(-0.67581730,  0.60829530),
-		vec2(-0.47958790,  0.23570540),
-		vec2(-0.45314310,  0.48728980),
-		vec2(-0.30706600, -0.15843290),
-		vec2(-0.09606075, -0.01807100),
-		vec2(-0.60807480,  0.01524314),
-		vec2(-0.02638345,  0.27449020),
-		vec2(-0.17485240,  0.49767420),
-		vec2( 0.08868586, -0.19452260),
-		vec2( 0.18764890,  0.45603400),
-		vec2( 0.39509670,  0.07532994),
-		vec2(-0.14323580,  0.75790890),
-		vec2(-0.52281310, -0.28745570),
-		vec2(-0.78102060, -0.44097930),
-		vec2(-0.40987180, -0.51410110),
-		vec2(-0.12428560, -0.78665660),
-		vec2(-0.52554520, -0.80657600),
-		vec2(-0.01482044, -0.48689910),
-		vec2(-0.45758520,  0.83156060),
-		vec2( 0.18829080,  0.71168610),
-		vec2( 0.23589650, -0.95054530),
-		vec2( 0.26197550, -0.61955050),
-		vec2( 0.47952230,  0.32172530),
-		vec2( 0.52478220,  0.61679990),
-		vec2( 0.85708400,  0.47555550),
-		vec2( 0.75702890,  0.08125463),
-		vec2( 0.48267020,  0.86368290),
-		vec2( 0.33045960, -0.31044460),
-		vec2( 0.59658700, -0.35501270),
-		vec2( 0.69684450, -0.61393110),
-		vec2( 0.88014110, -0.41306840),
-		vec2( 0.07468465,  0.99449370),
-		vec2( 0.92697510, -0.10826900),
-		vec2( 0.45471010, -0.78973980)
-	);
-
 	// blocker search & penumbra estimation
 	float blockerDepth = 0.0;
-	for (int i = 0; i < offset.length(); i++) {
-		blockerDepth += max0(position.z * 0.5 + 0.5 - texture2D(shadowtex0, shadows_distortShadowSpace(ditherRotaion * offset[i] * searchRadius + position.st) * 0.5 + 0.5).r);
-	} blockerDepth *= spread / offset.length();
+	for (int i = 0; i < pcss_offset.length(); i++) {
+		vec2 sampleCoord = shadows_distortShadowSpace(ditherRotaion * pcss_offset[i] * searchRadius + position.st) * 0.5 + 0.5;
+		float blockerSample = texture2D(shadowtex1, sampleCoord).r;
+		blockerDepth += max0(position.z - (blockerSample * 2.0 - 1.0));
+	} blockerDepth = clamp(blockerDepth / pcss_offset.length(), 0.0, searchScale) * spread;
 
 	// filter
 	vec3 result = vec3(0.0);
-	for (int i = 0; i < offset.length(); i++) {
-		result += shadowSample(shadows_distortShadowSpace(vec3(ditherRotaion * offset[i], 0.0) * blockerDepth + position) * 0.5 + 0.5);
-	} result /= offset.length();
+	for (int i = 0; i < pcss_offset.length(); i++) {
+		result += shadowSample(shadows_distortShadowSpace(vec3(ditherRotaion * pcss_offset[i], 0.0) * blockerDepth + position) * 0.5 + 0.5);
+	} result /= pcss_offset.length();
 
 	return result;
 }
+vec3 lpcss(vec3 position) {
+	const float searchScale = 0.05;
+	float spread = -tan(sunAngularRadius) * projectionShadowInverse[2].z * projectionShadow[0].x;
+	float searchRadius = spread * searchScale;
+
+	float dither = bayer8(gl_FragCoord.st) * tau;
+	mat2 ditherRotaion = mat2(cos(dither), sin(dither), -sin(dither), cos(dither));
+
+	// blocker search & penumbra estimation
+	vec2 blockerDepths = vec2(0.0);
+	for (int i = 0; i < pcss_offset.length(); i++) {
+		vec2 sampleCoord = shadows_distortShadowSpace(ditherRotaion * pcss_offset[i] * searchRadius + position.st) * 0.5 + 0.5;
+		vec2 blockerSample = vec2(texture2D(shadowtex1, sampleCoord).r, texture2D(shadowtex0, sampleCoord).r);
+		blockerDepths += max0(position.z - (blockerSample * 2.0 - 1.0));
+	} blockerDepths = clamp(blockerDepths / pcss_offset.length(), 0.0, searchScale) * spread;
+
+	// filter
+	vec3 result = vec3(0.0);
+	for (int i = 0; i < pcss_offset.length(); i++) {
+		vec3 baseOffset = vec3(ditherRotaion * pcss_offset[i], 0.0);
+		float opaqueShadowLayer = sqrt(textureShadow(shadowtex1, shadows_distortShadowSpace(baseOffset * blockerDepths.x + position) * 0.5 + 0.5));
+
+		vec3 transparentPos = shadows_distortShadowSpace(baseOffset * blockerDepths.y + position) * 0.5 + 0.5;
+		float transparentShadow = sqrt(textureShadow(shadowtex0, transparentPos));
+
+		vec4 colorSample = texture2D(shadowcolor0, transparentPos.st);
+		colorSample.rgb = mix(vec3(1.0), colorSample.rgb * (1.0 - colorSample.a), colorSample.a);
+
+		vec3 transparentShadowLayer = colorSample.rgb * (1.0 - transparentShadow) + transparentShadow;
+
+		result += opaqueShadowLayer * transparentShadowLayer;
+	} result /= pcss_offset.length();
+
+	return result;
+}
+
 vec3 shadows(vec3 position) {
 	position = mat3(shadowModelView) * position + shadowModelView[3].xyz;
 	vec3 normal = normalize(cross(dFdx(position), dFdy(position)));
 	position = vec3(projectionShadow[0].x, projectionShadow[1].y, projectionShadow[2].z) * position + projectionShadow[3].xyz;
 
-	#if SHADOW_FILTER_TYPE == 2
-	return pcssShadow(position);
+	#if SHADOW_FILTER_TYPE == 2 || (SHADOW_FILTER_TYPE == 3 && !defined SHADOW_COLORED)
+	return pcss(position);
+	#elif SHADOW_FILTER_TYPE == 3
+	return lpcss(position);
 	#endif
 
 	float distortFactor = shadows_calculateDistortionCoeff(position.xy);

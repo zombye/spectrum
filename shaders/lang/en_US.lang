@@ -46,6 +46,8 @@ option.SHADOW_FILTER_TYPE=Shadow Filter Type
 value.SHADOW_FILTER_TYPE.0=PCF (LQ)
 value.SHADOW_FILTER_TYPE.1=PCF (HQ)
 value.SHADOW_FILTER_TYPE.2=PCSS
+value.SHADOW_FILTER_TYPE.3=LPCSS
+option.SHADOW_FILTER_TYPE.comment=PCF filters have fixed penumbra. PCSS filters have variable penumbra dependent on distance from the shadow caster, improving realism. LPCSS is an extension to PCSS that allows opaque and transparent objects to have separate penumbra, further improving realism.
 option.SHADOW_COLORED=Colored Shadows
 
 # Reflective Shadow Maps
