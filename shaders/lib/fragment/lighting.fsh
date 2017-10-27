@@ -3,12 +3,14 @@
 #define RTAO_SAMPLES     0   // [0 1 2 3 4]
 #define RTAO_RAY_QUALITY 2.0 // [1.0 1.5 2.0 2.5]
 
-#define SSAO_SAMPLES 16 // [0 9 16]
-#define SSAO_RADIUS  1.0
+#define SRAO_RADIUS 1.0 // Radius of short-range AO (HBAO, SSAO)
 
 //#define HBAO
 #define HBAO_DIRECTIONS        4
 #define HBAO_SAMPLES_DIRECTION 4
+
+#define SSAO_SAMPLES 16 // [0 9 16]
+#define SSAO_RADIUS  SRAO_RADIUS
 
 //--//
 
@@ -228,34 +230,36 @@ float hbao(mat3 position, vec3 normal) {
 	return 1.0;
 	#endif
 
-	const float radius = 2.0;
-	const float hbao_nir2 = -1.0 / radius;
+	const float hbao_nir2 = -1.0 / SRAO_RADIUS;
 	const float alpha = tau / HBAO_DIRECTIONS;
-	const float msd = radius * radius;
 
+	#ifdef TEMPORAL_AA
 	vec2 noise = hash22(vec2(bayer8(gl_FragCoord.st), frameCounter % 16)) * vec2(alpha, 1.0);
+	#else
+	vec2 noise = hash22(vec2(bayer8(gl_FragCoord.st))) * vec2(alpha, 1.0);
+	#endif
 
 	float result = 0.0;
 	for (int i = 0; i < HBAO_DIRECTIONS; i++) {
 		float angle = alpha * i + noise.x;
-		vec3 dir = vec3(cos(angle), sin(angle), 0.0) * radius / HBAO_SAMPLES_DIRECTION;
+		vec3 dir = vec3(cos(angle), sin(angle), 0.0) * SRAO_RADIUS / HBAO_SAMPLES_DIRECTION;
 
-		// Find cosine of angle between horizon & normal in direction
+		// Find cosinus of angle between normal & horizon
 		float cosHorizon = 0.0;
 		for (int j = 0; j < HBAO_SAMPLES_DIRECTION; j++) {
 			vec2 sampleUV = viewSpaceToScreenSpace(dir * (j + noise.y) + position[1], projection).st;
 			vec3 samplePosition = screenSpaceToViewSpace(vec3(sampleUV, texture2D(depthtex1, sampleUV).r), projectionInverse);
 
-			vec3 v = samplePosition - (normal * 0.001 + position[1]);
+			vec3 sampleVector = samplePosition - position[1];
+			float distanceSquared = dot(sampleVector, sampleVector);
 
-			float VoV = dot(v, v);
+			if (distanceSquared > SRAO_RADIUS * SRAO_RADIUS) continue;
 
-			if (VoV > msd) continue;
-
-			cosHorizon = max(cosHorizon, dot(normal, v) * inversesqrt(VoV));
+			cosHorizon = max(cosHorizon, dot(normal, sampleVector) * inversesqrt(distanceSquared));
 		}
-		
-		result += pow2(acos(clamp01(cosHorizon)) / pi);
+
+		// Add angle above horizon to result
+		result += acos(clamp01(cosHorizon)) / pi;
 	}
 
 	return result / HBAO_DIRECTIONS;
