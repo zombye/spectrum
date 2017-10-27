@@ -1,6 +1,6 @@
 #define FLATCLOUDS
 #define FLATCLOUDS_ALTITUDE 10000.0
-#define FLATCLOUDS_COVERAGE 0.45
+#define FLATCLOUDS_COVERAGE 0.47
 
 float flatClouds_phase(float cosTheta) {
 	const vec2 g    = vec2(0.25, -0.15);
@@ -23,10 +23,11 @@ vec4 flatClouds_calculate(vec3 viewDirection) {
 	vec2 cloudPosition = direction.xz * planeDistance + cameraPosition.xz;
 
 	float
-	density  = texture2D(noisetex, cloudPosition * 0.000001 + 0.00005 * frameTimeCounter).r * 1.0000 / 1.624;
-	density += texture2D(noisetex, cloudPosition * 0.000003 + 0.00025 * frameTimeCounter).r * 0.4000 / 1.624;
-	density += texture2D(noisetex, cloudPosition * 0.000009 + 0.00125 * frameTimeCounter).r * 0.1600 / 1.624;
-	density += texture2D(noisetex, cloudPosition * 0.000027 + 0.00625 * frameTimeCounter).r * 0.0640 / 1.624;
+	density  = texture2D(noisetex, cloudPosition * 0.000001 + 0.00005 * frameTimeCounter).r * 1.000 / 1.65;
+	density += texture2D(noisetex, cloudPosition * 0.000003 + 0.00025 * frameTimeCounter).r * 0.400 / 1.65;
+	density += texture2D(noisetex, cloudPosition * 0.000009 + 0.00125 * frameTimeCounter).r * 0.160 / 1.65;
+	density += texture2D(noisetex, cloudPosition * 0.000027 + 0.00625 * frameTimeCounter).r * 0.065 / 1.65;
+	density += texture2D(noisetex, cloudPosition * 0.000081 + 0.01565 * frameTimeCounter).r * 0.025 / 1.65;
 
 	const float densityFactor  = 1.0 / FLATCLOUDS_COVERAGE;
 	const float coverageFactor = FLATCLOUDS_COVERAGE * densityFactor - densityFactor;
@@ -34,8 +35,8 @@ vec4 flatClouds_calculate(vec3 viewDirection) {
 	density *= density * (-2.0 * density + 3.0) * 0.2;
 
 	vec4 clouds;
-	clouds.rgb = shadowLightColor * flatClouds_phase(dot(viewDirection, shadowLightVector)) * transmittedScatteringIntegral(density, 0.5);
-	clouds.a = exp(-0.5 * density);
+	clouds.rgb = shadowLightColor * flatClouds_phase(dot(viewDirection, shadowLightVector)) * transmittedScatteringIntegral(density, 1.11);
+	clouds.a = exp(-1.11 * density);
 	clouds.rgb *= clouds.a;
 
 	return mix(vec4(0.0, 0.0, 0.0, 1.0), clouds, smoothstep(0.0, 0.1, dot(viewDirection, upVector)));
