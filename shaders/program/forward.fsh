@@ -8,6 +8,7 @@ const bool gaux3MipmapEnabled = true;
 uniform float viewWidth, viewHeight;
 
 // Time
+uniform int   frameCounter;
 uniform float frameTimeCounter;
 
 // Positions
@@ -90,9 +91,10 @@ float get3DNoise(vec3 position) {
 #include "/lib/fragment/sky.fsh"
 #include "/lib/fragment/volumetricClouds.fsh"
 
+#include "/lib/fragment/raytracer.fsh"
+
 #include "/lib/fragment/lighting.fsh"
 
-#include "/lib/fragment/raytracer.fsh"
 #include "/lib/fragment/specularBRDF.fsh"
 #include "/lib/fragment/reflections.fsh"
 

@@ -56,6 +56,13 @@ value.RSM_SAMPLES.0=Off
 option.RSM_RADIUS=Bounced Sunlight Range
 option.RSM_BRIGHTNESS=Bounced Sunlight Brightness
 
+# Ambient Occlusion
+
+option.RTAO_SAMPLES=RTAO Quality
+option.RTAO_SAMPLES.comment=For best results enable temporal anti-aliasing. Warning: RTAO is extremely demanding!
+option.SSAO_SAMPLES=SSAO Quality
+option.SSAO_SAMPLES.comment=For best results enable temporal anti-aliasing.
+
 ##--## Optics
 
 screen.optics=Optics

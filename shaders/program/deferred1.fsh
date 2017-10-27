@@ -3,6 +3,7 @@
 //----------------------------------------------------------------------------//
 
 // Time
+uniform int   frameCounter;
 uniform float frameTimeCounter;
 
 // Viewport
@@ -40,6 +41,7 @@ varying vec2 screenCoord;
 #include "/lib/util/dither.glsl"
 #include "/lib/util/math.glsl"
 #include "/lib/util/miscellaneous.glsl"
+#include "/lib/util/noise.glsl"
 #include "/lib/util/packing.glsl"
 #include "/lib/util/spaceConversion.glsl"
 #include "/lib/util/texture.glsl"
@@ -49,9 +51,12 @@ varying vec2 screenCoord;
 #include "/lib/uniform/shadowMatrices.glsl"
 #include "/lib/uniform/vectors.glsl"
 
+#include "/lib/misc/importanceSampling.glsl"
 #include "/lib/misc/shadowDistortion.glsl"
 
 //--//
+
+#include "/lib/fragment/raytracer.fsh"
 
 #include "/lib/fragment/masks.fsh"
 #include "/lib/fragment/materials.fsh"

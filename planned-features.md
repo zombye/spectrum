@@ -1,6 +1,6 @@
 # General
 
-Terrain deformation
+Terrain deformation - partially implemented
 * Disabled by default
 * Affect normals correctly
 * Should affect clouds and other world-space effects
@@ -13,7 +13,7 @@ Parallax Mapping
 Various ambient occlusion methods
 Reflective Shadow Maps - implemented
 
-PCSS/some other method for realistic shadows
+PCSS/some other method for realistic shadows - implemented
 HSSRS
 
 Subsurface Scattering approximation
@@ -30,7 +30,7 @@ Refractions - implemented
 Screen-Space Reflections - partially implemented
 * Should take into account fog & clouds. Clouds may be slow tough
 
-Fog - partially implemented
+Fog - implemented
 * Volumetric by default
 * Water fog is also volumetric
 * Simple fog as an option (brightness based on `max(eyeBrightness.y / 240.0, skyLightmap)`)
@@ -38,7 +38,7 @@ Fog - partially implemented
 Eye Adaptation - implemented
 * Smoothed over a short period
 
-Temporal Anti-Aliasing
+Temporal Anti-Aliasing - implemented, but needs improvements
 
 Proper weather effects:
 * Rain & Storms are extra cloudy

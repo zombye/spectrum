@@ -1,5 +1,15 @@
 #define DIFFUSE_MODEL 0 // [0 1]
 
+#define RTAO_SAMPLES     0   // [0 1 2 3 4]
+#define RTAO_RAY_QUALITY 2.0 // [1.0 1.5 2.0 2.5]
+
+#define SSAO_SAMPLES 16 // [0 9 16]
+#define SSAO_RADIUS  1.0
+
+//#define HBAO
+#define HBAO_DIRECTIONS        4
+#define HBAO_SAMPLES_DIRECTION 4
+
 //--//
 
 float diffuse_lambertian(vec3 normal, vec3 light) {
@@ -213,6 +223,92 @@ float handLight(mat3 position, vec3 normal) {
 	return lm.x + lm.y;
 }
 
+float hbao(mat3 position, vec3 normal) {
+	#ifndef HBAO
+	return 1.0;
+	#endif
+
+	const float radius = 2.0;
+	const float hbao_nir2 = -1.0 / radius;
+	const float alpha = tau / HBAO_DIRECTIONS;
+	const float msd = radius * radius;
+
+	vec2 noise = hash22(vec2(bayer8(gl_FragCoord.st), frameCounter % 16)) * vec2(alpha, 1.0);
+
+	float result = 0.0;
+	for (int i = 0; i < HBAO_DIRECTIONS; i++) {
+		float angle = alpha * i + noise.x;
+		vec3 dir = vec3(cos(angle), sin(angle), 0.0) * radius / HBAO_SAMPLES_DIRECTION;
+
+		// Find cosine of angle between horizon & normal in direction
+		float cosHorizon = 0.0;
+		for (int j = 0; j < HBAO_SAMPLES_DIRECTION; j++) {
+			vec2 sampleUV = viewSpaceToScreenSpace(dir * (j + noise.y) + position[1], projection).st;
+			vec3 samplePosition = screenSpaceToViewSpace(vec3(sampleUV, texture2D(depthtex1, sampleUV).r), projectionInverse);
+
+			vec3 v = samplePosition - (normal * 0.001 + position[1]);
+
+			float VoV = dot(v, v);
+
+			if (VoV > msd) continue;
+
+			cosHorizon = max(cosHorizon, dot(normal, v) * inversesqrt(VoV));
+		}
+		
+		result += pow2(acos(clamp01(cosHorizon)) / pi);
+	}
+
+	return result / HBAO_DIRECTIONS;
+}
+float rtao(vec3 position, vec3 normal) {
+	#if RTAO_SAMPLES == 0
+	return 1.0;
+	#endif
+
+	float dither = bayer8(gl_FragCoord.st);
+
+	float result = 0.0;
+	for (int i = 0; i < RTAO_SAMPLES; i++) {
+		vec3 rayDir = is_lambertian(normal, hash42(vec2(((frameCounter % 16) * RTAO_SAMPLES + i) * 0.2516, dither)));
+
+		vec3 temp;
+		if (raytraceIntersection(position, rayDir, temp, dither, RTAO_RAY_QUALITY)) continue;
+
+		result += 1.0 / RTAO_SAMPLES;
+	} return result;
+}
+float ssao(vec3 position, vec3 normal) {
+	#if SSAO_SAMPLES == 0
+	return 1.0;
+	#endif
+
+	float dither = bayer8(gl_FragCoord.st);
+
+	float result = 1.0;
+	for (int i = 0; i < SSAO_SAMPLES; i++) {
+		#ifdef TEMPORAL_AA
+		vec4 noise = hash42(vec2(((frameCounter % 16) * SSAO_SAMPLES + i) * 0.2516, dither));
+		#else
+		vec4 noise = hash42(vec2(i, dither));
+		#endif
+
+		vec3 offset = normalize(noise.xyz * 2.0 - 1.0) * noise.w;
+		if (dot(offset, normal) < 0.0) offset = -offset;
+
+		vec3 sp = offset * SSAO_RADIUS + position;
+		vec3 sd = viewSpaceToScreenSpace(offset * SSAO_RADIUS + position, projection);
+		float od = texture2D(depthtex1, sd.st).r;
+		vec3 op = screenSpaceToViewSpace(vec3(sd.st, od), projectionInverse);
+
+		vec3 v = sp - op;
+
+		if (dot(v, v) > SSAO_RADIUS * SSAO_RADIUS) continue;
+
+		result -= float(sp.z < op.z) / SSAO_SAMPLES;
+	}
+	return result;
+}
+
 vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, out vec3 sunVisibility) {
 	#if PROGRAM != PROGRAM_WATER && (CAUSTICS_SAMPLES > 0 || RSM_SAMPLES > 0)
 	vec4 filtered = bilateralResample(normal, position[1].z);
@@ -229,6 +325,13 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	#endif
 
 	float skyLight = skyLight(lightmap.y, normal);
+	if (skyLight > 0.0) {
+		skyLight *= hbao(position, normal);
+		skyLight *= rtao(position[0], normal);
+		#ifndef HBAO
+		skyLight *= ssao(position[1], normal);
+		#endif
+	}
 
 	float
 	blockLight  = blockLight(lightmap.x);

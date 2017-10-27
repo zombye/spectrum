@@ -1,5 +1,6 @@
 /*
 const float sunPathRotation = -40.0;
+const float ambientOcclusionLevel = 0.0;
 
 // Shadow maps
 const float shadowDistance          = 16.0;
