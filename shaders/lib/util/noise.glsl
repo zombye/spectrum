@@ -5,7 +5,8 @@ vec2 hash22(vec2 x) {
 	return fract((x.x + x.y) * x);
 }
 vec4 hash42(vec2 x) {
-	vec4 x2 = fract(mod(x, pi).xyxy * vec4(10.214, 9.637, 10.023, 9.821));
-	x2 += dot(x2, x2.zwxy + vec4(38.549, 37.759, 38.011, 38.163));
-	return fract((x2.x + x2.y + x2.z + x2.w) * x2);
+	vec4 x2 = fract(mod(x.xyyx, pi) * vec2(10.214, 9.637).xyxy);
+	x2.xy += dot(x2.xy, x2.yx + vec2(38.549, 37.759));
+	x2.zw += dot(x2.zw, x2.wz + vec2(38.549, 37.759));
+	return fract((x2.xxzz + x2.yyww) * x2);
 }
