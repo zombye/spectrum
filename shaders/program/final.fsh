@@ -107,7 +107,7 @@ void main() {
 	color = tonemap(color);
 
 	color = linearTosRGB(color);
-	color += (bayer4(gl_FragCoord.st) / 255.0) + (0.5 / 255.0);
+	color += (bayer4(gl_FragCoord.st) / 255.0) + (0.03125 / 255.0);
 
 	gl_FragColor = vec4(color, 1.0);
 }
