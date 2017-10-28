@@ -276,7 +276,7 @@ float rtao(vec3 position, vec3 normal) {
 		vec3 rayDir = is_lambertian(normal, hash42(vec2(((frameCounter % 16) * RTAO_SAMPLES + i) * 0.2516, dither)));
 
 		vec3 temp;
-		if (raytraceIntersection(position, rayDir, temp, dither, RTAO_RAY_QUALITY)) continue;
+		if (raytraceIntersection(position, rayDir, temp, dither, RTAO_RAY_QUALITY, 0.0, 200.0)) continue;
 
 		result += 1.0 / RTAO_SAMPLES;
 	} return result;

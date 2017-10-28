@@ -98,7 +98,7 @@ vec3 tonemap(vec3 color) {
 void main() {
 	vec3 color = texture2D(colortex6, screenCoord).rgb;
 
-	if (GLARE_AMOUNT != 0.0) color = mix(color, weighAndSumGlareTiles(), GLARE_AMOUNT / (1.0 + GLARE_AMOUNT));
+	if (BLOOM_AMOUNT != 0.0) color = mix(color, weighAndSumGlareTiles(), BLOOM_AMOUNT / (1.0 + BLOOM_AMOUNT));
 
 	#ifdef DIFFRACTION_SPIKES
 	color = mix(color, diffractionSpikes(color), 0.2);

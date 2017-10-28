@@ -18,7 +18,6 @@ option.PHYSICAL_ATMOSPHERE=Physically Based Atmosphere
 # Volumetric Clouds
 option.VOLUMETRICCLOUDS_QUALITY=Volumetric Clouds Quality
 value.VOLUMETRICCLOUDS_QUALITY.0=Off
-option.VOLUMETRICCLOUDS_SHADING_HQ=Volumetric Clouds HQ Shading
 
 # Crepuscular rays / Volumetrically lit fog
 option.CREPUSCULAR_RAYS=Crepuscular Rays
@@ -72,5 +71,5 @@ option.APERTURE_BLADE_COUNT=Aperture Blade Count
 option.APERTURE_BLADE_ROTATION=Aperture Blade Rotation
 
 option.DOF=Depth of Field
+option.BLOOM_AMOUNT=Bloom Amount
 option.DIFFRACTION_SPIKES=Diffraction Spikes
-option.GLARE_AMOUNT=Glare Amount

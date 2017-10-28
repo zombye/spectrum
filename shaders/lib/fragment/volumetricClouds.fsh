@@ -1,18 +1,10 @@
 #define VOLUMETRICCLOUDS_QUALITY 5 // [0 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20]
-#define VOLUMETRICCLOUDS_SHADING_HQ // Significantly improves quality of volumetric clouds, but has a higher performance cost.
 
-#ifdef VOLUMETRICCLOUDS_SHADING_HQ
 #define VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT   1 // Using more than one sample has very little impact on actual quality unless range is incresed.
 #define VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT 0
 
 #define VOLUMETRICCLOUDS_VISIBILITY_RANGE_DIRECT   500.0
 #define VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT 200.0
-#else
-#define VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT   0
-#define VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT 0
-#define VOLUMETRICCLOUDS_VISIBILITY_RANGE_DIRECT   200.0
-#define VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT 200.0
-#endif
 
 #define VOLUMETRICCLOUDS_ALTITUDE_MIN  500.0
 #define VOLUMETRICCLOUDS_ALTITUDE_MAX 2000.0
@@ -117,9 +109,7 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 	for (int i = 0; i < samples; i++, position += increment) {
 		float od = volumetricClouds_density(position, true);
 
-		#ifdef VOLUMETRICCLOUDS_SHADING_HQ
-		if (od <= 0.0) continue; // This is a tad slower when HQ shading is disabled.
-		#endif
+		if (od <= 0.0) continue;
 
 		vec3 sampleLighting  = volumetricClouds_visibility(position, sunDirection, od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_DIRECT,   VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT,   true) * shadowLightColor * phase;
 		     sampleLighting += volumetricClouds_visibility(position, skyDirection, od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT, VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT, true) * skyLightColor    * 0.5;
