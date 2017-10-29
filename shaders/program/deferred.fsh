@@ -76,6 +76,7 @@ float calculateWaterCaustics(vec3 position, float skylight) {
 	vec3  lightVector       = mat3(gbufferModelViewInverse) * -shadowLightVector;
 	vec3  flatRefractVector = refract(lightVector, vec3(0.0, 1.0, 0.0), 0.75);
 	float surfDistUp        = shadowPosCur.z - (projectionShadowInverse[2].z * (texture2D(shadowtex0, shadowCoord).r * 2.0 - 1.0) + projectionShadowInverse[3].z);
+	if (surfDistUp >= 0.0) return 1.0;
 	      surfDistUp       *= lightVector.y / flatRefractVector.y;
 	float dither            = bayer4(gl_FragCoord.st) * 16.0;
 
