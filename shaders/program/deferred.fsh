@@ -18,6 +18,7 @@ uniform sampler2D colortex2; // gbuffer2 | Normal, Specular
 uniform sampler2D depthtex1;
 
 uniform sampler2D shadowtex0;
+uniform sampler2D shadowtex1;
 uniform sampler2D shadowcolor0;
 uniform sampler2D shadowcolor1;
 
@@ -33,6 +34,7 @@ varying vec2 screenCoord;
 #include "/lib/util/constants.glsl"
 #include "/lib/util/dither.glsl"
 #include "/lib/util/math.glsl"
+#include "/lib/util/miscellaneous.glsl"
 #include "/lib/util/packing.glsl"
 #include "/lib/util/spaceConversion.glsl"
 #include "/lib/util/texture.glsl"
@@ -54,10 +56,14 @@ vec2 spiralPoint(float angle, float scale) {
 #include "/lib/fragment/water/normal.fsh"
 
 float calculateWaterCaustics(vec3 position, float skylight) {
-	#if CAUSTICS_SAMPLES > 0
-	vec2 shadowCoord = shadows_distortShadowSpace((mat3(projectionShadow) * (mat3(shadowModelView) * (position - cameraPosition) + shadowModelView[3].xyz) + projectionShadow[3].xyz).xy) * 0.5 + 0.5;
-	if (texture2D(shadowcolor1, shadowCoord).a < 0.5 || skylight == 0.0)
+	#if CAUSTICS_SAMPLES == 0
+	return 1.0;
 	#endif
+
+	vec3 shadowPosCur = transformPosition(position, shadowModelView);
+	vec2 shadowCoord = shadows_distortShadowSpace((mat3(projectionShadow) * shadowPosCur + projectionShadow[3].xyz).xy) * 0.5 + 0.5;
+
+	if (texture2D(shadowcolor1, shadowCoord).a < 0.5 || skylight == 0.0)
 		return 1.0;
 
 	const int   samples           = CAUSTICS_SAMPLES;
@@ -67,19 +73,22 @@ float calculateWaterCaustics(vec3 position, float skylight) {
 	const float distanceThreshold = (sqrt(samples) - 1.0) / (radius * defocus);
 	const float resultPower       = CAUSTICS_RESULT_POWER;
 
-	vec3  lightVector = mat3(gbufferModelViewInverse) * -shadowLightVector;
-	float surfDistUp  = position.y - 62.9;
-	float dither      = bayer4(gl_FragCoord.st) * 16.0;
+	vec3  lightVector       = mat3(gbufferModelViewInverse) * -shadowLightVector;
+	vec3  flatRefractVector = refract(lightVector, vec3(0.0, 1.0, 0.0), 0.75);
+	float surfDistUp        = shadowPosCur.z - (projectionShadowInverse[2].z * (texture2D(shadowtex0, shadowCoord).r * 2.0 - 1.0) + projectionShadowInverse[3].z);
+	      surfDistUp       *= lightVector.y / flatRefractVector.y;
+	float dither            = bayer4(gl_FragCoord.st) * 16.0;
 
-	vec3 flatRefractVec = refract(lightVector, vec3(0.0, 1.0, 0.0), 0.75);
-	vec3 surfPos        = position - flatRefractVec * (surfDistUp / flatRefractVec.y);
+	position += cameraPosition;
+
+	vec3 surfPos = position - flatRefractVector * (surfDistUp / flatRefractVector.y);
 
 	float result = 0.0;
 	for (float i = 0.0; i < samples; i++) {
 		vec3 samplePos     = surfPos;
 		     samplePos.xz += spiralPoint(i * 16.0 + dither, samples * 16.0) * radius;
-		vec3 refractVec    = refract(lightVector, water_calculateNormal(samplePos), 0.75);
-		     samplePos     = refractVec * (surfDistUp / refractVec.y) + samplePos;
+		vec3 refractVector = refract(lightVector, water_calculateNormal(samplePos), 0.75);
+		     samplePos     = refractVector * (surfDistUp / refractVector.y) + samplePos;
 
 		result += pow(1.0 - clamp01(distance(position, samplePos) * distanceThreshold), distancePower);
 	}
@@ -161,7 +170,7 @@ void main() {
 	//--//
 
 	vec3 rsm = calculateReflectiveShadowMaps(backPosition[2], normal, skylight) * shadowLightColor;
-	float caustics = calculateWaterCaustics(backPosition[2] + cameraPosition, skylight);
+	float caustics = calculateWaterCaustics(backPosition[2], skylight);
 
 /* DRAWBUFFERS:3 */
 
