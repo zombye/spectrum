@@ -102,12 +102,22 @@ vec4 bilateralResample(vec3 normal, float depth) {
 
 //--//
 
+float calcCloudShadowMap() {
+	vec3 shadowPos = vec3(screenCoord, 0.0) * 2.0 - 1.0;
+	shadowPos.st /= 1.0 - length(shadowPos.st);
+	shadowPos = transformPosition(transformPosition(shadowPos, projectionShadowInverse), shadowModelViewInverse);
+
+	return volumetricClouds_shadow(shadowPos);
+}
+
 void main() {
 	vec3 tex1 = texture2D(colortex1, screenCoord).rgb;
 
 	masks mask = calculateMasks(tex1.r * 255.0);
+
+	gl_FragData[1].a = calcCloudShadowMap();
 	
-	if (mask.sky) discard;
+	if (mask.sky) return;
 
 	mat3 backPosition;
 	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);

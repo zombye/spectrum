@@ -124,8 +124,10 @@ vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
 			scatteringCoefficients[1] * transmittedScatteringIntegral(opticalDepth.y, transmittanceCoefficients[1])
 		);
 
-		vec3 sunlight = (scatterCoeffs * phase.xy) * shadowLightColor * textureShadow(shadowtex0, shadows_distortShadowSpace(shadowPos) * 0.5 + 0.5);
-		vec3 skylight = (scatterCoeffs * phase.zz) * skylightBrightness;
+		vec3 shadowCoord = shadows_distortShadowSpace(shadowPos) * 0.5 + 0.5;
+		vec3 sunlight  = (scatterCoeffs * phase.xy) * shadowLightColor * textureShadow(shadowtex0, shadowCoord);
+		     sunlight *= texture2D(colortex3, shadowCoord.st).a;
+		vec3 skylight  = (scatterCoeffs * phase.zz) * skylightBrightness;
 
 		scattering += (sunlight + skylight) * transmittance;
 		transmittance *= exp(-transmittanceCoefficients * opticalDepth);
@@ -187,8 +189,10 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 	vec3 scattering    = vec3(0.0);
 
 	for (float i = 0.0; i < steps; i++, position += increment) {
-		vec3 sunlight = scatterCoeff * (0.25/pi) * shadowLightColor * textureShadow(shadowtex1, shadows_distortShadowSpace(position) * 0.5 + 0.5);
-		vec3 skylight = scatterCoeff * 0.5 * skyLightColor * skylight;
+		vec3 shadowCoord = shadows_distortShadowSpace(position) * 0.5 + 0.5;
+		vec3 sunlight  = scatterCoeff * (0.25/pi) * shadowLightColor * textureShadow(shadowtex1, shadowCoord);
+		     sunlight *= texture2D(colortex3, shadowCoord.st).a;
+		vec3 skylight  = scatterCoeff * 0.5 * skyLightColor * skylight;
 
 		scattering    += (sunlight + skylight) * stepIntegral * transmittance;
 		transmittance *= exp(-attenCoeff * stepSize);
