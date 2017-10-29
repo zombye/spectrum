@@ -299,16 +299,15 @@ float ssao(vec3 position, vec3 normal) {
 		vec3 offset = normalize(noise.xyz * 2.0 - 1.0) * noise.w;
 		if (dot(offset, normal) < 0.0) offset = -offset;
 
-		vec3 sp = offset * SSAO_RADIUS + position;
 		vec3 sd = viewSpaceToScreenSpace(offset * SSAO_RADIUS + position, projection);
 		float od = texture2D(depthtex1, sd.st).r;
 		vec3 op = screenSpaceToViewSpace(vec3(sd.st, od), projectionInverse);
 
-		vec3 v = sp - op;
+		vec3 v = op - position;
 
 		if (dot(v, v) > SSAO_RADIUS * SSAO_RADIUS) continue;
 
-		result -= float(sp.z < op.z) / SSAO_SAMPLES;
+		result -= float(od < sd.z) / SSAO_SAMPLES;
 	}
 	return result;
 }
