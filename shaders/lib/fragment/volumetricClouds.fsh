@@ -1,4 +1,4 @@
-#define VOLUMETRICCLOUDS_QUALITY 5 // [0 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20]
+#define VOLUMETRICCLOUDS_QUALITY 7 // [0 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20]
 
 #define VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT   1 // Using more than one sample has very little impact on actual quality unless range is incresed.
 #define VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT 0
@@ -13,7 +13,7 @@
 
 //--// Constants
 
-const float volumetricClouds_coeffScatter  = 0.02;
+const float volumetricClouds_coeffScatter  = 0.05;
 const float volumetricClouds_coeffTransmit = volumetricClouds_coeffScatter * 1.11;
 
 //--//
@@ -73,6 +73,35 @@ float volumetricClouds_visibility(vec3 position, vec3 direction, float odAtStart
 	float od = -0.5 * odAtStart;
 	for (float i = 0.0; i < samples; i++, position += direction) {
 		od -= volumetricClouds_density(position, hq);
+	}
+	return exp(volumetricClouds_coeffTransmit * stepSize * od);
+}
+
+float volumetricClouds_shadow(vec3 position) {
+	#if VOLUMETRICCLOUDS_QUALITY == 0
+	return 1.0;
+	#endif
+
+	const float samples = 10.0;
+
+	vec3 worldStart = position + cameraPosition;
+	vec3 direction  = mat3(gbufferModelViewInverse) * shadowLightVector;
+
+	// .x = start, .y = end
+	vec2 distances = vec2(VOLUMETRICCLOUDS_ALTITUDE_MIN, VOLUMETRICCLOUDS_ALTITUDE_MAX); // top of clouds is y by default
+	distances = (distances - worldStart.y) / direction.y;                                // get distance to the upper and lower bounds
+	if (distances.y < distances.x) distances = distances.yx;                             // y less than x? we're looking downwards, so swap them
+	distances.x = max(distances.x, 0.0);                                                 // start can never be closer than 0
+	if (distances.y < distances.x) return 1.0;                                           // y still less than x? no clouds visible then
+
+	float stepSize = (distances.y - distances.x) / samples;
+
+	vec3 increment = direction * stepSize;
+	position += increment * bayer8(gl_FragCoord.st) + (direction * distances.x + worldStart);
+
+	float od = 0.0;
+	for (int i = 0; i < samples; i++, position += increment) {
+		od -= volumetricClouds_density(position, true);
 	}
 	return exp(volumetricClouds_coeffTransmit * stepSize * od);
 }

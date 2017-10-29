@@ -318,7 +318,8 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	vec4 filtered = bilateralResample(normal, position[1].z);
 	#endif
 
-	sunVisibility = shadows(position[2]);
+	sunVisibility  = shadows(position[2]);
+	sunVisibility *= volumetricClouds_shadow(position[2]);
 
 	vec3
 	shadowLight  = sunVisibility;

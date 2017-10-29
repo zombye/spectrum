@@ -46,6 +46,13 @@ varying vec2 screenCoord;
 #include "/lib/util/spaceConversion.glsl"
 #include "/lib/util/texture.glsl"
 
+float get3DNoise(vec3 position) {
+	float flr = floor(position.z);
+	vec2 coord = (position.xy * 0.015625) + (flr * 0.265625); // 1/64 | 17/64
+	vec2 noise = texture2D(noisetex, coord).xy;
+	return mix(noise.x, noise.y, position.z - flr);
+}
+
 #include "/lib/uniform/colors.glsl"
 #include "/lib/uniform/gbufferMatrices.glsl"
 #include "/lib/uniform/shadowMatrices.glsl"
@@ -88,6 +95,8 @@ vec4 bilateralResample(vec3 normal, float depth) {
 	filtered /= totalWeight.xxxy;
 	return filtered;
 }
+
+#include "/lib/fragment/volumetricClouds.fsh"
 
 #include "/lib/fragment/lighting.fsh"
 
