@@ -317,8 +317,10 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	vec4 filtered = bilateralResample(normal, position[1].z);
 	#endif
 
+	float cloudShadow = volumetricClouds_shadow(position[2]);
+
 	sunVisibility  = shadows(position[2]);
-	sunVisibility *= volumetricClouds_shadow(position[2]);
+	sunVisibility *= cloudShadow;
 
 	vec3
 	shadowLight  = sunVisibility;
@@ -346,7 +348,7 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	lighting += skyLightColor * skyLight;
 	lighting += blockLightColor * blockLight;
 	#if PROGRAM != PROGRAM_WATER && RSM_SAMPLES > 0
-	lighting += filtered.rgb;
+	lighting += filtered.rgb * cloudShadow;
 	#endif
 
 	return lighting;
