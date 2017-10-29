@@ -40,7 +40,7 @@ vec3 water_calculateNormal(vec3 pos, mat3 tbn, vec3 viewDir) {
 	vec3 normal = water_calculateNormal(pos).xzy;
 
 	// Bias normals to flat based on angle - looks a lot better, but not realistic.
-	float bias = pow(max0(dot(-viewDir, tbn[2])), 0.76);
+	float bias = pow(clamp01(dot(-viewDir, tbn[2])), 0.76);
 	normal = mix(vec3(0.0, 0.0, 1.0), normal, bias);
 
 	return tbn * normal;

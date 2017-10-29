@@ -82,7 +82,7 @@ vec4 bilateralResample(vec3 normal, float depth) {
 			vec3 normalSample = unpackNormal(texture2D(colortex2, coord).rg);
 			float depthSample = linearizeDepth(texture2D(depthtex1, coord).r, projectionInverse);
 
-			vec2 weight = vec2(max0(dot(normal, normalSample)), float(i == 0.0 && j == 0.0));
+			vec2 weight = vec2(clamp01(dot(normal, normalSample)), float(i == 0.0 && j == 0.0));
 			weight.x *= 1.0 - clamp(abs(depth - depthSample), 0.0, 1.0);
 
 			filtered += texture2D(colortex3, coord * COMPOSITE0_SCALE) * weight.xxxy;

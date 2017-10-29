@@ -127,7 +127,7 @@ void main() {
 	vec3 normal = norm.xyz;
 
 	// kinda hacky
-	base.a = mix(base.a, 1.0, f_dielectric(max0(dot(normal, -normalize(position[1]))), 1.0, f0ToIOR(mat.reflectance)));
+	base.a = mix(base.a, 1.0, f_dielectric(clamp01(dot(normal, -normalize(position[1]))), 1.0, f0ToIOR(mat.reflectance)));
 
 	vec3 sunVisibility;
 	vec3 diffuse   = calculateLighting(position, normal, lightmap, mat, sunVisibility) * mat.albedo;

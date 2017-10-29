@@ -49,7 +49,7 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 		}
 		#endif
 
-		reflectionSample *= f_dielectric(max0(dot(facetNormal, -viewDirection)), 1.0, ior);
+		reflectionSample *= f_dielectric(clamp01(dot(facetNormal, -viewDirection)), 1.0, ior);
 
 		reflection += reflectionSample;
 	} reflection /= REFLECTION_SAMPLES;
@@ -68,7 +68,7 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 		#endif
 
 		reflection *= smoothstep(0.1, 0.9, skyLight);
-		reflection *= f_dielectric(max0(dot(normal, -viewDirection)), 1.0, ior);
+		reflection *= f_dielectric(clamp01(dot(normal, -viewDirection)), 1.0, ior);
 	}
 	#endif
 

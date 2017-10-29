@@ -36,9 +36,9 @@ float v_smithGGXCorrelated(float NoV, float NoL, float alpha2) {
 
 float specularBRDF(vec3 view, vec3 normal, vec3 light, float reflectance, float alpha2) {
 	vec3 halfVec = normalize(view + light);
-	float NoV = max0(dot(normal, view));
-	float NoH = max0(dot(normal, halfVec));
-	float NoL = max0(dot(normal, light));
+	float NoV = clamp01(dot(normal, view));
+	float NoH = clamp01(dot(normal, halfVec));
+	float NoL = clamp01(dot(normal, light));
 
 	float d = d_GGX(NoH, alpha2);
 	float f = f_dielectric(NoV, 1.0, f0ToIOR(reflectance));

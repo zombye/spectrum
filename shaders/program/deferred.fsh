@@ -135,7 +135,7 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float skylight) {
 		      sampleVector = sampleVector * inversesqrt(sampleDistSq);
 
 		vec3 sampleNormal = texture2D(shadowcolor1, sampleCoord.st).rgb * 2.0 - 1.0; sampleNormal.z = abs(sampleNormal.z);
-		float sampleVis = max0(dot(sampleVector, shadowNormal)) * max0(dot(sampleVector, sampleNormal)) * sampleNormal.z;
+		float sampleVis = clamp01(dot(sampleVector, shadowNormal)) * clamp01(dot(sampleVector, sampleNormal)) * sampleNormal.z;
 
 		if (sampleVis <= 0.0) continue;
 

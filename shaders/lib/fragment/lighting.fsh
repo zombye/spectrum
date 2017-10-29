@@ -15,15 +15,15 @@
 //--//
 
 float diffuse_lambertian(vec3 normal, vec3 light) {
-	return max0(dot(normal, light)) / pi;
+	return clamp01(dot(normal, light)) / pi;
 }
 float diffuse_burley(vec3 view, vec3 normal, vec3 light, float roughness) {
 	const vec2 efc = vec2(-51.0 / 151.0, 1.0) / pi;
 
-	float NoL = max0(dot(normal, light));
+	float NoL = clamp01(dot(normal, light));
 	float VoH = dot(view, normalize(light + view));
 
-	vec2 rs = (2.0 * roughness * (VoH * VoH + 0.25) - 1.0) * pow5(1.0 - vec2(NoL, max0(dot(normal, view)))) + 1.0;
+	vec2 rs = (2.0 * roughness * (VoH * VoH + 0.25) - 1.0) * pow5(1.0 - vec2(NoL, clamp01(dot(normal, view)))) + 1.0;
 
 	return NoL * rs.x * rs.y * (efc.x * roughness + efc.y);
 }

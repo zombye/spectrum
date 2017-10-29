@@ -162,7 +162,7 @@ vec3 fakeCrepuscularRays(vec3 viewVector) {
 		result += step(1.0, texture2D(depthtex1, sampleCoord).r);
 	}
 
-	float directionalMult = max0(dot(viewVector, shadowLightVector)); directionalMult *= directionalMult;
+	float directionalMult = clamp01(dot(viewVector, shadowLightVector)); directionalMult *= directionalMult;
 
 	return result * directionalMult * 0.01 * shadowLightColor / steps;
 }
