@@ -63,7 +63,7 @@ float calculateWaterCaustics(vec3 position, float skylight) {
 	vec3 shadowPosCur = transformPosition(position, shadowModelView);
 	vec2 shadowCoord = shadows_distortShadowSpace((mat3(projectionShadow) * shadowPosCur + projectionShadow[3].xyz).xy) * 0.5 + 0.5;
 
-	if (texture2D(shadowcolor1, shadowCoord).a < 0.5 || skylight == 0.0)
+	if (texture2D(shadowcolor1, shadowCoord).b > 0.5 || skylight == 0.0)
 		return 1.0;
 
 	const int   samples           = CAUSTICS_SAMPLES;
@@ -133,7 +133,7 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float skylight) {
 		if (sampleDistSq > radiusSquared) continue;
 		      sampleVector = sampleVector * inversesqrt(sampleDistSq);
 
-		vec3 sampleNormal = texture2D(shadowcolor1, sampleCoord.st).rgb * 2.0 - 1.0;
+		vec3 sampleNormal = texture2D(shadowcolor1, sampleCoord.st).rgb * 2.0 - 1.0; sampleNormal.z = abs(sampleNormal.z);
 		float sampleVis = max0(dot(sampleVector, shadowNormal)) * max0(dot(sampleVector, sampleNormal)) * sampleNormal.z;
 
 		if (sampleVis <= 0.0) continue;

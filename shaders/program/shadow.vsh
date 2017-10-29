@@ -69,4 +69,7 @@ void main() {
 	gl_Position.xyz = calculateDisplacement(gl_Position.xyz);
 	gl_Position.xyz = mat3(shadowModelView) * gl_Position.xyz + shadowModelView[3].xyz;
 	gl_Position     = projectVertex(gl_Position.xyz);
+
+	normal.z = abs(normal.z);
+	if (metadata.x > 7.9 && metadata.x < 9.1) normal.z = -normal.z;
 }
