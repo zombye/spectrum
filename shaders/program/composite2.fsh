@@ -21,6 +21,8 @@ varying vec2 screenCoord;
 
 //----------------------------------------------------------------------------//
 
+#include "/lib/debug.glsl"
+
 #include "/lib/util/spaceConversion.glsl"
 
 #include "/lib/uniform/gbufferMatrices.glsl"
@@ -391,4 +393,6 @@ void main() {
 /* DRAWBUFFERS:6 */
 
 	gl_FragData[0] = vec4(color, 1.0);
+
+	exit();
 }

@@ -19,6 +19,8 @@ varying vec2 screenCoord;
 
 //----------------------------------------------------------------------------//
 
+#include "/lib/debug.glsl"
+
 #include "/lib/util/constants.glsl"
 #include "/lib/util/dither.glsl"
 #include "/lib/util/math.glsl"
@@ -109,5 +111,7 @@ void main() {
 	color = linearTosRGB(color);
 	color += (bayer4(gl_FragCoord.st) / 255.0) + (0.03125 / 255.0);
 
-	gl_FragColor = vec4(color, 1.0);
+	gl_FragData[0] = vec4(color, 1.0);
+
+	exit();
 }

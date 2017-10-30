@@ -26,6 +26,8 @@ varying vec3 positionView;
 
 //----------------------------------------------------------------------------//
 
+#include "/lib/debug.glsl"
+
 #include "/lib/util/clamping.glsl"
 #include "/lib/util/packing.glsl"
 
@@ -49,4 +51,6 @@ void main() {
 	gl_FragData[0] = vec4(base.rgb, 1.0);
 	gl_FragData[1] = vec4(metadata.x / 255.0, directionalLightmap(lightmap, norm.xyz), 1.0);
 	gl_FragData[2] = vec4(packNormal(norm.xyz), pack2x8(spec.rb), 1.0);
+
+	exit();
 }

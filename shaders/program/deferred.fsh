@@ -30,6 +30,8 @@ varying vec2 screenCoord;
 
 //----------------------------------------------------------------------------//
 
+#include "/lib/debug.glsl"
+
 #include "/lib/util/clamping.glsl"
 #include "/lib/util/constants.glsl"
 #include "/lib/util/dither.glsl"
@@ -110,7 +112,7 @@ void main() {
 
 	vec2 id_skylight = textureRaw(colortex1, screenCoord).rb;
 
-	if (round(id_skylight.r * 255.0) == 0.0 || floor(screenCoord) != vec2(0.0) || id_skylight.g == 0.0) { gl_FragData[0] = vec4(0.0, 0.0, 0.0, 1.0); return; }
+	if (round(id_skylight.r * 255.0) == 0.0 || floor(screenCoord) != vec2(0.0) || id_skylight.g == 0.0) { gl_FragData[0] = vec4(0.0, 0.0, 0.0, 1.0); exit(); return; }
 
 	mat3 backPosition;
 	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
@@ -124,4 +126,6 @@ void main() {
 /* DRAWBUFFERS:3 */
 
 	gl_FragData[0] = vec4(rsm, 1.0);
+
+	exit();
 }

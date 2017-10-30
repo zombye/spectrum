@@ -27,6 +27,8 @@ varying vec2 screenCoord;
 
 //----------------------------------------------------------------------------//
 
+#include "/lib/debug.glsl"
+
 #include "/lib/util/dither.glsl"
 
 vec2 clampToScreen(vec2 coord) {
@@ -64,4 +66,6 @@ void main() {
 /* DRAWBUFFERS:6 */
 
 	gl_FragData[0] = vec4(color, 1.0);
+
+	exit();
 }

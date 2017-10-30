@@ -37,6 +37,8 @@ varying vec2 screenCoord;
 
 //----------------------------------------------------------------------------//
 
+#include "/lib/debug.glsl"
+
 #include "/lib/util/clamping.glsl"
 #include "/lib/util/constants.glsl"
 #include "/lib/util/dither.glsl"
@@ -119,7 +121,7 @@ void main() {
 
 	gl_FragData[1].a = calcCloudShadowMap();
 	
-	if (mask.sky) return;
+	if (mask.sky) { exit(); return; }
 
 	mat3 backPosition;
 	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
@@ -139,4 +141,6 @@ void main() {
 /* DRAWBUFFERS:63 */
 
 	gl_FragData[0] = vec4(composite, 1.0);
+
+	exit();
 }

@@ -32,6 +32,8 @@ varying vec2 screenCoord;
 
 //----------------------------------------------------------------------------//
 
+#include "/lib/debug.glsl"
+
 #include "/lib/util/constants.glsl"
 #include "/lib/util/math.glsl"
 #include "/lib/util/spaceConversion.glsl"
@@ -71,4 +73,6 @@ void main() {
 
 	gl_FragData[0] = vec4(color, 1.0);
 	gl_FragData[1] = vec4(color, calculateSmoothLuminance());
+
+	exit();
 }

@@ -56,6 +56,8 @@ varying vec3 positionScene;
 
 //----------------------------------------------------------------------------//
 
+#include "/lib/debug.glsl"
+
 #include "/lib/util/clamping.glsl"
 #include "/lib/util/constants.glsl"
 #include "/lib/util/dither.glsl"
@@ -147,4 +149,6 @@ void main() {
 
 	gl_FragData[0] = vec4(composite, base.a);
 	gl_FragData[1] = vec4(packNormal(norm.xyz), pack2x8(vec2(metadata.x / 255.0, lightmapShaded.y)), 1.0);
+
+	exit();
 }

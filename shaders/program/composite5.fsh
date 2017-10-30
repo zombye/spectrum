@@ -14,6 +14,8 @@ varying vec2 screenCoord;
 
 //----------------------------------------------------------------------------//
 
+#include "/lib/debug.glsl"
+
 void main() {
 	if (BLOOM_AMOUNT == 0.0) discard; // can't throw floats at the preprocessor :(
 
@@ -32,4 +34,6 @@ void main() {
 /* DRAWBUFFERS:3 */
 
 	gl_FragData[0] = vec4(blur, 1.0);
+
+	exit();
 }

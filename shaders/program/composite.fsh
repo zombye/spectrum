@@ -47,6 +47,8 @@ varying vec2 screenCoord;
 
 //----------------------------------------------------------------------------//
 
+#include "/lib/debug.glsl"
+
 #include "/lib/util/clamping.glsl"
 #include "/lib/util/constants.glsl"
 #include "/lib/util/dither.glsl"
@@ -304,4 +306,6 @@ void main() {
 /* DRAWBUFFERS:6 */
 
 	gl_FragData[0] = vec4(composite, 1.0);
+
+	exit();
 }
