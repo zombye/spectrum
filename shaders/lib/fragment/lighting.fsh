@@ -316,10 +316,10 @@ float hbao(mat3 position, vec3 normal) {
 		}
 
 		// Add angle above horizon to result
-		result += acos(clamp01(cosHorizon)) / pi;
+		result += acos(clamp01(cosHorizon));
 	}
 
-	return result / HBAO_DIRECTIONS;
+	return result / (HBAO_DIRECTIONS * pi * 0.5);
 }
 float rtao(vec3 position, vec3 normal) {
 	#if RTAO_SAMPLES == 0
