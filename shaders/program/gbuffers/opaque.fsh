@@ -22,9 +22,14 @@ varying mat3 tbn;
 
 varying vec2 metadata;
 
+varying vec3 positionView;
+
 //----------------------------------------------------------------------------//
 
+#include "/lib/util/clamping.glsl"
 #include "/lib/util/packing.glsl"
+
+#include "/lib/fragment/directionalLightmap.fsh"
 
 void main() {
 	vec4 base = texture2D(tex,      baseUV, LOD_BIAS) * tint; if (base.a < 0.102) discard;
@@ -42,6 +47,6 @@ void main() {
 /* DRAWBUFFERS:012 */
 
 	gl_FragData[0] = vec4(base.rgb, 1.0);
-	gl_FragData[1] = vec4(metadata.x / 255.0, lightmap, 1.0);
+	gl_FragData[1] = vec4(metadata.x / 255.0, directionalLightmap(lightmap, norm.xyz), 1.0);
 	gl_FragData[2] = vec4(packNormal(norm.xyz), pack2x8(spec.rb), 1.0);
 }

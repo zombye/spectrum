@@ -82,6 +82,8 @@ float get3DNoise(vec3 position) {
 
 //--//
 
+#include "/lib/fragment/directionalLightmap.fsh"
+
 #include "/lib/fragment/masks.fsh"
 #include "/lib/fragment/materials.fsh"
 
@@ -129,9 +131,11 @@ void main() {
 	// kinda hacky
 	base.a = mix(base.a, 1.0, f_dielectric(clamp01(dot(normal, -normalize(position[1]))), 1.0, f0ToIOR(mat.reflectance)));
 
+	vec2 lightmapShaded = directionalLightmap(lightmap, norm.xyz);
+
 	vec3 sunVisibility;
-	vec3 diffuse   = calculateLighting(position, normal, lightmap, mat, sunVisibility) * mat.albedo;
-	vec3 specular  = calculateReflections(position, normalize(position[1]), normal, mat.reflectance, mat.roughness, lightmap.y, sunVisibility) / base.a;
+	vec3 diffuse   = calculateLighting(position, normal, lightmapShaded, mat, sunVisibility) * mat.albedo;
+	vec3 specular  = calculateReflections(position, normalize(position[1]), normal, mat.reflectance, mat.roughness, lightmapShaded.y, sunVisibility) / base.a;
 	vec3 composite = blendMaterial(diffuse, specular, mat);
 
 	float prevLuminance = texture2D(gaux4, position[0].st).a;
@@ -141,5 +145,5 @@ void main() {
 /* DRAWBUFFERS:45 */
 
 	gl_FragData[0] = vec4(composite, base.a);
-	gl_FragData[1] = vec4(packNormal(norm.xyz), pack2x8(vec2(metadata.x / 255.0, lightmap.y)), 1.0);
+	gl_FragData[1] = vec4(packNormal(norm.xyz), pack2x8(vec2(metadata.x / 255.0, lightmapShaded.y)), 1.0);
 }

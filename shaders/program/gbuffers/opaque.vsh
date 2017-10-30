@@ -29,6 +29,8 @@ varying mat3 tbn;
 
 varying vec2 metadata;
 
+varying vec3 positionView;
+
 //----------------------------------------------------------------------------//
 
 #include "/lib/util/constants.glsl"
@@ -53,6 +55,7 @@ void main() {
 	gl_Position.xyz = mat3(gbufferModelViewInverse) * (mat3(gl_ModelViewMatrix) * gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz) + gbufferModelViewInverse[3].xyz;
 	gl_Position.xyz = calculateDisplacement(gl_Position.xyz);
 	gl_Position.xyz = mat3(gbufferModelView) * gl_Position.xyz + gbufferModelView[3].xyz;
+	positionView = gl_Position.xyz;
 	gl_Position = projectVertex(gl_Position.xyz);
 
 	tbn = calculateTBN();
