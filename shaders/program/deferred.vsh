@@ -20,7 +20,6 @@ varying vec2 screenCoord;
 #include "/lib/misc/temporalAA.glsl"
 
 #include "/lib/uniform/vectors.glsl"
-#include "/lib/uniform/colors.glsl"
 #include "/lib/uniform/gbufferMatrices.glsl"
 #include "/lib/uniform/shadowMatrices.glsl"
 
@@ -30,7 +29,6 @@ void main() {
 	screenCoord /= COMPOSITE0_SCALE;
 
 	calculateVectors();
-	calculateColors();
 	calculateGbufferMatrices();
 	calculateShadowMatrices();
 }

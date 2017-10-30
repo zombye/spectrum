@@ -27,6 +27,7 @@ uniform sampler2D depthtex1;
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
 uniform sampler2D shadowcolor0;
+uniform sampler2D shadowcolor1;
 
 uniform sampler2D noisetex;
 
@@ -68,12 +69,12 @@ float get3DNoise(vec3 position) {
 #include "/lib/fragment/masks.fsh"
 #include "/lib/fragment/materials.fsh"
 
-vec4 bilateralResample(vec3 normal, float depth) {
+vec3 bilateralResample(vec3 normal, float depth) {
 	const float range = 3.0;
 	vec2 px = 1.0 / (COMPOSITE0_SCALE * vec2(viewWidth, viewHeight));
 
-	vec4 filtered = vec4(0.0);
-	vec2 totalWeight = vec2(0.0);
+	vec3 filtered = vec3(0.0);
+	float totalWeight = 0.0;
 	for (float i = -range; i <= range; i++) {
 		for (float j = -range; j <= range; j++) {
 			vec2 offset = vec2(i, j) * px;
@@ -82,19 +83,20 @@ vec4 bilateralResample(vec3 normal, float depth) {
 			vec3 normalSample = unpackNormal(texture2D(colortex2, coord).rg);
 			float depthSample = linearizeDepth(texture2D(depthtex1, coord).r, projectionInverse);
 
-			vec2 weight = vec2(clamp01(dot(normal, normalSample)), float(i == 0.0 && j == 0.0));
-			weight.x *= 1.0 - clamp(abs(depth - depthSample), 0.0, 1.0);
+			float weight  = clamp01(dot(normal, normalSample));
+			      weight *= 1.0 - clamp(abs(depth - depthSample), 0.0, 1.0);
 
-			filtered += texture2D(colortex3, coord * COMPOSITE0_SCALE) * weight.xxxy;
+			filtered += texture2D(colortex3, coord * COMPOSITE0_SCALE).rgb * weight;
 			totalWeight += weight;
 		}
 	}
 
-	if (totalWeight.x == 0.0) return vec4(0.0);
-
-	filtered /= totalWeight.xxxy;
+	filtered /= totalWeight;
 	return filtered;
 }
+
+#include "/lib/fragment/water/waves.fsh"
+#include "/lib/fragment/water/normal.fsh"
 
 #include "/lib/fragment/volumetricClouds.fsh"
 

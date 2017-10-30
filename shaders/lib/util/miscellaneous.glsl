@@ -23,3 +23,7 @@ vec3 transmittedScatteringIntegral(float od, const vec3 coeff) {
 
 	return exp2(a * od) * b + c; // = ∫{0,od} e^(-coeff*x) dx
 }
+
+vec2 spiralPoint(float angle, float scale) {
+	return vec2(sin(angle), cos(angle)) * pow(angle / scale, 1.0 / phi);
+}

@@ -195,6 +195,63 @@ vec3 shadows(vec3 position) {
 	#endif
 }
 
+float waterCaustics(vec3 position, vec3 shadowPosition, float waterDepth) {
+	const int   samples           = CAUSTICS_SAMPLES;
+	const float radius            = CAUSTICS_RADIUS;
+	const float defocus           = CAUSTICS_DEFOCUS;
+	const float distancePower     = CAUSTICS_DISTANCE_POWER;
+	const float distanceThreshold = (sqrt(samples) - 1.0) / (radius * defocus);
+	const float resultPower       = CAUSTICS_RESULT_POWER;
+
+	vec3  lightVector       = mat3(gbufferModelViewInverse) * -shadowLightVector;
+	vec3  flatRefractVector = refract(lightVector, vec3(0.0, 1.0, 0.0), 0.75);
+	float surfDistUp        = waterDepth * lightVector.y / flatRefractVector.y;
+	float dither            = bayer4(gl_FragCoord.st) * 16.0;
+
+	position += cameraPosition;
+
+	vec3 surfacePosition = position - flatRefractVector * (surfDistUp / flatRefractVector.y);
+
+	float result = 0.0;
+	for (float i = 0.0; i < samples; i++) {
+		vec3 samplePos     = surfacePosition;
+		     samplePos.xz += spiralPoint(i * 16.0 + dither, samples * 16.0) * radius;
+		vec3 refractVector = refract(lightVector, water_calculateNormal(samplePos), 0.75);
+		     samplePos     = refractVector * (surfDistUp / refractVector.y) + samplePos;
+
+		result += pow(1.0 - clamp01(distance(position, samplePos) * distanceThreshold), distancePower);
+	}
+
+	return pow(result * distancePower / (defocus * defocus), resultPower);
+}
+vec3 waterShadows(vec3 position) {
+	const vec3 scatteringCoeff = vec3(0.3e-2, 1.8e-2, 2.0e-2) * 0.4;
+	const vec3 absorbtionCoeff = vec3(0.8, 0.45, 0.11);
+	const vec3 transmittanceCoeff = scatteringCoeff + absorbtionCoeff;
+
+	vec3 shadowPosition = transformPosition(position, shadowModelView);
+	vec2 shadowCoord = shadows_distortShadowSpace((mat3(projectionShadow) * shadowPosition + projectionShadow[3].xyz).xy) * 0.5 + 0.5;
+
+	// Checks if there's water on the shadow map at this location
+	if (texture2D(shadowcolor1, shadowCoord).b > 0.5) return vec3(1.0);
+
+	float waterDepth = texture2D(shadowtex0, shadowCoord).r * 2.0 - 1.0;
+	waterDepth = waterDepth * projectionShadowInverse[2].z + projectionShadowInverse[3].z;
+	waterDepth = shadowPosition.z - waterDepth;
+
+	// Make sure we're not in front of the water
+	if (waterDepth >= 0.0) return vec3(1.0);
+
+	// Water fog transmittance - has issues around edges of shadows, and not really needed as I already fade out the shadow light with the skylightmap (it still helps tough).
+	vec3 result = vec3(1.0);//exp(transmittanceCoeff * waterDepth);
+
+	#if PROGRAM != PROGRAM_WATER && CAUSTICS_SAMPLES > 0
+	result *= waterCaustics(position, shadowPosition, waterDepth);
+	#endif
+
+	return result;
+}
+
 float blockLight(float lightmap) {
 	return lightmap / (pow2(-4.0 * lightmap + 4.0) + 1.0);
 }
@@ -314,20 +371,26 @@ float ssao(vec3 position, vec3 normal) {
 
 vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, out vec3 sunVisibility) {
 	#if PROGRAM != PROGRAM_WATER && (CAUSTICS_SAMPLES > 0 || RSM_SAMPLES > 0)
-	vec4 filtered = bilateralResample(normal, position[1].z);
+	vec3 filtered = bilateralResample(normal, position[1].z);
 	#endif
 
 	float cloudShadow = volumetricClouds_shadow(position[2]);
-
-	sunVisibility  = shadows(position[2]);
-	sunVisibility *= cloudShadow;
-
-	vec3
-	shadowLight  = sunVisibility;
-	shadowLight *= lightmap.y * lightmap.y;
-	shadowLight *= mix(diffuse(normalize(position[1]), normal, shadowLightVector, mat.roughness), 1.0 / pi, mat.subsurface);
-	#if PROGRAM != PROGRAM_WATER && CAUSTICS_SAMPLES > 0
-	shadowLight *= filtered.a;
+	sunVisibility = vec3(cloudShadow);
+	vec3 shadowLight = vec3(lightmap.y * lightmap.y);
+	if (shadowLight != vec3(0.0)) {
+		float diffuse = mix(diffuse(normalize(position[1]), normal, shadowLightVector, mat.roughness), 1.0 / pi, mat.subsurface);
+		if (diffuse > 0.0) {
+			sunVisibility *= shadows(position[2]);
+			if (sunVisibility != vec3(0.0)) sunVisibility *= waterShadows(position[2]);
+		} else {
+			sunVisibility *= 0.0;
+		}
+		shadowLight *= diffuse * sunVisibility;
+	} else {
+		sunVisibility *= 0.0;
+	}
+	#if PROGRAM != PROGRAM_WATER && RSM_SAMPLES > 0
+	shadowLight += filtered * cloudShadow;
 	#endif
 
 	float skyLight = skyLight(lightmap.y, normal);
@@ -347,9 +410,6 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	lighting  = shadowLightColor * shadowLight;
 	lighting += skyLightColor * skyLight;
 	lighting += blockLightColor * blockLight;
-	#if PROGRAM != PROGRAM_WATER && RSM_SAMPLES > 0
-	lighting += filtered.rgb * cloudShadow;
-	#endif
 
 	return lighting;
 }
