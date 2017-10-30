@@ -139,14 +139,14 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float skylight) {
 
 		if (sampleVis <= 0.0) continue;
 
-		// Kind of approximate an area light
-		sampleDistSq += perSampleArea;
+		// Approximate an area light
+		sampleDistSq += pow2(RSM_RADIUS / RSM_SAMPLES);
 
 		vec4 sampleAlbedo = texture2D(shadowcolor0, sampleCoord.st);
 		rsm += sampleAlbedo.rgb * sampleAlbedo.a * sampleVis / sampleDistSq;
 	}
 
-	return rsm * skylight * skylight * perSampleArea * RSM_BRIGHTNESS;
+	return rsm * skylight * skylight * perSampleArea * RSM_BRIGHTNESS / pi;
 }
 
 //--//
