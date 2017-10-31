@@ -67,11 +67,9 @@ void main() {
 	vec3 color = texture2D(colortex6, screenCoord).rgb;
 	#endif
 
-	color = lowlightDesaturate(color);
-
 /* DRAWBUFFERS:67 */
 
-	gl_FragData[0] = vec4(color, 1.0);
+	gl_FragData[0] = vec4(lowlightDesaturate(color), 1.0);
 	gl_FragData[1] = vec4(color, calculateSmoothLuminance());
 
 	exit();
