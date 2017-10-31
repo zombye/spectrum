@@ -100,7 +100,7 @@ vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
 	#if CREPUSCULAR_RAYS == 2
 	vec3 skylightBrightness = skyLightColor * max(eyeBrightness.y / 240.0, lightmap.y);
 
-	const float steps = 16.0;
+	const float steps = 6.0;
 
 	stepSize /= steps;
 
@@ -175,7 +175,7 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 	const vec3 attenCoeff   = scatterCoeff + absorbCoeff;
 
 	#if CREPUSCULAR_RAYS == 2
-	const float steps = 32.0;
+	const float steps = 6.0;
 
 	vec3 increment = (endPosition - startPosition) / steps;
 
