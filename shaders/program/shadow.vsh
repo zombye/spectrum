@@ -33,7 +33,7 @@ varying vec4 metadata;
 #include "/lib/misc/shadowDistortion.glsl"
 
 float calculateAntiAcneOffset(vec3 normal, float distortFactor) {
-	#if SHADOWS_MODE == 1
+	#if SHADOW_FILTER_TYPE == 1
 	const float sampleDiameter = 2.0;
 	#else
 	const float sampleDiameter = 1.0;
