@@ -1,3 +1,10 @@
+##--## Profiles
+
+profile.reduced=Reduced
+profile.default=Default
+
+##--## Miscellaneous
+
 screen.miscellaneous=Miscellaneous
 
 value.TERRAIN_DEFORMATION_MODE.0=Off
@@ -16,8 +23,8 @@ screen.atmospherics=Atmospherics
 option.PHYSICAL_ATMOSPHERE=Physically Based Atmosphere
 
 # Volumetric Clouds
-option.VOLUMETRICCLOUDS_QUALITY=Volumetric Clouds Quality
-value.VOLUMETRICCLOUDS_QUALITY.0=Off
+option.VOLUMETRICCLOUDS_SAMPLES=Volumetric Clouds Quality
+value.VOLUMETRICCLOUDS_SAMPLES.0=Off
 
 # Crepuscular rays / Volumetrically lit fog
 option.CREPUSCULAR_RAYS=Crepuscular Rays
