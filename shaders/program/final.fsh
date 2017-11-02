@@ -2,6 +2,8 @@
 
 //#define DIFFRACTION_SPIKES // Diffraction spikes. Quite slow. Not finished.
 
+#define TONEMAP 1 // [1 2]
+
 //----------------------------------------------------------------------------//
 
 // Viewport
@@ -66,33 +68,36 @@ vec3 diffractionSpikes(vec3 color) {
 	return color;
 }
 
-vec3 tonemap_zombye(vec3 color) {
-	// a and b control toe & overall contrast
-	// c controls how much it tends to desaturate (or oversaturate)
-	// defaults are pretty neutral
+vec3 tonemap_natural(vec3 color) {
+	const vec3 p = vec3(2.0, 2.0, 2.0);
 
-	const vec3 a = vec3(0.45, 0.45, 0.45);
-	const vec3 b = vec3(0.63, 0.63, 0.63);
-	const vec3 c = vec3(0.70, 0.70, 0.70);
+	color = pow(color, p);
+	return pow(color / (1.0 + color), 1.0 / p);
+}
 
-	vec3 cr = mix(vec3(dot(color, lumacoeff_rec709)), color, c) + 1.0;
+vec3 tonemap_filmic(vec3 color) {
+	// a mainly controls the height of the shoulder
+	// b and c mainly control toe & overall contrast
+	// d controls how much it tends to desaturate (or oversaturate)
 
-	color = pow(color / (1.0 + color), a);
-	return pow(color * color * (-2.0 * color + 3.0), cr / b);
+	const vec3 a = vec3(1.44, 1.44, 1.44);
+	const vec3 b = vec3(0.52, 0.52, 0.52);
+	const vec3 c = vec3(0.72, 0.72, 0.72);
+	const vec3 d = vec3(0.70, 0.70, 0.70);
+
+	vec3 cr = mix(vec3(dot(color, lumacoeff_rec709)), color, d) + 1.0;
+
+	color = pow(color, a);
+	color = pow(color / (1.0 + color), b / a);
+	return pow(color * color * (-2.0 * color + 3.0), cr / c);
 }
 
 vec3 tonemap(vec3 color) {
-	// Desaturates everything, decreases contrast a lot. Not recommended.
-	//return color / (1.0 + color);
-
-	// Mostly neutral, but does desaturate a little. Almost linear until ~0.33
-	//color *= color; color /= 1.0 + color; return sqrt(color);
-
-	// Mostly neutral, good mainly for scenes with few bright spots. Almost linear until ~0.5
-	//color *= color * color; color /= 1.0 + color; return pow(color, vec3(1.0 / 3.0));
-
-	// More filmlike, generally gives a more saturated result.
-	return tonemap_zombye(color);
+	#if   TONEMAP == 1
+	return tonemap_natural(color);
+	#elif TONEMAP == 2
+	return tonemap_filmic(color);
+	#endif
 
 	return color; // Reference. This should always look acceptable.
 }

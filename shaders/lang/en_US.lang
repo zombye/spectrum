@@ -14,6 +14,9 @@ option.MOTION_BLUR=Motion Blur
 option.REFRACTIONS=Refractions
 option.TEMPORAL_AA=Temporal Anti-Aliasing
 option.TEMPORAL_AA.comment=Work in progress!
+option.TONEMAP=Tonemap
+value.TONEMAP.1=Natural
+value.TONEMAP.2=Filmic
 option.WATER_PARALLAX=Water Parallax
 
 ##--## Atmospherics
