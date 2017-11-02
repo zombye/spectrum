@@ -6,22 +6,22 @@ profile.default=Default
 ##--## Miscellaneous
 
 screen.miscellaneous=Miscellaneous
+screen.miscellaneous.comment=Various options that do not fit in other categories.
 
-value.TERRAIN_DEFORMATION_MODE.0=Off
-value.TERRAIN_DEFORMATION_MODE.1=Planetoid
-
-option.MOTION_BLUR=Motion Blur
-option.REFRACTIONS=Refractions
+screen.unassigned=Unassigned
+screen.unassigned.comment=Options that have not been assigned to any screens. These may not work properly or at all.
+screen.developer=Developer
+screen.developer.comment=Options intended for use when developing the shaderpack.
 option.TEMPORAL_AA=Temporal Anti-Aliasing
 option.TEMPORAL_AA.comment=Work in progress!
-option.TONEMAP=Tonemap
-value.TONEMAP.1=Natural
-value.TONEMAP.2=Filmic
-option.WATER_PARALLAX=Water Parallax
+option.TERRAIN_DEFORMATION_MODE=Terrain Deformation
+value.TERRAIN_DEFORMATION_MODE.0=Off
+value.TERRAIN_DEFORMATION_MODE.1=Planetoid
 
 ##--## Atmospherics
 
 screen.atmospherics=Atmospherics
+screen.atmospherics.comment=Options for effects related to rendering the atmosphere, such as clouds and crepuscular rays.
 
 option.PHYSICAL_ATMOSPHERE=Physically Based Atmosphere
 
@@ -38,6 +38,7 @@ value.CREPUSCULAR_RAYS.2=Fancy
 ##--## Lighting
 
 screen.lighting=Lighting
+screen.lighting.comment=Options for surface lighting effects, such as shadows and reflections.
 
 # Caustics
 option.CAUSTICS_SAMPLES=Water Caustics Quality
@@ -75,6 +76,7 @@ option.SSAO_SAMPLES.comment=For best results enable temporal anti-aliasing.
 ##--## Optics
 
 screen.optics=Optics
+screen.optics.comment=Options effects simulating artifacts of an optical system, such as Depth of Field.
 
 option.APERTURE_RADIUS=Aperture Radius
 option.APERTURE_BLADE_COUNT=Aperture Blade Count
@@ -83,3 +85,21 @@ option.APERTURE_BLADE_ROTATION=Aperture Blade Rotation
 option.DOF=Depth of Field
 option.BLOOM_AMOUNT=Bloom Amount
 option.DIFFRACTION_SPIKES=Diffraction Spikes
+
+##--## Post-Processing
+
+screen.post=Post-Processing
+screen.post.comment=Options for effects that would occur after light has hit the sensor.
+
+option.MOTION_BLUR=Motion Blur
+option.TONEMAP=Tonemap
+value.TONEMAP.1=Natural
+value.TONEMAP.2=Filmic
+
+##--## Surfaces
+
+screen.surface=Surfaces
+screen.surface.comment=Options for effects related to the rendering of surfaces.
+
+option.REFRACTIONS=Refractions
+option.WATER_PARALLAX=Water Parallax
