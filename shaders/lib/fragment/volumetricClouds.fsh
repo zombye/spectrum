@@ -1,10 +1,10 @@
 #define VOLUMETRICCLOUDS_SAMPLES 7 // [0 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20]
 
-#define VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT   2 // Strongly recommended to use at least one sample.
-#define VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT 2 // Using 0 reverts to a relatively basic indirect lighting calculation, similar to Frostbite
+#define VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT   1 // Strongly recommended to use at least one sample.
+#define VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT 0
 
-#define VOLUMETRICCLOUDS_VISIBILITY_RANGE_DIRECT   1500.0
-#define VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT 1500.0
+#define VOLUMETRICCLOUDS_VISIBILITY_RANGE_DIRECT   750.0
+#define VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT 375.0
 
 #define VOLUMETRICCLOUDS_ALTITUDE_MIN  500.0
 #define VOLUMETRICCLOUDS_ALTITUDE_MAX 2000.0
@@ -80,6 +80,7 @@ float volumetricClouds_visibility(vec3 position, vec3 direction, float odAtStart
 	}
 	return exp(volumetricClouds_coeffTransmit * stepSize * od * volumetricClouds_visibilityMult);
 }
+/*
 vec3 volumetricClouds_basicIndirect(vec3 position) {
 	vec3 skyLighting = skyLightColor * 0.5;
 	vec3 bouncedLighting = volumetricClouds_bouncedLightColor * dot(shadowLightVector, upVector) * shadowLightColor * 0.5 / pi;
@@ -87,6 +88,7 @@ vec3 volumetricClouds_basicIndirect(vec3 position) {
 	float fade = (position.y - VOLUMETRICCLOUDS_ALTITUDE_MIN) / (VOLUMETRICCLOUDS_ALTITUDE_MAX - VOLUMETRICCLOUDS_ALTITUDE_MIN);
 	return mix(bouncedLighting, skyLighting, fade);
 }
+*/
 
 float volumetricClouds_shadow(vec3 position) {
 	#if VOLUMETRICCLOUDS_SAMPLES == 0
