@@ -16,6 +16,8 @@
 const float volumetricClouds_coeffScatter  = 0.050;
 const float volumetricClouds_coeffTransmit = volumetricClouds_coeffScatter * 1.11; // range for cumulus is approximately 0.05-0.12
 
+const float volumetricClouds_visibilityMult = 0.5; // unrealisic, only exists because there isn't a multiple scattering approximation
+
 const vec3 volumetricClouds_bouncedLightColor = vec3(0.31, 0.34, 0.31); // wish I had an average sunlit color for 1-2 km around the player, a grey with subtle green tint looks natural enough so that will have to do
 
 //--//
@@ -76,7 +78,7 @@ float volumetricClouds_visibility(vec3 position, vec3 direction, float odAtStart
 	for (float i = 0.0; i < samples; i++, position += direction) {
 		od -= volumetricClouds_density(position, hq);
 	}
-	return exp(volumetricClouds_coeffTransmit * stepSize * od);
+	return exp(volumetricClouds_coeffTransmit * stepSize * od * volumetricClouds_visibilityMult);
 }
 vec3 volumetricClouds_basicIndirect(vec3 position) {
 	vec3 skyLighting = skyLightColor * 0.5;
