@@ -2,7 +2,7 @@
 
 #define EXPOSURE 0.15
 
-//#define TEMPORAL_AA
+#define TEMPORAL_AA
 
 #define COMPOSITE0_SCALE 1.0 // [0.5 1.0]
 
@@ -29,12 +29,3 @@ const int shadowMapResolution = 2048; // [1024 2048 4096 8192]
 #define APERTURE_BLADE_ROTATION 10    //
 
 #define BLOOM_AMOUNT 0.05 // [0.00 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.10 0.11 0.12 0.13 0.14 0.15]
-
-//--// Set based on the above //----------------------------------------------//
-
-// With TAA biasing the texture lod by -1 we can effectively get a small amount of anisotropic filtering
-#ifdef TEMPORAL_AA
-#define LOD_BIAS -1.0
-#else
-#define LOD_BIAS 0.0
-#endif
