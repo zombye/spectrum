@@ -383,13 +383,16 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	sunVisibility = vec3(cloudShadow);
 	vec3 shadowLight = vec3(lightmap.y * lightmap.y);
 	if (shadowLight != vec3(0.0)) {
-		float diffuse = mix(diffuse(normalize(position[1]), normal, shadowLightVector, mat.roughness), 1.0 / pi, mat.subsurface);
-		if (diffuse > 0.0) {
-			sunVisibility *= shadows(position[2]);
+		vec3 fakeSubsurface = (1.0 - mat.albedo) * sqrt(mat.albedo) * (max0(-dot(normal, shadowLightVector)) * 0.5 + 0.5) / pi;
+		vec3 diffuse = fakeSubsurface * mat.subsurface + diffuse(normalize(position[1]), normal, shadowLightVector, mat.roughness);
+
+		if (diffuse != vec3(0.0)) {
+			sunVisibility *= shadows(position[2], cloudShadow);
 			if (sunVisibility != vec3(0.0)) sunVisibility *= waterShadows(position[2]);
 		} else {
 			sunVisibility *= 0.0;
 		}
+
 		shadowLight *= diffuse * sunVisibility;
 	} else {
 		sunVisibility *= 0.0;
