@@ -112,9 +112,9 @@ const vec2[36] pcss_offset = vec2[36](
 	vec2( 0.92697510, -0.10826900),
 	vec2( 0.45471010, -0.78973980)
 );
-vec3 pcss(vec3 position) {
+vec3 pcss(vec3 position, float angularRadius) {
 	const float searchScale = 0.05;
-	float spread = -tan(sunAngularRadius) * projectionShadowInverse[2].z * projectionShadow[0].x;
+	float spread = -tan(angularRadius) * projectionShadowInverse[2].z * projectionShadow[0].x;
 	float searchRadius = spread * searchScale;
 
 	float dither = bayer8(gl_FragCoord.st) * tau;
@@ -136,9 +136,9 @@ vec3 pcss(vec3 position) {
 
 	return result;
 }
-vec3 lpcss(vec3 position) {
+vec3 lpcss(vec3 position, float angularRadius) {
 	const float searchScale = 0.05;
-	float spread = -tan(sunAngularRadius) * projectionShadowInverse[2].z * projectionShadow[0].x;
+	float spread = -tan(angularRadius) * projectionShadowInverse[2].z * projectionShadow[0].x;
 	float searchRadius = spread * searchScale;
 
 	float dither = bayer8(gl_FragCoord.st) * tau;
@@ -172,15 +172,20 @@ vec3 lpcss(vec3 position) {
 	return result;
 }
 
-vec3 shadows(vec3 position) {
+vec3 shadows(vec3 position, float cloudShadow) {
 	position = mat3(shadowModelView) * position + shadowModelView[3].xyz;
 	vec3 normal = normalize(cross(dFdx(position), dFdy(position)));
 	position = vec3(projectionShadow[0].x, projectionShadow[1].y, projectionShadow[2].z) * position + projectionShadow[3].xyz;
 
+	#if SHADOW_FILTER_TYPE == 2 || SHADOW_FILTER_TYPE == 3
+	float angularRadius  = mix(moonAngularRadius, sunAngularRadius, smoothstep(-0.01, 0.01, dot(sunVector, upVector)));
+	      angularRadius *= mix(10.0, 1.0, sqrt(cloudShadow));
+	#endif
+
 	#if SHADOW_FILTER_TYPE == 2 || (SHADOW_FILTER_TYPE == 3 && !defined SHADOW_COLORED)
-	return pcss(position);
+	return pcss(position, angularRadius);
 	#elif SHADOW_FILTER_TYPE == 3
-	return lpcss(position);
+	return lpcss(position, angularRadius);
 	#endif
 
 	float distortFactor = shadows_calculateDistortionCoeff(position.xy);
