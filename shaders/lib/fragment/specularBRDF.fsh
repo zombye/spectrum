@@ -20,12 +20,12 @@ float d_GGX(float NoH, float alpha2) {
 	float p = (NoH * alpha2 - NoH) * NoH + 1.0;
 	return alpha2 / (pi * p * p);
 }
-float f_dielectric(float NoV, float n1, float n2) {
-	float p = 1.0 - (pow2(n1 / n2) * (1.0 - NoV * NoV));
+float f_dielectric(float NoV, float eta) {
+	float p = 1.0 - (eta * eta * (1.0 - NoV * NoV));
 	if (p <= 0.0) return 1.0; p = sqrt(p);
 
 	vec2 r = vec2(NoV, p);
-	r = (n1 * r - n2 * r.yx) / (n1 * r + n2 * r.yx);
+	r = (eta * r - r.yx) / (eta * r + r.yx);
 	r *= r; r *= 0.5; return r.x + r.y;
 }
 float v_smithGGXCorrelated(float NoV, float NoL, float alpha2) {
@@ -41,7 +41,7 @@ float specularBRDF(vec3 view, vec3 normal, vec3 light, float reflectance, float 
 	float NoL = clamp01(dot(normal, light));
 
 	float d = d_GGX(NoH, alpha2);
-	float f = f_dielectric(NoV, 1.0, f0ToIOR(reflectance));
+	float f = f_dielectric(NoV, 1.0 / f0ToIOR(reflectance));
 	float v = v_smithGGXCorrelated(NoV, NoL, alpha2);
 
 	return d * f * v * NoL;

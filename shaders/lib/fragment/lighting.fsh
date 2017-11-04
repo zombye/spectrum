@@ -375,10 +375,6 @@ float ssao(vec3 position, vec3 normal) {
 }
 
 vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, out vec3 sunVisibility) {
-	#if PROGRAM != PROGRAM_WATER && (CAUSTICS_SAMPLES > 0 || RSM_SAMPLES > 0)
-	vec3 filtered = bilateralResample(normal, position[1].z);
-	#endif
-
 	float cloudShadow = volumetricClouds_shadow(position[2]);
 	sunVisibility = vec3(cloudShadow);
 	vec3 shadowLight = vec3(lightmap.y * lightmap.y);
@@ -398,7 +394,8 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 		sunVisibility *= 0.0;
 	}
 	#if PROGRAM != PROGRAM_WATER && RSM_SAMPLES > 0
-	shadowLight += filtered * cloudShadow;
+	vec3 rsm = bilateralResample(normal, position[1].z);
+	shadowLight += rsm * cloudShadow;
 	#endif
 
 	float skyLight = skyLight(lightmap.y, normal);

@@ -8,11 +8,20 @@ struct waveParams {
 	float sharpenMin;
 };
 
+float water_waveNoise(vec2 coord) {
+	//return textureSmooth(noisetex, coord / 64.0).r; // slightly faster but has banding artifacts
+
+	vec4 samples = textureGather(noisetex, 0.015625 * coord);
+	vec4 weights = fract(coord + 0.502).xxyy;
+	weights *= weights * (-2.0 * weights + 3.0);
+	weights = weights * vec4(1,-1,1,-1) + vec4(0,1,0,1);
+	return dot(samples, weights.yxxy * weights.zzww);
+}
 float water_calculateWave(vec2 pos, const waveParams params) {
 	pos += frameTimeCounter * params.translation;
-	pos *= 0.015625 / params.scale;
+	pos /= params.scale;
 	pos += pos.yx * params.skew;
-	float wave = textureSmooth(noisetex, pos).r;
+	float wave = water_waveNoise(pos);
 	if (params.sharpen)
 		wave = 1.0 - almostIdentity(abs(wave * 2.0 - 1.0), params.sharpenThreshold, params.sharpenMin);
 	return wave * params.height;

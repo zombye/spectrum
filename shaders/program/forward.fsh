@@ -132,7 +132,7 @@ void main() {
 	vec3 normal = norm.xyz;
 
 	// kinda hacky
-	base.a = mix(base.a, 1.0, f_dielectric(clamp01(dot(normal, -normalize(position[1]))), 1.0, f0ToIOR(mat.reflectance)));
+	base.a = mix(base.a, 1.0, f_dielectric(clamp01(dot(normal, -normalize(position[1]))), 1.0 / f0ToIOR(mat.reflectance)));
 
 	vec2 lightmapShaded = directionalLightmap(lightmap, norm.xyz);
 

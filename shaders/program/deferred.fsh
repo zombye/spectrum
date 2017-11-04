@@ -52,7 +52,7 @@ varying vec2 screenCoord;
 #include "/lib/fragment/water/waves.fsh"
 #include "/lib/fragment/water/normal.fsh"
 
-vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal) {
+vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float dither) {
 	#if RSM_SAMPLES == 0
 	return vec3(0.0);
 	#endif
@@ -64,10 +64,9 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal) {
 	vec3 projectionScale        = vec3(projectionShadow[0].x, projectionShadow[1].y, projectionShadow[2].z);
 	vec3 projectionInverseScale = vec3(projectionShadowInverse[0].x, projectionShadowInverse[1].y, projectionShadowInverse[2].z);
 
-	vec3  shadowPosition     = mat3(shadowModelView) * position + shadowModelView[3].xyz;
-	vec3  shadowClipPosition = projectionScale * shadowPosition + projectionShadow[3].xyz;
-	vec3  shadowNormal       = mat3(shadowModelView) * mat3(gbufferModelViewInverse) * -normal;
-	float dither             = bayer16(gl_FragCoord.st) * 256.0;
+	vec3 shadowPosition     = mat3(shadowModelView) * position + shadowModelView[3].xyz;
+	vec3 shadowClipPosition = projectionScale * shadowPosition + projectionShadow[3].xyz;
+	vec3 shadowNormal       = mat3(shadowModelView) * mat3(gbufferModelViewInverse) * -normal;
 
 	vec3 rsm = vec3(0.0);
 	for (float i = 0.0; i < RSM_SAMPLES; i += 1.0) {
@@ -121,7 +120,9 @@ void main() {
 
 	vec3 normal = unpackNormal(textureRaw(colortex2, screenCoord).rg);
 
-	vec3 rsm = calculateReflectiveShadowMaps(backPosition[2], normal) * id_skylight.g * id_skylight.g;
+	float dither = bayer16(gl_FragCoord.st);
+
+	vec3 rsm = calculateReflectiveShadowMaps(backPosition[2], normal, dither * 16.0) * id_skylight.g * id_skylight.g;
 
 /* DRAWBUFFERS:3 */
 
