@@ -17,8 +17,6 @@ varying vec4 metadata;
 //----------------------------------------------------------------------------//
 
 void main() {
-/* DRAWBUFFERS:01 */
-
 	gl_FragData[0] = texture2D(tex, baseUV) * tint; if (gl_FragData[0].a < 0.102) discard;
 	gl_FragData[1] = vec4(normal * 0.5 + 0.5, 1.0);
 

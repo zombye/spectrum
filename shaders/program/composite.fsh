@@ -4,7 +4,7 @@
 
 #define CREPUSCULAR_RAYS 0 // [0 1 2]
 
-const bool gaux3MipmapEnabled = true;
+const bool gaux1MipmapEnabled = true;
 
 //----------------------------------------------------------------------------//
 
@@ -25,13 +25,11 @@ uniform vec3 cameraPosition;
 uniform sampler2D colortex0; // gbuffer0 | Albedo
 uniform sampler2D colortex1; // gbuffer1 | ID, lightmap
 uniform sampler2D colortex2; // gbuffer2 | Normal, Specular
-
-uniform sampler2D colortex3; // aux0 | Sunlight visibility
-uniform sampler2D colortex4; // aux1 | Transparent composite
-uniform sampler2D colortex5; // aux2 | Transparent normal, id, skylight
-
-uniform sampler2D gaux3;     // composite
-uniform sampler2D colortex7; // temporal
+uniform sampler2D colortex3; // temporal
+uniform sampler2D gaux1;     // composite
+uniform sampler2D colortex5; // aux0 | Sunlight visibility
+uniform sampler2D colortex6; // aux1 | Transparent composite
+uniform sampler2D colortex7; // aux2 | Transparent normal, id, skylight
 
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
@@ -59,18 +57,12 @@ varying vec2 screenCoord;
 #include "/lib/util/spaceConversion.glsl"
 #include "/lib/util/texture.glsl"
 
-float get3DNoise(vec3 pos) {
-	float flr = floor(pos.z);
-	vec2 coord = (pos.xy * 0.015625) + (flr * 0.265625); // 1/64 | 17/64
-	vec2 noise = texture2D(noisetex, coord).xy;
-	return mix(noise.x, noise.y, pos.z - flr);
-}
-
 #include "/lib/uniform/colors.glsl"
 #include "/lib/uniform/gbufferMatrices.glsl"
 #include "/lib/uniform/shadowMatrices.glsl"
 #include "/lib/uniform/vectors.glsl"
 
+#include "/lib/misc/get3DNoise.glsl"
 #include "/lib/misc/importanceSampling.glsl"
 #include "/lib/misc/shadowDistortion.glsl"
 
@@ -136,7 +128,7 @@ vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
 
 		vec3 shadowCoord = shadows_distortShadowSpace(shadowPos) * 0.5 + 0.5;
 		vec3 sunlight  = (scatterCoeffs * phase.xyz) * shadowLightColor * textureShadow(shadowtex0, shadowCoord);
-		     sunlight *= texture2D(colortex3, shadowCoord.st).a;
+		     sunlight *= texture2D(colortex5, shadowCoord.st).a;
 		vec3 skylight  = (scatterCoeffs * phase.www) * skylightBrightness;
 
 		scattering += (sunlight + skylight) * transmittance;
@@ -201,7 +193,7 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 	for (float i = 0.0; i < steps; i++, position += increment) {
 		vec3 shadowCoord = shadows_distortShadowSpace(position) * 0.5 + 0.5;
 		vec3 sunlight  = scatterCoeff * (0.25/pi) * shadowLightColor * textureShadow(shadowtex1, shadowCoord);
-		     sunlight *= texture2D(colortex3, shadowCoord.st).a;
+		     sunlight *= texture2D(colortex5, shadowCoord.st).a;
 		vec3 skylight  = scatterCoeff * 0.5 * skyLightColor * skylight;
 
 		scattering    += (sunlight + skylight) * stepIntegral * transmittance;
@@ -225,14 +217,14 @@ vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction,
 	#ifdef REFRACTIONS
 	if (refractionDepth == 0.0)
 	#endif
-		return texture2D(gaux3, screenCoord).rgb;
+		return texture2D(gaux1, screenCoord).rgb;
 
 	hitPosition = refract(direction, normal, 0.75) * clamp01(refractionDepth) + frontPosition;
 	vec3 hitCoord = viewSpaceToScreenSpace(hitPosition, projection);
 	hitCoord.z = texture2D(depthtex1, hitCoord.st).r;
 	hitPosition = screenSpaceToViewSpace(hitCoord, projectionInverse);
 
-	return texture2D(gaux3, hitCoord.xy).rgb;
+	return texture2D(gaux1, hitCoord.xy).rgb;
 }
 
 //--//
@@ -241,10 +233,10 @@ void main() {
 	// TODO: Only do these first bits if and when needed
 	vec3 tex1 = texture2D(colortex1, screenCoord).rgb;
 	vec3 tex2 = texture2D(colortex2, screenCoord).rgb;
-	vec4 tex5 = texture2D(colortex4, screenCoord);
-	vec3 tex6 = textureRaw(colortex5, screenCoord).rgb;
+	vec4 tex6 = texture2D(colortex6, screenCoord);
+	vec3 tex7 = textureRaw(colortex7, screenCoord).rgb;
 
-	masks mask = calculateMasks(round(tex1.r * 255.0), round(unpack2x8(tex6.b).r * 255.0));
+	masks mask = calculateMasks(round(tex1.r * 255.0), round(unpack2x8(tex7.b).r * 255.0));
 	material mat = calculateMaterial(texture2D(colortex0, screenCoord).rgb, unpack2x8(tex2.b), mask);
 
 	mat3 frontPosition;
@@ -259,10 +251,10 @@ void main() {
 	direction[0] = normalize(frontPosition[1]);
 	direction[1] = mat3(gbufferModelViewInverse) * direction[0];
 
-	vec3 frontNormal = unpackNormal(tex6.rg);
+	vec3 frontNormal = unpackNormal(tex7.rg);
 	vec3 backNormal  = unpackNormal(tex2.rg);
 	vec2 lightmap = tex1.gb;
-	float frontSkylight = unpack2x8(tex6.b).g;
+	float frontSkylight = unpack2x8(tex7.b).g;
 
 	//--//
 
@@ -279,7 +271,7 @@ void main() {
 	}
 	vec3 specular =
 	#ifdef MC_SPECULAR_MAP
-	calculateReflections(backPosition, direction[0], backNormal, mat.reflectance, mat.roughness, lightmap.y, texture2D(colortex3, screenCoord).rgb);
+	calculateReflections(backPosition, direction[0], backNormal, mat.reflectance, mat.roughness, lightmap.y, texture2D(colortex5, screenCoord).rgb);
 	#else
 	vec3(0.0);
 	#endif
@@ -297,10 +289,7 @@ void main() {
 		}
 	}
 
-	float prevLuminance = texture2D(colortex7, screenCoord).a;
-	if (prevLuminance == 0.0) prevLuminance = 3.0;
-
-	composite = composite * (1.0 - tex5.a) + tex5.rgb * (prevLuminance / EXPOSURE);
+	composite = composite * (1.0 - tex6.a) + tex6.rgb;
 
 	if (isEyeInWater == 1) {
 		composite = waterFog(composite, vec3(0.0), frontPosition[1], mask.water ? frontSkylight : lightmap.y);
@@ -309,9 +298,11 @@ void main() {
 		composite += fakeCrepuscularRays(direction[0]);
 	}
 
+	float prevLuminance = texture2D(colortex3, screenCoord).a;
+	if (prevLuminance == 0.0) prevLuminance = 3.0;
 	composite *= EXPOSURE / prevLuminance;
 
-/* DRAWBUFFERS:6 */
+/* DRAWBUFFERS:4 */
 
 	gl_FragData[0] = vec4(composite, 1.0);
 

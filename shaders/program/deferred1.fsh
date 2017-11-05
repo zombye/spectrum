@@ -20,7 +20,7 @@ uniform sampler2D colortex0; // gbuffer0 | Albedo
 uniform sampler2D colortex1; // gbuffer1 | ID, lightmap
 uniform sampler2D colortex2; // gbuffer2 | Normal, Specular
 
-uniform sampler2D colortex3; // aux0 | RSM & Water caustics
+uniform sampler2D gaux2; // aux0 | RSM & Water caustics
 
 uniform sampler2D depthtex1;
 
@@ -49,18 +49,12 @@ varying vec2 screenCoord;
 #include "/lib/util/spaceConversion.glsl"
 #include "/lib/util/texture.glsl"
 
-float get3DNoise(vec3 position) {
-	float flr = floor(position.z);
-	vec2 coord = (position.xy * 0.015625) + (flr * 0.265625); // 1/64 | 17/64
-	vec2 noise = texture2D(noisetex, coord).xy;
-	return mix(noise.x, noise.y, position.z - flr);
-}
-
 #include "/lib/uniform/colors.glsl"
 #include "/lib/uniform/gbufferMatrices.glsl"
 #include "/lib/uniform/shadowMatrices.glsl"
 #include "/lib/uniform/vectors.glsl"
 
+#include "/lib/misc/get3DNoise.glsl"
 #include "/lib/misc/importanceSampling.glsl"
 #include "/lib/misc/shadowDistortion.glsl"
 
@@ -88,7 +82,7 @@ vec3 bilateralResample(vec3 normal, float depth) {
 			float weight  = clamp01(dot(normal, normalSample));
 			      weight *= 1.0 - clamp(abs(depth - depthSample), 0.0, 1.0);
 
-			filtered += texture2D(colortex3, coord * COMPOSITE0_SCALE).rgb * weight;
+			filtered += texture2D(gaux2, coord * COMPOSITE0_SCALE).rgb * weight;
 			totalWeight += weight;
 		}
 	}
@@ -106,20 +100,12 @@ vec3 bilateralResample(vec3 normal, float depth) {
 
 //--//
 
-float calcCloudShadowMap() {
-	vec3 shadowPos = vec3(screenCoord, 0.0) * 2.0 - 1.0;
-	shadowPos.st /= 1.0 - length(shadowPos.st);
-	shadowPos = transformPosition(transformPosition(shadowPos, projectionShadowInverse), shadowModelViewInverse);
-
-	return volumetricClouds_shadow(shadowPos);
-}
-
 void main() {
 	vec3 tex1 = texture2D(colortex1, screenCoord).rgb;
 
 	masks mask = calculateMasks(tex1.r * 255.0);
 
-	gl_FragData[1].a = calcCloudShadowMap();
+	gl_FragData[1].a = texture2D(gaux2, screenCoord).a;
 	
 	if (mask.sky) { exit(); return; }
 
@@ -138,7 +124,7 @@ void main() {
 	composite  = calculateLighting(backPosition, normal, lightmap, mat, gl_FragData[1].rgb);
 	composite *= mat.albedo;
 
-/* DRAWBUFFERS:63 */
+/* DRAWBUFFERS:45 */
 
 	gl_FragData[0] = vec4(composite, 1.0);
 

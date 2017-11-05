@@ -6,7 +6,7 @@
 uniform float viewWidth, viewHeight;
 
 // Samplers
-uniform sampler2D colortex3;
+uniform sampler2D colortex5;
 
 //----------------------------------------------------------------------------//
 
@@ -24,14 +24,14 @@ void main() {
 	const float[5] weights = float[5](0.19947114, 0.29701803, 0.09175428, 0.01098007, 0.00050326);
 	const float[5] offsets = float[5](0.00000000, 1.40733340, 3.29421497, 5.20181322, 7.13296424);
 
-	vec3 blur = texture2D(colortex3, screenCoord).rgb * weights[0];
+	vec3 blur = texture2D(colortex5, screenCoord).rgb * weights[0];
 	for (int i = 1; i < 5; i++) {
 		vec2 offset = offsets[i] * vec2(0.0, 1.0 / viewHeight);
-		blur += texture2D(colortex3, screenCoord + offset).rgb * weights[i];
-		blur += texture2D(colortex3, screenCoord - offset).rgb * weights[i];
+		blur += texture2D(colortex5, screenCoord + offset).rgb * weights[i];
+		blur += texture2D(colortex5, screenCoord - offset).rgb * weights[i];
 	}
 
-/* DRAWBUFFERS:3 */
+/* DRAWBUFFERS:5 */
 
 	gl_FragData[0] = vec4(blur, 1.0);
 

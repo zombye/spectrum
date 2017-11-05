@@ -1,6 +1,6 @@
 #include "/settings.glsl"
 
-const bool gaux3MipmapEnabled = true;
+const bool gaux1MipmapEnabled = true;
 
 //----------------------------------------------------------------------------//
 
@@ -27,8 +27,8 @@ uniform sampler2D normals;
 uniform sampler2D specular;
 #endif
 
-uniform sampler2D gaux3; // composite
-uniform sampler2D gaux4; // temporal
+uniform sampler2D gaux1; // composite
+uniform sampler2D gaux2; // aux0
 
 uniform sampler2D depthtex1;
 uniform sampler2D depthtex2;
@@ -68,18 +68,12 @@ varying vec3 positionScene;
 #include "/lib/util/spaceConversion.glsl"
 #include "/lib/util/texture.glsl"
 
-float get3DNoise(vec3 position) {
-	float flr = floor(position.z);
-	vec2 coord = (position.xy * 0.015625) + (flr * 0.265625); // 1/64 | 17/64
-	vec2 noise = texture2D(noisetex, coord).xy;
-	return mix(noise.x, noise.y, position.z - flr);
-}
-
 #include "/lib/uniform/vectors.glsl"
 #include "/lib/uniform/colors.glsl"
 #include "/lib/uniform/gbufferMatrices.glsl"
 #include "/lib/uniform/shadowMatrices.glsl"
 
+#include "/lib/misc/get3DNoise.glsl"
 #include "/lib/misc/importanceSampling.glsl"
 #include "/lib/misc/shadowDistortion.glsl"
 
@@ -141,11 +135,7 @@ void main() {
 	vec3 specular  = calculateReflections(position, normalize(position[1]), normal, mat.reflectance, mat.roughness, lightmapShaded.y, sunVisibility) / base.a;
 	vec3 composite = blendMaterial(diffuse, specular, mat);
 
-	float prevLuminance = texture2D(gaux4, position[0].st).a;
-	if (prevLuminance == 0.0) prevLuminance = 3.0;
-	composite *= EXPOSURE / prevLuminance;
-
-/* DRAWBUFFERS:45 */
+/* DRAWBUFFERS:67 */
 
 	gl_FragData[0] = vec4(composite, base.a);
 	gl_FragData[1] = vec4(packNormal(norm.xyz), pack2x8(vec2(metadata.x / 255.0, lightmapShaded.y)), 1.0);

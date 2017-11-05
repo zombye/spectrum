@@ -31,7 +31,7 @@ vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float 
 		vec3 reflectionSample = vec3(0.0);
 
 		if (intersected) {
-			reflectionSample = texture2DLod(gaux3, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
+			reflectionSample = texture2DLod(gaux1, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, linearizeDepth(hitPos.z, projectionInverse) - position[1].z, alpha2)).rgb;
 		} else if (skyLight > 0.1) {
 			reflectionSample = sky_atmosphere(vec3(0.0), rayDir);
 			#ifdef FLATCLOUDS

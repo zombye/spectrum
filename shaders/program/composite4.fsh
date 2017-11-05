@@ -1,6 +1,6 @@
 #include "/settings.glsl"
 
-const bool colortex6MipmapEnabled = true;
+const bool colortex4MipmapEnabled = true;
 //----------------------------------------------------------------------------//
 
 // Viewport
@@ -8,7 +8,7 @@ uniform float viewWidth, viewHeight;
 uniform float aspectRatio;
 
 // Samplers
-uniform sampler2D colortex6;
+uniform sampler2D colortex4;
 
 //----------------------------------------------------------------------------//
 
@@ -27,13 +27,13 @@ vec3 generateBlurTileX(vec2 coord, const float lod) {
 	const float[5] weights = float[5](0.19947114, 0.29701803, 0.09175428, 0.01098007, 0.00050326);
 	const float[5] offsets = float[5](0.00000000, 1.40733340, 3.29421497, 5.20181322, 7.13296424);
 
-	vec2 resolution = textureSize2D(colortex6, int(lod));
+	vec2 resolution = textureSize2D(colortex4, int(lod));
 
-	vec3 tile = texture2DLod(colortex6, coord, lod).rgb * weights[0];
+	vec3 tile = texture2DLod(colortex4, coord, lod).rgb * weights[0];
 	for (int i = 1; i < 5; i++) {
 		vec2 offset = offsets[i] * vec2(1.0 / resolution.x, 0.0);
-		tile += texture2DLod(colortex6, coord + offset, lod).rgb * weights[i];
-		tile += texture2DLod(colortex6, coord - offset, lod).rgb * weights[i];
+		tile += texture2DLod(colortex4, coord + offset, lod).rgb * weights[i];
+		tile += texture2DLod(colortex4, coord - offset, lod).rgb * weights[i];
 	}
 	return tile;
 }
@@ -51,7 +51,7 @@ void main() {
 	blur += generateBlurTileX((screenCoord - (vec2(4,16) * px + vec2(0.3125, 0.62500))) * exp2(5), 5);
 	blur += generateBlurTileX((screenCoord - (vec2(4,24) * px + vec2(0.3125, 0.65625))) * exp2(6), 6);
 
-/* DRAWBUFFERS:3 */
+/* DRAWBUFFERS:5 */
 
 	gl_FragData[0] = vec4(blur, 1.0);
 

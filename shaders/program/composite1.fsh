@@ -1,6 +1,6 @@
 #include "/settings.glsl"
 
-const bool colortex6MipmapEnabled = true;
+const bool colortex4MipmapEnabled = true;
 
 //----------------------------------------------------------------------------//
 
@@ -21,8 +21,8 @@ uniform mat4 gbufferPreviousModelView, gbufferPreviousProjection;
 uniform mat4 gbufferPreviousProjectionInverse;
 
 // Samplers
-uniform sampler2D colortex6; // composite
-uniform sampler2D colortex7; // temporal
+uniform sampler2D colortex3; // temporal
+uniform sampler2D colortex4; // composite
 
 uniform sampler2D depthtex0;
 
@@ -41,8 +41,8 @@ varying vec2 screenCoord;
 #include "/lib/misc/temporalAA.glsl"
 
 float calculateSmoothLuminance() {
-	float prevLuminance = texture2D(colortex7, screenCoord).a;
-	float currLuminance = clamp(dot(texture2DLod(colortex6, vec2(0.5), 100).rgb, lumacoeff_rec709) * prevLuminance / EXPOSURE, 3.0, 1e3);
+	float prevLuminance = texture2D(colortex3, screenCoord).a;
+	float currLuminance = clamp(dot(texture2DLod(colortex4, vec2(0.5), 100).rgb, lumacoeff_rec709) * prevLuminance / EXPOSURE, 3.0, 1e3);
 
 	if (prevLuminance == 0.0) prevLuminance = 3.0;
 
@@ -50,7 +50,7 @@ float calculateSmoothLuminance() {
 }
 
 vec3 lowlightDesaturate(vec3 color) {
-	float prevLuminance = texture2D(colortex7, screenCoord).a;
+	float prevLuminance = texture2D(colortex3, screenCoord).a;
 	if (prevLuminance == 0.0) prevLuminance = 3.0;
 	color *= prevLuminance / EXPOSURE;
 
@@ -64,13 +64,13 @@ void main() {
 	#ifdef TEMPORAL_AA
 	vec3 color = taa_apply();
 	#else
-	vec3 color = texture2D(colortex6, screenCoord).rgb;
+	vec3 color = texture2D(colortex4, screenCoord).rgb;
 	#endif
 
-/* DRAWBUFFERS:67 */
+/* DRAWBUFFERS:34 */
 
-	gl_FragData[0] = vec4(lowlightDesaturate(color), 1.0);
-	gl_FragData[1] = vec4(color, calculateSmoothLuminance());
+	gl_FragData[0] = vec4(color, calculateSmoothLuminance());
+	gl_FragData[1] = vec4(lowlightDesaturate(color), 1.0);
 
 	exit();
 }

@@ -45,6 +45,7 @@ varying vec2 screenCoord;
 #include "/lib/uniform/shadowMatrices.glsl"
 #include "/lib/uniform/vectors.glsl"
 
+#include "/lib/misc/get3DNoise.glsl"
 #include "/lib/misc/shadowDistortion.glsl"
 
 //--//
@@ -102,16 +103,28 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float dither) {
 	return rsm * perSampleArea * RSM_BRIGHTNESS / pi;
 }
 
+#include "/lib/fragment/volumetricClouds.fsh"
+
+float calculateCloudShadowMap() {
+	vec3 shadowPos = vec3(screenCoord * COMPOSITE0_SCALE, 0.0) * 2.0 - 1.0;
+	shadowPos.st /= 1.0 - length(shadowPos.st);
+	shadowPos = transformPosition(transformPosition(shadowPos, projectionShadowInverse), shadowModelViewInverse);
+
+	return volumetricClouds_shadow(shadowPos);
+}
+
 //--//
 
 void main() {
+	gl_FragData[0].a = calculateCloudShadowMap();
+
 	#if RSM_SAMPLES == 0
-	discard;
+	exit(); return;
 	#endif
 
 	vec2 id_skylight = textureRaw(colortex1, screenCoord).rb;
 
-	if (round(id_skylight.r * 255.0) == 0.0 || floor(screenCoord) != vec2(0.0) || id_skylight.g == 0.0) { gl_FragData[0] = vec4(0.0, 0.0, 0.0, 1.0); exit(); return; }
+	if (round(id_skylight.r * 255.0) == 0.0 || floor(screenCoord) != vec2(0.0) || id_skylight.g == 0.0) { exit(); return; }
 
 	mat3 backPosition;
 	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
@@ -124,9 +137,9 @@ void main() {
 
 	vec3 rsm = calculateReflectiveShadowMaps(backPosition[2], normal, dither * 16.0) * id_skylight.g * id_skylight.g;
 
-/* DRAWBUFFERS:3 */
+/* DRAWBUFFERS:5 */
 
-	gl_FragData[0] = vec4(rsm, 1.0);
+	gl_FragData[0].rgb = rsm;
 
 	exit();
 }

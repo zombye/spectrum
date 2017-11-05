@@ -2,7 +2,7 @@
 
 //#define DOF // Currently does not take into account aperture blades
 
-const bool colortex6MipmapEnabled = true;
+const bool colortex4MipmapEnabled = true;
 
 //----------------------------------------------------------------------------//
 
@@ -11,7 +11,7 @@ uniform float aspectRatio;
 uniform float viewHeight;
 
 // Samplers
-uniform sampler2D colortex6; // composite
+uniform sampler2D colortex4; // composite
 
 uniform sampler2D depthtex0;
 
@@ -378,7 +378,7 @@ vec3 depthOfField() {
 
 	vec3 result = vec3(0.0);
 	for (int i = 0; i < dofOffsets.length(); i++) {
-		result += texture2DLod(colortex6, dofOffsets[i] * circleOfConfusion + screenCoord, lod).rgb;
+		result += texture2DLod(colortex4, dofOffsets[i] * circleOfConfusion + screenCoord, lod).rgb;
 	}
 	return result / dofOffsets.length();
 }
@@ -387,10 +387,10 @@ void main() {
 	#ifdef DOF
 	vec3 color = depthOfField();
 	#else
-	vec3 color = texture2D(colortex6, screenCoord).rgb;
+	vec3 color = texture2D(colortex4, screenCoord).rgb;
 	#endif
 
-/* DRAWBUFFERS:6 */
+/* DRAWBUFFERS:4 */
 
 	gl_FragData[0] = vec4(color, 1.0);
 

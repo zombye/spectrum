@@ -174,7 +174,6 @@ vec3 lpcss(vec3 position, float angularRadius) {
 
 vec3 shadows(vec3 position, float cloudShadow) {
 	position = mat3(shadowModelView) * position + shadowModelView[3].xyz;
-	vec3 normal = normalize(cross(dFdx(position), dFdy(position)));
 	position = vec3(projectionShadow[0].x, projectionShadow[1].y, projectionShadow[2].z) * position + projectionShadow[3].xyz;
 
 	#if SHADOW_FILTER_TYPE == 2 || SHADOW_FILTER_TYPE == 3
@@ -198,6 +197,11 @@ vec3 shadows(vec3 position, float cloudShadow) {
 	#else
 	return shadowSample(position);
 	#endif
+}
+float getCloudShadows(vec3 position){
+	position    = mat3(shadowModelView) * position + shadowModelView[3].xyz;
+	position.xy = vec2(projectionShadow[0].x, projectionShadow[1].y) * position.xy + projectionShadow[3].xy;
+	return texture2D(gaux2, shadows_distortShadowSpace(position.xy) * 0.5 + 0.5).a;
 }
 
 float waterCaustics(vec3 position, vec3 shadowPosition, float waterDepth) {
@@ -375,7 +379,8 @@ float ssao(vec3 position, vec3 normal) {
 }
 
 vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, out vec3 sunVisibility) {
-	float cloudShadow = volumetricClouds_shadow(position[2]);
+	float cloudShadow = getCloudShadows(position[2]);
+
 	sunVisibility = vec3(cloudShadow);
 	vec3 shadowLight = vec3(lightmap.y * lightmap.y);
 	if (shadowLight != vec3(0.0)) {

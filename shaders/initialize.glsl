@@ -16,19 +16,19 @@ const bool shadowcolor1Mipmap = false;
 const int colortex0Format = RGB8;           // gbuffer0
 const int colortex1Format = RGB8;           // gbuffer1
 const int colortex2Format = RGB16;          // gbuffer2
-const int colortex3Format = RGBA16F;        // aux0
-const int colortex4Format = RGBA16F;        // aux1
-const int colortex5Format = RGB16;          // aux2
-const int colortex6Format = R11F_G11F_B10F; // composite
-const int colortex7Format = RGBA16F;        // temporal
+const int colortex3Format = RGBA16F;        // temporal
+const int colortex4Format = R11F_G11F_B10F; // composite
+const int colortex5Format = RGBA16F;        // aux0
+const int colortex6Format = RGBA16F;        // aux1
+const int colortex7Format = RGB16;          // aux2
 // total 368 bits/pixel
 
 const bool colortex0Clear = false;
 const bool colortex1Clear = false;
 const bool colortex2Clear = false;
 const bool colortex3Clear = false;
-const bool colortex4Clear = true;
-const bool colortex5Clear = true;
-const bool colortex6Clear = false;
-const bool colortex7Clear = false;
+const bool colortex4Clear = false;
+const bool colortex5Clear = false;
+const bool colortex6Clear = true;
+const bool colortex7Clear = true;
 */

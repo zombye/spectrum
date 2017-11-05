@@ -119,6 +119,7 @@ float volumetricClouds_shadow(vec3 position) {
 	return exp(volumetricClouds_coeffTransmit * stepSize * od);
 }
 
+#if PROGRAM != PROGRAM_DEFERRED
 vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewDirection, bool sky) {
 	#if VOLUMETRICCLOUDS_SAMPLES == 0
 	return vec4(0.0, 0.0, 0.0, 1.0);
@@ -186,3 +187,4 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 
 	return clouds;
 }
+#endif

@@ -11,9 +11,9 @@ uniform float viewWidth, viewHeight;
 uniform float aspectRatio;
 
 // Samplers
-uniform sampler2D colortex3; // aux0
+uniform sampler2D colortex4; // composite
+uniform sampler2D colortex5; // aux0
 
-uniform sampler2D colortex6; // composite
 
 //----------------------------------------------------------------------------//
 
@@ -33,12 +33,12 @@ vec3 weighAndSumGlareTiles() {
 	vec2 px = 1.0 / vec2(viewWidth, viewHeight);
 
 	vec3
-	glare  = textureBicubic(colortex3, (screenCoord / exp2(1)) + vec2(0.0000, 0.00000) + vec2(0, 0) * px).rgb * 0.625;
-	glare += textureBicubic(colortex3, (screenCoord / exp2(2)) + vec2(0.0000, 0.50000) + vec2(0, 8) * px).rgb * 0.750;
-	glare += textureBicubic(colortex3, (screenCoord / exp2(3)) + vec2(0.2500, 0.50000) + vec2(2, 8) * px).rgb * 0.850;
-	glare += textureBicubic(colortex3, (screenCoord / exp2(4)) + vec2(0.2500, 0.62500) + vec2(2,16) * px).rgb * 0.925;
-	glare += textureBicubic(colortex3, (screenCoord / exp2(5)) + vec2(0.3125, 0.62500) + vec2(4,16) * px).rgb * 0.975;
-	glare += textureBicubic(colortex3, (screenCoord / exp2(6)) + vec2(0.3125, 0.65625) + vec2(4,24) * px).rgb * 1.000;
+	glare  = textureBicubic(colortex5, (screenCoord / exp2(1)) + vec2(0.0000, 0.00000) + vec2(0, 0) * px).rgb * 0.625;
+	glare += textureBicubic(colortex5, (screenCoord / exp2(2)) + vec2(0.0000, 0.50000) + vec2(0, 8) * px).rgb * 0.750;
+	glare += textureBicubic(colortex5, (screenCoord / exp2(3)) + vec2(0.2500, 0.50000) + vec2(2, 8) * px).rgb * 0.850;
+	glare += textureBicubic(colortex5, (screenCoord / exp2(4)) + vec2(0.2500, 0.62500) + vec2(2,16) * px).rgb * 0.925;
+	glare += textureBicubic(colortex5, (screenCoord / exp2(5)) + vec2(0.3125, 0.62500) + vec2(4,16) * px).rgb * 0.975;
+	glare += textureBicubic(colortex5, (screenCoord / exp2(6)) + vec2(0.3125, 0.65625) + vec2(4,24) * px).rgb * 1.000;
 	glare /= 5.125;
 
 	return glare;
@@ -59,7 +59,7 @@ vec3 diffractionSpikes(vec3 color) {
 		for (float j = 1.0; j < spikeSamples; j++) {
 			float weight = j / spikeSamples;
 			weight = (1.0 - weight) / (spikeFalloff * weight * weight);
-			color += texture2D(colortex6, direction * j + screenCoord).rgb * weight;
+			color += texture2D(colortex4, direction * j + screenCoord).rgb * weight;
 			totalWeight += weight;
 		}
 	}
@@ -103,7 +103,7 @@ vec3 tonemap(vec3 color) {
 }
 
 void main() {
-	vec3 color = texture2D(colortex6, screenCoord).rgb;
+	vec3 color = texture2D(colortex4, screenCoord).rgb;
 
 	if (BLOOM_AMOUNT != 0.0) color = mix(color, weighAndSumGlareTiles(), BLOOM_AMOUNT / (1.0 + BLOOM_AMOUNT));
 

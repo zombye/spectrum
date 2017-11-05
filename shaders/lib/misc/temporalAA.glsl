@@ -75,7 +75,7 @@ vec3 taa_apply() {
 
 	for (int x = -1; x <= 1; x++) {
 		for (int y = -1; y <= 1; y++) {
-			vec3 sampleColor = texture2D(colortex6, vec2(x, y) * pixel + screenCoord).rgb;
+			vec3 sampleColor = texture2D(colortex4, vec2(x, y) * pixel + screenCoord).rgb;
 
 			if (x == -1 && y == -1) { // Initialize min & max color values
 				minColor = sampleColor;
@@ -91,7 +91,7 @@ vec3 taa_apply() {
 	}
 
 	// Get reprojected previous frame color, clamped with min & max around current frame fragment to prevent ghosting
-	vec3 prevColor = clamp(texture2D(colortex7, reprojectedPosition.st).rgb, minColor, maxColor);
+	vec3 prevColor = clamp(texture2D(colortex3, reprojectedPosition.st).rgb, minColor, maxColor);
 
 	// Apply a simple tonemap, blend, reverse tonemap, and return.
 	centerColor /= 1.0 + centerColor;
