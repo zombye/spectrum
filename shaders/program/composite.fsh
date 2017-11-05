@@ -104,8 +104,8 @@ vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
 
 	stepSize /= steps;
 
-	vec3 phase = vec3(dot(direction, shadowLightVector));
-	phase = vec3(sky_rayleighPhase(phase.x), sky_miePhase(phase.x, 0.8), 0.5);
+	vec4 phase = vec4(dot(direction, shadowLightVector));
+	     phase = vec4(sky_rayleighPhase(phase.x), sky_miePhase(phase.x, 0.8), sky_miePhase(phase.x, 0.3), 0.5);
 
 	vec3 worldPos = transformPosition(startPosition, gbufferModelViewInverse) + cameraPosition;
 	vec3 worldIncrement = mat3(gbufferModelViewInverse) * direction * stepSize;
@@ -115,24 +115,32 @@ vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
 	worldPos  += worldIncrement  * bayer8(gl_FragCoord.st);
 	shadowPos += shadowIncrement * bayer8(gl_FragCoord.st);
 
+	float mistFactor = pow5(dot(sunVector, gbufferModelView[0].xyz) * 0.5 + 0.5);
+	float mistScaleHeight = mix(200.0, 8.0, mistFactor);
+	float mistDensity = 0.02 / mistScaleHeight;
+	vec3 ish = vec3(inverseScaleHeights, 1.0 / mistScaleHeight);
+	mat3 transmittanceMatrix = mat3(transmittanceCoefficients[0], transmittanceCoefficients[1], vec3(1.0));
+
 	vec3 transmittance = vec3(1.0);
 	vec3 scattering    = vec3(0.0);
 
 	for (float i = 0.0; i < steps; i++, worldPos += worldIncrement, shadowPos += shadowIncrement) {
-		vec2 opticalDepth = exp(-inverseScaleHeights * worldPos.y) * stepSize;
+		vec3 opticalDepth = exp(-ish * (worldPos.y - 63.0)) * stepSize;
+		opticalDepth.z *= mistDensity;
 
-		mat2x3 scatterCoeffs = mat2x3(
+		mat3 scatterCoeffs = mat3(
 			scatteringCoefficients[0] * transmittedScatteringIntegral(opticalDepth.x, transmittanceCoefficients[0]),
-			scatteringCoefficients[1] * transmittedScatteringIntegral(opticalDepth.y, transmittanceCoefficients[1])
+			scatteringCoefficients[1] * transmittedScatteringIntegral(opticalDepth.y, transmittanceCoefficients[1]),
+			vec3(1.0) * transmittedScatteringIntegral(opticalDepth.z, vec3(1.0))
 		);
 
 		vec3 shadowCoord = shadows_distortShadowSpace(shadowPos) * 0.5 + 0.5;
-		vec3 sunlight  = (scatterCoeffs * phase.xy) * shadowLightColor * textureShadow(shadowtex0, shadowCoord);
+		vec3 sunlight  = (scatterCoeffs * phase.xyz) * shadowLightColor * textureShadow(shadowtex0, shadowCoord);
 		     sunlight *= texture2D(colortex3, shadowCoord.st).a;
-		vec3 skylight  = (scatterCoeffs * phase.zz) * skylightBrightness;
+		vec3 skylight  = (scatterCoeffs * phase.www) * skylightBrightness;
 
 		scattering += (sunlight + skylight) * transmittance;
-		transmittance *= exp(-transmittanceCoefficients * opticalDepth);
+		transmittance *= exp(-transmittanceMatrix * opticalDepth);
 	}
 	#else
 	float phase = sky_rayleighPhase(dot(direction, shadowLightVector));

@@ -250,7 +250,7 @@ vec3 waterShadows(vec3 position) {
 	// Water fog transmittance - has issues around edges of shadows, and not really needed as I already fade out the shadow light with the skylightmap (it still helps tough).
 	vec3 result = vec3(1.0);//exp(transmittanceCoeff * waterDepth);
 
-	#if PROGRAM != PROGRAM_WATER && CAUSTICS_SAMPLES > 0
+	#if CAUSTICS_SAMPLES > 0
 	result *= waterCaustics(position, shadowPosition, waterDepth);
 	#endif
 
