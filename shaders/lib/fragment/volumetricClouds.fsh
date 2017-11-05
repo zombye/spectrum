@@ -110,7 +110,7 @@ float volumetricClouds_shadow(vec3 position) {
 	float stepSize = (distances.y - distances.x) / samples;
 
 	vec3 increment = direction * stepSize;
-	position = increment * bayer8(gl_FragCoord.st) + (direction * distances.x + worldStart);
+	position = increment * 0.5 + (direction * distances.x + worldStart);
 
 	float od = 0.0;
 	for (int i = 0; i < samples; i++, position += increment) {
