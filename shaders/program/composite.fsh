@@ -2,7 +2,7 @@
 
 #define REFRACTIONS
 
-#define CREPUSCULAR_RAYS 2 // [0 1 2]
+#define CREPUSCULAR_RAYS 0 // [0 1 2]
 
 const bool gaux3MipmapEnabled = true;
 

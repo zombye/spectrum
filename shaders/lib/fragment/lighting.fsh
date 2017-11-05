@@ -9,7 +9,7 @@
 #define HBAO_DIRECTIONS        4
 #define HBAO_SAMPLES_DIRECTION 4
 
-#define SSAO_SAMPLES 16 // [0 9 16]
+#define SSAO_SAMPLES 0 // [0 9 16]
 #define SSAO_RADIUS  SRAO_RADIUS
 
 //--//
