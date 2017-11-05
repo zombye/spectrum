@@ -2,6 +2,8 @@
 
 //----------------------------------------------------------------------------//
 
+uniform int isEyeInWater;
+
 // Positions
 uniform vec3 cameraPosition;
 

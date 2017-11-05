@@ -2,6 +2,8 @@
 
 //----------------------------------------------------------------------------//
 
+uniform int isEyeInWater;
+
 // Time
 uniform int frameCounter;
 
