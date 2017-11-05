@@ -20,7 +20,8 @@ void calculateGbufferMatrices() {
 	// Add per-frame offset for TAA
 	#ifdef TEMPORAL_AA
 	vec2 offset = taa_offset();
-	projection[2].xy += offset; // TODO: Apply to inverse projection properly
+	projection[2].xy += offset;
+	projectionInverse[3].xy += offset * vec2(projectionInverse[0].x, projectionInverse[1].y);
 	#endif
 
 	// TODO: Correct underwater FOV
