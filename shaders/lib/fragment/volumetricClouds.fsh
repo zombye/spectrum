@@ -22,18 +22,6 @@ const vec3 volumetricClouds_bouncedLightColor = vec3(0.31, 0.34, 0.31); // wish 
 
 //--//
 
-float volumetricClouds_phase(float cosTheta) {
-	const vec2 g    = vec2(0.25, -0.15);
-	const vec2 gm2  = 2.0 * g;
-	const vec2 gg   = g * g;
-	const vec2 gga1 = 1.0 + gg;
-	const vec2 p1   = (0.75 * (1.0 - gg)) / (tau * (2.0 + gg));
-
-	vec2 res = p1 * (cosTheta * cosTheta + 1.0) * pow(gga1 - gm2 * cosTheta, vec2(-1.5));
-
-	return dot(res, vec2(0.4)) + 0.2;
-}
-
 struct volumetricClouds_noiseLayer {
 	vec3  mul;
 	vec3  add;
@@ -68,6 +56,47 @@ float volumetricClouds_density(vec3 position, const bool hq) {
 	return density;
 }
 
+float volumetricClouds_shadow(vec3 position) {
+	#if VOLUMETRICCLOUDS_SAMPLES == 0
+	return 1.0;
+	#endif
+
+	vec3 worldStart = position + cameraPosition;
+	vec3 direction  = mat3(gbufferModelViewInverse) * shadowLightVector;
+
+	// .x = start, .y = end
+	vec2 distances = vec2(VOLUMETRICCLOUDS_ALTITUDE_MIN, VOLUMETRICCLOUDS_ALTITUDE_MAX); // top of clouds is y by default
+	distances = (distances - worldStart.y) / direction.y;                                // get distance to the upper and lower bounds
+	if (distances.y < distances.x) distances = distances.yx;                             // y less than x? we're looking downwards, so swap them
+	distances.x = max(distances.x, 0.0);                                                 // start can never be closer than 0
+	if (distances.y < distances.x) return 1.0;                                           // y still less than x? no clouds visible then
+
+	const float samples = 10.0;
+	float stepSize = (distances.y - distances.x) / samples;
+
+	vec3 increment = direction * stepSize;
+	position = increment * 0.5 + (direction * distances.x + worldStart);
+
+	float od = 0.0;
+	for (int i = 0; i < samples; i++, position += increment) {
+		od -= volumetricClouds_density(position, true);
+	}
+	return exp(volumetricClouds_coeffTransmit * stepSize * od);
+}
+
+#if PROGRAM != PROGRAM_DEFERRED
+float volumetricClouds_phase(float cosTheta) {
+	const vec2 g    = vec2(0.25, -0.15);
+	const vec2 gm2  = 2.0 * g;
+	const vec2 gg   = g * g;
+	const vec2 gga1 = 1.0 + gg;
+	const vec2 p1   = (0.75 * (1.0 - gg)) / (tau * (2.0 + gg));
+
+	vec2 res = p1 * (cosTheta * cosTheta + 1.0) * pow(gga1 - gm2 * cosTheta, vec2(-1.5));
+
+	return dot(res, vec2(0.4)) + 0.2;
+}
+
 float volumetricClouds_visibility(vec3 position, vec3 direction, float odAtStart, const float range, const float samples, const bool hq) {
 	const float stepSize = range / (samples + 0.5);
 
@@ -90,36 +119,6 @@ vec3 volumetricClouds_basicIndirect(vec3 position) {
 }
 */
 
-float volumetricClouds_shadow(vec3 position) {
-	#if VOLUMETRICCLOUDS_SAMPLES == 0
-	return 1.0;
-	#endif
-
-	const float samples = 10.0;
-
-	vec3 worldStart = position + cameraPosition;
-	vec3 direction  = mat3(gbufferModelViewInverse) * shadowLightVector;
-
-	// .x = start, .y = end
-	vec2 distances = vec2(VOLUMETRICCLOUDS_ALTITUDE_MIN, VOLUMETRICCLOUDS_ALTITUDE_MAX); // top of clouds is y by default
-	distances = (distances - worldStart.y) / direction.y;                                // get distance to the upper and lower bounds
-	if (distances.y < distances.x) distances = distances.yx;                             // y less than x? we're looking downwards, so swap them
-	distances.x = max(distances.x, 0.0);                                                 // start can never be closer than 0
-	if (distances.y < distances.x) return 1.0;                                           // y still less than x? no clouds visible then
-
-	float stepSize = (distances.y - distances.x) / samples;
-
-	vec3 increment = direction * stepSize;
-	position = increment * 0.5 + (direction * distances.x + worldStart);
-
-	float od = 0.0;
-	for (int i = 0; i < samples; i++, position += increment) {
-		od -= volumetricClouds_density(position, true);
-	}
-	return exp(volumetricClouds_coeffTransmit * stepSize * od);
-}
-
-#if PROGRAM != PROGRAM_DEFERRED
 vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewDirection, bool sky) {
 	#if VOLUMETRICCLOUDS_SAMPLES == 0
 	return vec4(0.0, 0.0, 0.0, 1.0);
@@ -138,7 +137,7 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 	if (distances.y < distances.x) return vec4(0.0, 0.0, 0.0, 1.0);                      // y still less than x? no clouds visible then
 
 	// increse step count towords the horizon, set step size
-	float samples = floor(VOLUMETRICCLOUDS_SAMPLES / max(abs(direction.y), 0.1));
+	float samples = floor(VOLUMETRICCLOUDS_SAMPLES * min((distances.y - distances.x) / (VOLUMETRICCLOUDS_ALTITUDE_MAX - VOLUMETRICCLOUDS_ALTITUDE_MIN), 10.0));
 	float stepSize = (distances.y - distances.x) / samples;
 
 	// set increment and initialize position
@@ -162,6 +161,7 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 
 	// loop
 	vec4 clouds = vec4(vec3(0.0), 1.0);
+	vec2 distanceAverage = vec2((distances.x + distances.y) * 0.5, 1.0) * 0.0001;
 	for (int i = 0; i < samples; i++, position += increment) {
 		// get density at current position
 		float od = volumetricClouds_density(position, true);
@@ -177,13 +177,17 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 		od *= stepSize;
 
 		// add step to result, integrate transmitted scattering
-		float transmittanceStep = exp2(a * od);
-		clouds.rgb += sampleLighting * (transmittanceStep * b + c) * clouds.a;
+		float transmittanceStep     = exp2(a * od);
+		float transmittedScattering = (transmittanceStep * b + c) * clouds.a;
+		clouds.rgb += sampleLighting * transmittedScattering;
 		clouds.a   *= transmittanceStep;
+		
+		// add to distance average weighted based on importance
+		distanceAverage += vec2(distance(position, worldStart), 1.0) * transmittedScattering;
 	} clouds.rgb *= volumetricClouds_coeffScatter;
 
-	// fade out towards horizon
-	clouds = mix(vec4(vec3(0.0), 1.0), clouds, smoothstep(0.0, 0.1, abs(dot(viewDirection, upVector))));
+	// fade out distant clouds based on average weighted distance
+	clouds = mix(vec4(vec3(0.0), 1.0), clouds, exp(-2e-5 * distanceAverage.x / distanceAverage.y));
 
 	return clouds;
 }
