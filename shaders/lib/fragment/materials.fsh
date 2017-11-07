@@ -43,5 +43,5 @@ vec3 blendMaterial(vec3 diffuse, vec3 specular, material mat) {
 	vec3 dielectric = diffuse + specular;
 	vec3 metallic   = mat.albedo * specular;
 
-	return mat.emittance * 1e3 + mix(dielectric, metallic, mat.metallicBlend);
+	return mix(dielectric, metallic, mat.metallicBlend);
 }

@@ -123,6 +123,7 @@ void main() {
 	vec3
 	composite  = calculateLighting(backPosition, normal, lightmap, mat, gl_FragData[1].rgb);
 	composite *= mat.albedo;
+	composite += mat.emittance * 1e3;
 
 /* DRAWBUFFERS:45 */
 
