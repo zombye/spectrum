@@ -135,7 +135,7 @@ void main() {
 
 	float dither = bayer16(gl_FragCoord.st);
 
-	vec3 rsm = calculateReflectiveShadowMaps(backPosition[2], normal, dither * 16.0) * id_skylight.g * id_skylight.g;
+	vec3 rsm = calculateReflectiveShadowMaps(backPosition[2], normal, dither * 256.0) * id_skylight.g * id_skylight.g;
 
 /* DRAWBUFFERS:5 */
 
