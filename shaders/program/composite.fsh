@@ -3,6 +3,7 @@
 #define REFRACTIONS
 
 #define CREPUSCULAR_RAYS 0 // [0 1 2]
+//#define CREPUSCULAR_RAYS_CAUSTICS
 
 const bool gaux1MipmapEnabled = true;
 
@@ -36,6 +37,7 @@ uniform sampler2D depthtex1;
 
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
+uniform sampler2D shadowcolor1;
 
 uniform sampler2D noisetex;
 
@@ -169,6 +171,54 @@ vec3 fakeCrepuscularRays(vec3 viewVector) {
 	return result * directionalMult * 0.01 * shadowLightColor / steps;
 }
 
+//--//
+
+#include "/lib/fragment/water/waves.fsh"
+#include "/lib/fragment/water/normal.fsh"
+
+float waterCaustics(vec3 position, float waterDepth) {
+	const int   samples           = CAUSTICS_SAMPLES;
+	const float radius            = CAUSTICS_RADIUS;
+	const float defocus           = CAUSTICS_DEFOCUS;
+	const float distancePower     = CAUSTICS_DISTANCE_POWER;
+	const float distanceThreshold = (sqrt(samples) - 1.0) / (radius * defocus);
+	const float resultPower       = CAUSTICS_RESULT_POWER;
+
+	vec3  lightVector       = mat3(gbufferModelViewInverse) * -shadowLightVector;
+	vec3  flatRefractVector = refract(lightVector, vec3(0.0, 1.0, 0.0), 0.75);
+	float surfDistUp        = waterDepth * lightVector.y / flatRefractVector.y;
+	float dither            = bayer4(gl_FragCoord.st) * 16.0;
+
+	position += cameraPosition;
+
+	vec3 surfacePosition = position - flatRefractVector * (surfDistUp / flatRefractVector.y);
+
+	float result = 0.0;
+	for (float i = 0.0; i < samples; i++) {
+		vec3 samplePos     = surfacePosition;
+		     samplePos.xz += spiralPoint(i * 16.0 + dither, samples * 16.0) * radius;
+		vec3 refractVector = refract(lightVector, water_calculateNormal(samplePos), 0.75);
+		     samplePos     = refractVector * (surfDistUp / refractVector.y) + samplePos;
+
+		result += pow(1.0 - clamp01(distance(position, samplePos) * distanceThreshold), distancePower);
+	}
+
+	return pow(result * distancePower / (defocus * defocus), resultPower);
+}
+float waterCausticsVolume(vec3 position, vec3 shadowPosition, vec2 shadowCoord) {
+	// Checks if there's water on the shadow map at this location
+	if (texture2D(shadowcolor1, shadowCoord).b > 0.5) return 1.0;
+
+	float waterDepth = texture2D(shadowtex0, shadowCoord).r * 2.0 - 1.0;
+	waterDepth = waterDepth * projectionShadowInverse[2].z + projectionShadowInverse[3].z;
+	waterDepth = shadowPosition.z - waterDepth;
+
+	// Make sure we're not in front of the water
+	if (waterDepth >= 0.0) return 1.0;
+
+	return waterCaustics(position, waterDepth);
+}
+
 vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skylight) {
 	const vec3 scatterCoeff = vec3(0.3e-2, 1.8e-2, 2.0e-2) * 0.4;
 	const vec3 absorbCoeff  = vec3(0.8, 0.45, 0.11);
@@ -194,6 +244,14 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 		vec3 shadowCoord = shadows_distortShadowSpace(position) * 0.5 + 0.5;
 		vec3 sunlight  = scatterCoeff * (0.25/pi) * shadowLightColor * textureShadow(shadowtex1, shadowCoord);
 		     sunlight *= texture2D(colortex5, shadowCoord.st).a;
+		#ifdef CREPUSCULAR_RAYS_CAUSTICS
+		#if CAUSTICS_SAMPLES > 0
+		if (sunlight != vec3(0.0)) {
+			vec3 shadowPosition = transformPosition(position, projectionShadowInverse);
+			sunlight *= waterCausticsVolume(transformPosition(shadowPosition, shadowModelViewInverse), shadowPosition, shadowCoord.xy);
+		}
+		#endif
+		#endif
 		vec3 skylight  = scatterCoeff * 0.5 * skyLightColor * skylight;
 
 		scattering    += (sunlight + skylight) * stepIntegral * transmittance;
