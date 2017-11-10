@@ -139,12 +139,16 @@ vec3 sky_atmosphere(vec3 bg, vec3 viewVector) {
 }
 #endif
 
-vec3 sky_sunSpot(vec3 bg, vec3 viewVector) {
+vec3 sky_sun(vec3 bg, vec3 viewVector) {
 	return dot(viewVector, sunVector) < cos(sunAngularRadius) ? bg : sunLuminance;
+}
+vec3 sky_moon(vec3 bg, vec3 viewVector) {
+	return dot(viewVector, moonVector) < cos(moonAngularRadius) ? bg : moonLuminance;
 }
 
 vec3 sky_render(vec3 bg, vec3 viewVector) {
-	bg = sky_sunSpot(bg, viewVector);
+	bg = sky_sun(bg, viewVector);
+	bg = sky_moon(bg, viewVector);
 	bg = sky_atmosphere(bg, viewVector);
 	return bg;
 }
