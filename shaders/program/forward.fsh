@@ -126,12 +126,14 @@ void main() {
 	vec3 normal = norm.xyz;
 
 	// kinda hacky
-	base.a = mix(base.a, 1.0, f_dielectric(clamp01(dot(normal, -normalize(position[1]))), 1.0 / f0ToIOR(mat.reflectance)));
+	float fresnel = f_dielectric(clamp01(dot(normal, -normalize(position[1]))), 1.0 / f0ToIOR(mat.reflectance));
+	base.a = mix(base.a, 1.0, fresnel);
 
 	vec2 lightmapShaded = directionalLightmap(lightmap, norm.xyz);
 
 	vec3 sunVisibility;
 	vec3 diffuse   = calculateLighting(position, normal, lightmapShaded, mat, sunVisibility) * mat.albedo;
+	     diffuse  *= 1.0 - fresnel;
 	vec3 specular  = calculateReflections(position, normalize(position[1]), normal, mat.reflectance, mat.roughness, lightmapShaded.y, sunVisibility) / base.a;
 	vec3 composite = blendMaterial(diffuse, specular, mat);
 

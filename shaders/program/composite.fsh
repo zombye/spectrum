@@ -326,14 +326,14 @@ void main() {
 		vec4 clouds = flatClouds_calculate(direction[0]);
 		composite = composite * clouds.a + clouds.rgb;
 		#endif
+	} else {
+		#ifdef MC_SPECULAR_MAP
+		composite *= 1.0 - f_dielectric(clamp01(dot(backNormal, -direction[0])), 1.0 / f0ToIOR(mat.reflectance));
+
+		vec3 specular = calculateReflections(backPosition, direction[0], backNormal, mat.reflectance, mat.roughness, lightmap.y, texture2D(colortex5, screenCoord).rgb);
+		composite = blendMaterial(composite, specular, mat);
+		#endif
 	}
-	vec3 specular =
-	#ifdef MC_SPECULAR_MAP
-	calculateReflections(backPosition, direction[0], backNormal, mat.reflectance, mat.roughness, lightmap.y, texture2D(colortex5, screenCoord).rgb);
-	#else
-	vec3(0.0);
-	#endif
-	composite = blendMaterial(composite, specular, mat);
 
 	vec4 clouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction[0], mask.sky);
 	composite = composite * clouds.a + clouds.rgb;
