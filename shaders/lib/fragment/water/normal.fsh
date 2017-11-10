@@ -43,5 +43,5 @@ vec3 water_calculateNormal(vec3 pos, mat3 tbn, vec3 viewDir) {
 	float bias = pow(clamp01(dot(-viewDir, tbn[2])), 0.76);
 	normal = mix(vec3(0.0, 0.0, 1.0), normal, bias);
 
-	return tbn * normal;
+	return normalize(tbn * normal);
 }

@@ -17,7 +17,7 @@ float f0ToIOR(float f0) {
 }
 
 float d_GGX(float NoH, float alpha2) {
-	float p = (NoH * alpha2 - NoH) * NoH + 1.0;
+	float p = NoH == 1.0 ? alpha2 : (NoH * alpha2 - NoH) * NoH + 1.0;
 	return alpha2 / (pi * p * p);
 }
 float f_dielectric(float NoV, float eta) {

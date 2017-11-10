@@ -4,10 +4,12 @@
 #define VOLUMETRICCLOUDS_REFLECTED // Can have a very high performance impact!
 
 float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDistance, float alpha2) {
-	float NoH = dot(normal, normalize(view + light));
+	vec3 halfVector = normalize(view + light);
 
-	float p = (NoH * alpha2 - NoH) * NoH + 1.0;
-	return max0(0.25 * log2(4.0 * projection[1].y * viewHeight * viewHeight * zDistance * dot(view, normalize(view + light)) * p * p / (REFLECTION_SAMPLES * alpha2 * NoH)));
+	float NoH = dot(normal, halfVector);
+
+	float p = ((NoH * alpha2 - NoH) * NoH + 1.0) * viewHeight;
+	return max0(0.25 * log2(4.0 * projection[1].y * zDistance * dot(view, halfVector) * p * p / (REFLECTION_SAMPLES * alpha2 * NoH)));
 }
 
 vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float reflectance, float roughness, float skyLight, vec3 sunVisibility) {
