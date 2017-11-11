@@ -42,7 +42,7 @@ varying vec2 screenCoord;
 
 float calculateSmoothLuminance() {
 	float prevLuminance = texture2D(colortex3, screenCoord).a;
-	float currLuminance = clamp(dot(texture2DLod(colortex4, vec2(0.5), 100).rgb, lumacoeff_rec709) * prevLuminance / EXPOSURE, 3.0, 1e3);
+	float currLuminance = clamp(dot(texture2DLod(colortex4, vec2(0.5), 100).rgb, lumacoeff_rec709) * prevLuminance / EXPOSURE, 3e0, 3e2);
 
 	if (prevLuminance == 0.0) prevLuminance = 3.0;
 
