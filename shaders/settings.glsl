@@ -1,3 +1,7 @@
+//--// Global
+
+#define PLANET_RADIUS 6731e3
+
 //--// Miscellaneous
 
 #define EXPOSURE 0.15

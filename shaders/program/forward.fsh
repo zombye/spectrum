@@ -135,13 +135,13 @@ void main() {
 	vec3 sunVisibility;
 	vec3 diffuse   = calculateLighting(position, normal, lightmapShaded, mat, sunVisibility) * mat.albedo;
 	     diffuse  *= 1.0 - fresnel;
-	vec3 specular  = calculateReflections(position, normalize(position[1]), normal, mat.reflectance, mat.roughness, lightmapShaded.y, sunVisibility) / base.a;
+	vec3 specular  = calculateReflections(mat2x3(position), normalize(position[1]), normal, mat.reflectance, mat.roughness, lightmapShaded.y, sunVisibility) / base.a;
 	vec3 composite = blendMaterial(diffuse, specular, mat);
 
 /* DRAWBUFFERS:67 */
 
 	gl_FragData[0] = vec4(composite, base.a);
-	gl_FragData[1] = vec4(packNormal(norm.xyz), pack2x8(vec2(metadata.x / 255.0, lightmapShaded.y)), 1.0);
+	gl_FragData[1] = vec4(vec2(0.0), pack2x8(vec2(metadata.x / 255.0, lightmapShaded.y)), 1.0);
 
 	exit();
 }

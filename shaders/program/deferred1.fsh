@@ -107,7 +107,7 @@ void main() {
 	masks mask = calculateMasks(tex1.r * 255.0);
 
 	gl_FragData[1].a = texture2D(gaux2, screenCoord).a;
-	
+
 	if (mask.sky) { exit(); return; }
 
 	mat3 backPosition;

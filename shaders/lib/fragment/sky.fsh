@@ -18,14 +18,13 @@
 
 //#define PHYSICAL_ATMOSPHERE // Physically based atmosphere model. Much more realistic, but also much slower.
 
-const float planetRadius     = 6731e3;
-const float atmosphereHeight =  100e3;
-const float atmosphereRadius = planetRadius + atmosphereHeight;
+const float atmosphereHeight = 100e3;
+const float atmosphereRadius = PLANET_RADIUS + atmosphereHeight;
 
 const vec2 scaleHeights = vec2(8e3, 1.2e3);
 
 const vec2  inverseScaleHeights     = 1.0 / scaleHeights;
-const vec2  scaledPlanetRadius      = planetRadius * inverseScaleHeights;
+const vec2  scaledPlanetRadius      = PLANET_RADIUS * inverseScaleHeights;
 const float atmosphereRadiusSquared = atmosphereRadius * atmosphereRadius;
 
 const vec3 rayleighCoeff = vec3(5.800e-6, 1.350e-5, 3.310e-5);
@@ -68,7 +67,7 @@ vec3 sky_atmosphere(vec3 background, vec3 viewVector) {
 	const float iSteps = 50.0;
 	const float jSteps = 3.0;
 
-	vec3 viewPosition = upVector * (planetRadius + cameraPosition.y - 63.0);
+	vec3 viewPosition = upVector * (PLANET_RADIUS + cameraPosition.y - 63.0);
 
 	float iStepSize  = dot(viewPosition, viewVector);
 	      iStepSize  = sqrt((iStepSize * iStepSize) + atmosphereRadiusSquared - dot(viewPosition, viewPosition)) - iStepSize;
@@ -110,14 +109,14 @@ vec3 sky_atmosphere(vec3 background, vec3 viewVector) {
 }
 #else
 vec2 sky_opticalDepthApprox(vec3 position, vec3 direction) {
-	const vec2 sr = (planetRadius + scaleHeights) * (planetRadius + scaleHeights);
+	const vec2 sr = (PLANET_RADIUS + scaleHeights) * (PLANET_RADIUS + scaleHeights);
 	vec2 od = vec2(dot(position, direction));
 	     od = sqrt(od * od + sr - dot(position, position)) - od;
 	return od;
 }
 
 vec3 sky_atmosphere(vec3 bg, vec3 viewVector) {
-	vec3 viewPosition = upVector * planetRadius;
+	vec3 viewPosition = upVector * PLANET_RADIUS;
 
 	vec2 opticalDepth  = sky_opticalDepthApprox(viewPosition, viewVector);
 	vec3 transmittance = exp(transmittanceCoefficients * -opticalDepth);

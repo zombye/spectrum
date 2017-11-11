@@ -12,7 +12,7 @@ float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDista
 	return max0(0.25 * log2(4.0 * projection[1].y * zDistance * dot(view, halfVector) * p * p / (REFLECTION_SAMPLES * alpha2 * NoH)));
 }
 
-vec3 calculateReflections(mat3 position, vec3 viewDirection, vec3 normal, float reflectance, float roughness, float skyLight, vec3 sunVisibility) {
+vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, float reflectance, float roughness, float skyLight, vec3 sunVisibility) {
 	if (reflectance == 0.0) return vec3(0.0);
 
 	float dither = bayer8(gl_FragCoord.st);

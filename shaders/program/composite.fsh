@@ -1,7 +1,5 @@
 #include "/settings.glsl"
 
-#define REFRACTIONS
-
 #define CREPUSCULAR_RAYS 2 // [0 1 2]
 //#define CREPUSCULAR_RAYS_CAUSTICS
 
@@ -231,91 +229,67 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 
 //--//
 
-vec3 calculateRefractions(vec3 frontPosition, vec3 backPosition, vec3 direction, vec3 normal, masks mask, inout vec3 hitPosition) {
-	float refractionDepth = distance(frontPosition, backPosition);
-
-	#ifdef REFRACTIONS
-	if (refractionDepth == 0.0)
-	#endif
-		return texture2D(gaux1, screenCoord).rgb;
-
-	hitPosition = refract(direction, normal, 0.75) * clamp01(refractionDepth) + frontPosition;
-	vec3 hitCoord = viewSpaceToScreenSpace(hitPosition, projection);
-	hitCoord.z = texture2D(depthtex1, hitCoord.st).r;
-	hitPosition = screenSpaceToViewSpace(hitCoord, projectionInverse);
-
-	return texture2D(gaux1, hitCoord.xy).rgb;
-}
-
-//--//
-
 void main() {
-	// TODO: Only do these first bits if and when needed
+	vec3 composite = texture2D(gaux1, screenCoord).rgb;
+
 	vec3 tex1 = texture2D(colortex1, screenCoord).rgb;
 	vec3 tex2 = texture2D(colortex2, screenCoord).rgb;
-	vec4 tex6 = texture2D(colortex6, screenCoord);
 	vec3 tex7 = textureRaw(colortex7, screenCoord).rgb;
 
+	vec3 normal   = unpackNormal(tex2.rg);
+	vec2 lightmap = tex1.gb;
 	masks mask = calculateMasks(round(tex1.r * 255.0), round(unpack2x8(tex7.b).r * 255.0));
-	material mat = calculateMaterial(texture2D(colortex0, screenCoord).rgb, unpack2x8(tex2.b), mask);
+
+	mat2x3 backPosition;
+	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
+	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
+	vec3 direction = normalize(backPosition[1]);
+
+	if (mask.sky) {
+		composite = sky_render(composite, direction);
+		#ifdef FLATCLOUDS
+		vec4 clouds = flatClouds_calculate(direction);
+		composite = composite * clouds.a + clouds.rgb;
+		#endif
+	} else {
+		#ifdef MC_SPECULAR_MAP
+		material mat = calculateMaterial(texture2D(colortex0, screenCoord).rgb, unpack2x8(tex2.b), mask);
+
+		composite *= 1.0 - f_dielectric(clamp01(dot(normal, -direction)), 1.0 / f0ToIOR(mat.reflectance));
+
+		vec3 specular = calculateReflections(backPosition, direction, normal, mat.reflectance, mat.roughness, lightmap.y, texture2D(colortex5, screenCoord).rgb);
+		composite = blendMaterial(composite, specular, mat);
+		#endif
+	}
+
+	vec4 clouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction, mask.sky);
+	composite = composite * clouds.a + clouds.rgb;
 
 	mat3 frontPosition;
 	frontPosition[0] = vec3(screenCoord, texture2D(depthtex0, screenCoord).r);
 	frontPosition[1] = screenSpaceToViewSpace(frontPosition[0], projectionInverse);
 	frontPosition[2] = viewSpaceToSceneSpace(frontPosition[1], gbufferModelViewInverse);
-	mat3 backPosition;
-	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
-	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
-	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], gbufferModelViewInverse);
-	mat2x3 direction;
-	direction[0] = normalize(frontPosition[1]);
-	direction[1] = mat3(gbufferModelViewInverse) * direction[0];
-
-	vec3 frontNormal = unpackNormal(tex7.rg);
-	vec3 backNormal  = unpackNormal(tex2.rg);
-	vec2 lightmap = tex1.gb;
-	float frontSkylight = unpack2x8(tex7.b).g;
-
-	//--//
-
-	vec3 refractedPosition = backPosition[1];
-	vec3 composite = calculateRefractions(frontPosition[1], backPosition[1], direction[0], frontNormal, mask, refractedPosition);
-
-	// TODO: Need to figure out how to deal with refractions for the sky
-	if (mask.sky) {
-		composite = sky_render(composite, direction[0]);
-		#ifdef FLATCLOUDS
-		vec4 clouds = flatClouds_calculate(direction[0]);
-		composite = composite * clouds.a + clouds.rgb;
-		#endif
-	} else {
-		#ifdef MC_SPECULAR_MAP
-		composite *= 1.0 - f_dielectric(clamp01(dot(backNormal, -direction[0])), 1.0 / f0ToIOR(mat.reflectance));
-
-		vec3 specular = calculateReflections(backPosition, direction[0], backNormal, mat.reflectance, mat.roughness, lightmap.y, texture2D(colortex5, screenCoord).rgb);
-		composite = blendMaterial(composite, specular, mat);
-		#endif
-	}
-
-	vec4 clouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction[0], mask.sky);
-	composite = composite * clouds.a + clouds.rgb;
+	float frontSkylight = lightmap.y;
 
 	if (mask.water) {
+		frontSkylight = unpack2x8(tex7.b).g;
+
 		if (isEyeInWater != 1) {
-			composite = waterFog(composite, frontPosition[1], refractedPosition, frontSkylight);
+			composite = waterFog(composite, frontPosition[1], backPosition[1], frontSkylight);
 		} else {
-			composite = fog(composite, frontPosition[1], refractedPosition, lightmap);
+			composite = fog(composite, frontPosition[1], backPosition[1], lightmap);
 			// TODO: Fake crepuscular rays here as well
 		}
 	}
 
-	composite = composite * (1.0 - tex6.a) + tex6.rgb;
+	vec4 transparent = texture2D(colortex6, screenCoord);
+	composite = composite * (1.0 - transparent.a) + transparent.rgb;
 
 	if (isEyeInWater == 1) {
 		composite = waterFog(composite, vec3(0.0), frontPosition[1], mask.water ? frontSkylight : lightmap.y);
 	} else {
 		composite  = fog(composite, vec3(0.0), frontPosition[1], lightmap);
-		composite += fakeCrepuscularRays(direction[0]);
+		composite += fakeCrepuscularRays(direction);
 	}
 
 	float prevLuminance = texture2D(colortex3, screenCoord).a;
