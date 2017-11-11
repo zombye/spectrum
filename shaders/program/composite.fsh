@@ -2,7 +2,7 @@
 
 #define REFRACTIONS
 
-#define CREPUSCULAR_RAYS 0 // [0 1 2]
+#define CREPUSCULAR_RAYS 2 // [0 1 2]
 //#define CREPUSCULAR_RAYS_CAUSTICS
 
 const bool gaux1MipmapEnabled = true;
@@ -153,6 +153,10 @@ vec3 fakeCrepuscularRays(vec3 viewVector) {
 	return vec3(0.0);
 	#endif
 
+	float mistFactor = pow5(dot(sunVector, gbufferModelView[0].xyz) * 0.5 + 0.5);
+	float mistScaleHeight = mix(200.0, 8.0, mistFactor);
+	float mistDensity = 0.02 / mistScaleHeight;
+
 	const float steps = 6.0;
 
 	vec4 lightPosition = projection * vec4(shadowLightVector, 1.0);
@@ -168,7 +172,7 @@ vec3 fakeCrepuscularRays(vec3 viewVector) {
 
 	float directionalMult = clamp01(dot(viewVector, shadowLightVector)); directionalMult *= directionalMult;
 
-	return result * directionalMult * 0.01 * shadowLightColor / steps;
+	return result * directionalMult * 10.0 * mistDensity * shadowLightColor / steps;
 }
 
 //--//
