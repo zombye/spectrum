@@ -204,35 +204,6 @@ float getCloudShadows(vec3 position){
 	return texture2D(gaux2, shadows_distortShadowSpace(position.xy) * 0.5 + 0.5).a;
 }
 
-float waterCaustics(vec3 position, vec3 shadowPosition, float waterDepth) {
-	const int   samples           = CAUSTICS_SAMPLES;
-	const float radius            = CAUSTICS_RADIUS;
-	const float defocus           = CAUSTICS_DEFOCUS;
-	const float distancePower     = CAUSTICS_DISTANCE_POWER;
-	const float distanceThreshold = (sqrt(samples) - 1.0) / (radius * defocus);
-	const float resultPower       = CAUSTICS_RESULT_POWER;
-
-	vec3  lightVector       = mat3(gbufferModelViewInverse) * -shadowLightVector;
-	vec3  flatRefractVector = refract(lightVector, vec3(0.0, 1.0, 0.0), 0.75);
-	float surfDistUp        = waterDepth * lightVector.y / flatRefractVector.y;
-	float dither            = bayer4(gl_FragCoord.st) * 16.0;
-
-	position += cameraPosition;
-
-	vec3 surfacePosition = position - flatRefractVector * (surfDistUp / flatRefractVector.y);
-
-	float result = 0.0;
-	for (float i = 0.0; i < samples; i++) {
-		vec3 samplePos     = surfacePosition;
-		     samplePos.xz += spiralPoint(i * 16.0 + dither, samples * 16.0) * radius;
-		vec3 refractVector = refract(lightVector, water_calculateNormal(samplePos), 0.75);
-		     samplePos     = refractVector * (surfDistUp / refractVector.y) + samplePos;
-
-		result += pow(1.0 - clamp01(distance(position, samplePos) * distanceThreshold), distancePower);
-	}
-
-	return pow(result * distancePower / (defocus * defocus), resultPower);
-}
 vec3 waterShadows(vec3 position) {
 	const vec3 scatteringCoeff = vec3(0.3e-2, 1.8e-2, 2.0e-2) * 0.4;
 	const vec3 absorbtionCoeff = vec3(0.8, 0.45, 0.11);
@@ -255,7 +226,7 @@ vec3 waterShadows(vec3 position) {
 	vec3 result = vec3(1.0);//exp(transmittanceCoeff * waterDepth);
 
 	#if CAUSTICS_SAMPLES > 0
-	result *= waterCaustics(position, shadowPosition, waterDepth);
+	result *= waterCaustics(position, waterDepth);
 	#endif
 
 	return result;

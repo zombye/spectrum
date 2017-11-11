@@ -93,6 +93,7 @@ vec3 bilateralResample(vec3 normal, float depth) {
 
 #include "/lib/fragment/water/waves.fsh"
 #include "/lib/fragment/water/normal.fsh"
+#include "/lib/fragment/water/caustics.fsh"
 
 #include "/lib/fragment/volumetricClouds.fsh"
 
