@@ -13,7 +13,9 @@ void exit() {
 	#endif
 
 	#if   PROGRAM == DEBUG_PROGRAM
-		#if PROGRAM == PROGRAM_WATER
+		#if   PROGRAM == PROGRAM_DEFERRED
+			gl_FragData[3].rgb = mix(gl_FragData[3].rgb, debugVisual.rgb, debugVisual.a);
+		#elif PROGRAM == PROGRAM_WATER
 			gl_FragData[0] = mix(gl_FragData[0], debugVisual, debugVisual.a);
 		#else
 			gl_FragData[0].rgb = mix(gl_FragData[0].rgb, debugVisual.rgb, debugVisual.a);

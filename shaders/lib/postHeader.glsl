@@ -4,5 +4,3 @@
 #define WORLD_ISNETHER    (defined WORLD && WORLD == WORLD_NETHER)
 #define WORLD_ISOVERWORLD (defined WORLD && WORLD == WORLD_OVERWORLD)
 #define WORLD_ISEND       (defined WORLD && WORLD == WORLD_END)
-
-#include "syntax.glsl"

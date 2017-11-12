@@ -123,7 +123,7 @@ void main() {
 		spec = vec4(pow(0.02, 1.0 / 3.0), 0.0, 0.995, 0.0);
 	}
 
-	material mat = calculateMaterial(base.rgb, spec.rb, mask);
+	material mat = calculateMaterial(base.rgb, spec, mask);
 	vec3 normal = norm.xyz;
 
 	// kinda hacky
@@ -141,7 +141,7 @@ void main() {
 /* DRAWBUFFERS:67 */
 
 	gl_FragData[0] = vec4(composite, base.a);
-	gl_FragData[1] = vec4(vec2(0.0), pack2x8(vec2(metadata.x / 255.0, lightmapShaded.y)), 1.0);
+	gl_FragData[1] = vec4(metadata.x / 255.0, lightmapShaded.y, 0.0, 1.0);
 
 	exit();
 }

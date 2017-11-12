@@ -1,15 +1,11 @@
 # Spectrum
 
-Spectrum is a Minecraft: Java Edition shaderpack, and is currently in early alpha.  
+Spectrum is a Minecraft: Java Edition shaderpack, and is currently in alpha.  
 It aims to provide a "natural" look and feel.
-
-Expect a lot of bugs.
 
 ## Requirements
 
-I try to keep Spectrum compatible with most hardware, and as far as I know there are no particular hardware requirements.
-
-* Optifine 1.12.1 HD U C7 pre (or newer)
+* Optifine 1.12.2 HD U C7 pre (or newer)
 
 ## Installation
 

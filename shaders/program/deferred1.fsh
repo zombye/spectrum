@@ -16,11 +16,11 @@ uniform vec3 cameraPosition;
 uniform int heldBlockLightValue, heldBlockLightValue2;
 
 // Samplers
-uniform sampler2D colortex0; // gbuffer0 | Albedo
-uniform sampler2D colortex1; // gbuffer1 | ID, lightmap
-uniform sampler2D colortex2; // gbuffer2 | Normal, Specular
+uniform sampler2D colortex0;
+uniform sampler2D colortex1;
+uniform sampler2D colortex2;
 
-uniform sampler2D gaux2; // aux0 | RSM & Water caustics
+uniform sampler2D gaux2;
 
 uniform sampler2D depthtex1;
 
@@ -67,7 +67,7 @@ varying vec2 screenCoord;
 
 vec3 bilateralResample(vec3 normal, float depth) {
 	const float range = 3.0;
-	vec2 px = 1.0 / (COMPOSITE0_SCALE * vec2(viewWidth, viewHeight));
+	vec2 px = 1.0 / vec2(viewWidth, viewHeight);
 
 	vec3 filtered = vec3(0.0);
 	float totalWeight = 0.0;
@@ -82,7 +82,7 @@ vec3 bilateralResample(vec3 normal, float depth) {
 			float weight  = clamp01(dot(normal, normalSample));
 			      weight *= 1.0 - clamp(abs(depth - depthSample), 0.0, 1.0);
 
-			filtered += texture2D(gaux2, coord * COMPOSITE0_SCALE).rgb * weight;
+			filtered += texture2D(gaux2, coord).rgb * weight;
 			totalWeight += weight;
 		}
 	}
@@ -102,9 +102,9 @@ vec3 bilateralResample(vec3 normal, float depth) {
 //--//
 
 void main() {
-	vec3 tex1 = texture2D(colortex1, screenCoord).rgb;
+	vec4 tex0 = texture2D(colortex0, screenCoord);
 
-	masks mask = calculateMasks(tex1.r * 255.0);
+	masks mask = calculateMasks(round(tex0.a * 255.0));
 
 	gl_FragData[1].a = texture2D(gaux2, screenCoord).a;
 
@@ -115,11 +115,11 @@ void main() {
 	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
 	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], gbufferModelViewInverse);
 
-	vec3 tex2 = texture2D(colortex2, screenCoord).rgb;
+	vec4 tex2 = texture2D(colortex2, screenCoord);
 
-	material mat  = calculateMaterial(texture2D(colortex0, screenCoord).rgb, unpack2x8(tex2.b), mask);
 	vec3 normal   = unpackNormal(tex2.rg);
-	vec2 lightmap = tex1.gb;
+	vec2 lightmap = tex2.ba;
+	material mat  = calculateMaterial(tex0.rgb, texture2D(colortex1, screenCoord), mask);
 
 	vec3
 	composite  = calculateLighting(backPosition, normal, lightmap, mat, gl_FragData[1].rgb);

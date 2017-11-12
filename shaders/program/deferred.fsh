@@ -12,8 +12,10 @@ uniform float frameTimeCounter;
 uniform vec3 cameraPosition;
 
 // Samplers
-uniform sampler2D colortex1; // gbuffer1 | ID, lightmap
-uniform sampler2D colortex2; // gbuffer2 | Normal, Specular
+uniform sampler2D colortex0;
+uniform sampler2D colortex1;
+uniform sampler2D colortex2;
+uniform sampler2D colortex7;
 
 uniform sampler2D depthtex1;
 
@@ -106,7 +108,7 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float dither) {
 #include "/lib/fragment/volumetricClouds.fsh"
 
 float calculateCloudShadowMap() {
-	vec3 shadowPos = vec3(screenCoord * COMPOSITE0_SCALE, 0.0) * 2.0 - 1.0;
+	vec3 shadowPos = vec3(screenCoord, 0.0) * 2.0 - 1.0;
 	shadowPos.st /= 1.0 - length(shadowPos.st);
 	shadowPos = transformPosition(transformPosition(shadowPos, projectionShadowInverse), shadowModelViewInverse);
 
@@ -116,30 +118,36 @@ float calculateCloudShadowMap() {
 //--//
 
 void main() {
-	gl_FragData[0].a = calculateCloudShadowMap();
+	vec3 tex7; // id, specular alpha channel, skylight
+	     tex7.rb = texture2D(colortex7, screenCoord).rg;
+	     tex7.rg = unpack2x8(tex7.r);
+
+	gl_FragData[0] = vec4(texture2D(colortex0, screenCoord).rgb, tex7.r);
+	gl_FragData[1] = vec4(texture2D(colortex1, screenCoord).rgb, tex7.g);
+	gl_FragData[2] = vec4(texture2D(colortex2, screenCoord).rgb, tex7.b);
+
+	gl_FragData[3].a = calculateCloudShadowMap();
 
 	#if RSM_SAMPLES == 0
 	exit(); return;
 	#endif
 
-	vec2 id_skylight = textureRaw(colortex1, screenCoord).rb;
-
-	if (round(id_skylight.r * 255.0) == 0.0 || floor(screenCoord) != vec2(0.0) || id_skylight.g == 0.0) { exit(); return; }
+	if (round(tex7.r * 255.0) == 0.0 || floor(screenCoord) != vec2(0.0) || tex7.b == 0.0) { exit(); return; }
 
 	mat3 backPosition;
 	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
 	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
 	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], gbufferModelViewInverse);
 
-	vec3 normal = unpackNormal(textureRaw(colortex2, screenCoord).rg);
+	vec3 normal = unpackNormal(gl_FragData[2].rg);
 
 	float dither = bayer16(gl_FragCoord.st);
 
-	vec3 rsm = calculateReflectiveShadowMaps(backPosition[2], normal, dither * 256.0) * id_skylight.g * id_skylight.g;
+	vec3 rsm = calculateReflectiveShadowMaps(backPosition[2], normal, dither * 256.0) * tex7.b * tex7.b;
 
-/* DRAWBUFFERS:5 */
+/* DRAWBUFFERS:0125 */
 
-	gl_FragData[0].rgb = rsm;
+	gl_FragData[3].rgb = rsm;
 
 	exit();
 }

@@ -54,15 +54,5 @@ vec3 calculateDisplacement(vec3 position) {
 	
 	position -= cameraPosition;
 
-	#if   TERRAIN_DEFORMATION_MODE == 1 // Planetoid
-	const float planetoidRadius = 4000.0; // 4k is nice for a 64 chunk render distance
-	const float seaLevel = 63.0;
-
-	float ang = length(position.xz) / planetoidRadius;
-
-	position.xz = normalize(position.xz) * sin(ang) * planetoidRadius;
-	position.y  = (position.y + planetoidRadius) * cos(ang) - planetoidRadius;
-	#endif
-
 	return position;
 }

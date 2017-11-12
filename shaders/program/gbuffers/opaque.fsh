@@ -46,11 +46,14 @@ void main() {
 	vec4 spec = vec4(0.0, 0.0, 0.0, 0.0);
 	#endif
 
-/* DRAWBUFFERS:012 */
+/* DRAWBUFFERS:0127 */
+
+	vec2 outputLightmap = directionalLightmap(lightmap, norm.xyz);
 
 	gl_FragData[0] = vec4(base.rgb, 1.0);
-	gl_FragData[1] = vec4(metadata.x / 255.0, directionalLightmap(lightmap, norm.xyz), 1.0);
-	gl_FragData[2] = vec4(packNormal(norm.xyz), pack2x8(spec.rb), 1.0);
+	gl_FragData[1] = vec4(spec.rgb, 1.0);
+	gl_FragData[2] = vec4(packNormal(norm.xyz), outputLightmap.x, 1.0);
+	gl_FragData[3] = vec4(pack2x8(vec2(metadata.x / 255.0, spec.a)), outputLightmap.y, 0.0, 1.0);
 
 	exit();
 }

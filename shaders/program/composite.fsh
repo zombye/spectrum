@@ -7,6 +7,8 @@ const bool gaux1MipmapEnabled = true;
 
 //----------------------------------------------------------------------------//
 
+uniform float wetness;
+
 uniform ivec2 eyeBrightness;
 
 uniform int isEyeInWater;
@@ -232,13 +234,13 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 void main() {
 	vec3 composite = texture2D(gaux1, screenCoord).rgb;
 
-	vec3 tex1 = texture2D(colortex1, screenCoord).rgb;
-	vec3 tex2 = texture2D(colortex2, screenCoord).rgb;
-	vec3 tex7 = textureRaw(colortex7, screenCoord).rgb;
+	vec4 tex0 = texture2D(colortex0, screenCoord);
+	vec4 tex2 = texture2D(colortex2, screenCoord);
+	vec2 tex7 = texture2D(colortex7, screenCoord).rg;
 
 	vec3 normal   = unpackNormal(tex2.rg);
-	vec2 lightmap = tex1.gb;
-	masks mask = calculateMasks(round(tex1.r * 255.0), round(unpack2x8(tex7.b).r * 255.0));
+	vec2 lightmap = tex2.ba;
+	masks mask = calculateMasks(round(tex0.a * 255.0), round(unpack2x8(tex7.r).r * 255.0));
 
 	mat2x3 backPosition;
 	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
@@ -253,7 +255,7 @@ void main() {
 		#endif
 	} else {
 		#ifdef MC_SPECULAR_MAP
-		material mat = calculateMaterial(texture2D(colortex0, screenCoord).rgb, unpack2x8(tex2.b), mask);
+		material mat = calculateMaterial(tex0.rgb, texture2D(colortex1, screenCoord), mask);
 
 		composite *= 1.0 - f_dielectric(clamp01(dot(normal, -direction)), 1.0 / f0ToIOR(mat.reflectance));
 
@@ -269,11 +271,9 @@ void main() {
 	frontPosition[0] = vec3(screenCoord, texture2D(depthtex0, screenCoord).r);
 	frontPosition[1] = screenSpaceToViewSpace(frontPosition[0], projectionInverse);
 	frontPosition[2] = viewSpaceToSceneSpace(frontPosition[1], gbufferModelViewInverse);
-	float frontSkylight = lightmap.y;
+	float frontSkylight = tex7.g;
 
 	if (mask.water) {
-		frontSkylight = unpack2x8(tex7.b).g;
-
 		if (isEyeInWater != 1) {
 			composite = waterFog(composite, frontPosition[1], backPosition[1], frontSkylight);
 		} else {
