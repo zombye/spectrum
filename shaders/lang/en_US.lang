@@ -12,13 +12,8 @@ screen.unassigned=Unassigned
 screen.unassigned.comment=Options that have not been assigned to any screens. These may not work properly or at all.
 screen.developer=Developer
 screen.developer.comment=Options intended for use when developing the shaderpack.
-option.CREPUSCULAR_RAYS_CAUSTICS=Crepuscular Rays Caustics
-option.CREPUSCULAR_RAYS_CAUSTICS.comment=Water caustics in water fog when crepuscular rays is set to fancy. Just uses brute force, so it is extremely slow!
 option.TEMPORAL_AA=Temporal Anti-Aliasing
 option.TEMPORAL_AA.comment=Can cause small amounts of ghosting and/or blurring when in motion.
-option.TERRAIN_DEFORMATION_MODE=Terrain Deformation
-value.TERRAIN_DEFORMATION_MODE.0=Off
-value.TERRAIN_DEFORMATION_MODE.1=Planetoid
 
 ##--## Atmospherics
 
@@ -36,6 +31,9 @@ option.CREPUSCULAR_RAYS=Crepuscular Rays
 value.CREPUSCULAR_RAYS.0=Off
 value.CREPUSCULAR_RAYS.1=Fast
 value.CREPUSCULAR_RAYS.2=Fancy
+
+option.CREPUSCULAR_RAYS_CAUSTICS=Crepuscular Rays Caustics
+option.CREPUSCULAR_RAYS_CAUSTICS.comment=Water caustics in water fog when crepuscular rays is set to fancy. Just uses brute force, so it is extremely slow!
 
 ##--## Lighting
 
@@ -103,5 +101,5 @@ value.TONEMAP.2=Filmic
 screen.surface=Surfaces
 screen.surface.comment=Options for effects related to the rendering of surfaces.
 
-option.REFRACTIONS=Refractions
 option.WATER_PARALLAX=Water Parallax
+option.WATER_TEXTURE=Use Water Texture

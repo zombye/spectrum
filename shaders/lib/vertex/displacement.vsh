@@ -1,5 +1,3 @@
-#define TERRAIN_DEFORMATION_MODE 0 // [0 1]
-
 vec3 calculateWavingGrass(vec3 position) {
 	if (gl_MultiTexCoord0.t > mc_midTexCoord.t) return position;
 

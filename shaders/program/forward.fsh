@@ -118,7 +118,9 @@ void main() {
 	mat3 position = mat3(vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z), positionView, positionScene);
 
 	if (mask.water) {
+		#ifndef WATER_TEXTURE
 		base = vec4(0.02, 0.03, 0.06, 0.15);
+		#endif
 		norm.xyz = water_calculateNormal(position[2] + cameraPosition, tbn, normalize(position[1]));
 		spec = vec4(pow(0.02, 1.0 / 3.0), 0.0, 0.995, 0.0);
 	}

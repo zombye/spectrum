@@ -8,6 +8,8 @@
 
 #define TEMPORAL_AA
 
+//#define WATER_TEXTURE
+
 //--// Lighting
 
 const int shadowMapResolution = 2048; // [1024 2048 4096 8192]
