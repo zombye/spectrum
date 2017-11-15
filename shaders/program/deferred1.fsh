@@ -99,6 +99,8 @@ vec3 bilateralResample(vec3 normal, float depth) {
 
 #include "/lib/fragment/lighting.fsh"
 
+#include "/lib/fragment/specularBRDF.fsh"
+
 //--//
 
 void main() {
@@ -114,6 +116,7 @@ void main() {
 	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
 	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
 	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], gbufferModelViewInverse);
+	vec3 direction = normalize(backPosition[1]);
 
 	vec4 tex2 = texture2D(colortex2, screenCoord);
 
@@ -124,6 +127,7 @@ void main() {
 	vec3
 	composite  = calculateLighting(backPosition, normal, lightmap, mat, gl_FragData[1].rgb);
 	composite *= mat.albedo;
+	if (mat.reflectance > 0.0) composite *= 1.0 - f_dielectric(clamp01(dot(normal, -direction)), 1.0 / f0ToIOR(mat.reflectance));
 	composite += mat.emittance * 1e3;
 
 /* DRAWBUFFERS:45 */

@@ -44,14 +44,14 @@ float calculateSmoothLuminance() {
 	float prevLuminance = texture2D(colortex3, screenCoord).a;
 	float currLuminance = clamp(dot(texture2DLod(colortex4, vec2(0.5), 100).rgb, lumacoeff_rec709) * prevLuminance / EXPOSURE, 3e0, 3e2);
 
-	if (prevLuminance == 0.0) prevLuminance = 3.0;
+	if (prevLuminance == 0.0) prevLuminance = 100.0;
 
 	return mix(prevLuminance, currLuminance, frameTime / (1.0 + frameTime));
 }
 
 vec3 lowlightDesaturate(vec3 color) {
 	float prevLuminance = texture2D(colortex3, screenCoord).a;
-	if (prevLuminance == 0.0) prevLuminance = 3.0;
+	if (prevLuminance == 0.0) prevLuminance = 100.0;
 	color *= prevLuminance / EXPOSURE;
 
 	float desaturated = dot(color, vec3(0.15, 0.50, 0.35));

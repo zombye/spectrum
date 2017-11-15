@@ -22,6 +22,7 @@ vec3 material_masklessEmissive(int id, vec3 diff) {
 
 material material_calculateSEUS(vec3 diff, vec4 spec, masks mask) {
 	diff = sRGBToLinear(diff);
+	spec.b = clamp(spec.b, 0.0, 254.9 / 255.0);
 
 	material mat;
 
@@ -40,6 +41,7 @@ material material_calculateSEUS(vec3 diff, vec4 spec, masks mask) {
 }
 material material_calculateContinuumPBR(vec3 diff, vec4 spec, masks mask) {
 	diff = sRGBToLinear(diff);
+	spec.b = clamp(spec.b, 0.0, 254.9 / 255.0);
 
 	material mat;
 

@@ -101,5 +101,11 @@ value.TONEMAP.2=Filmic
 screen.surface=Surfaces
 screen.surface.comment=Options for effects related to the rendering of surfaces.
 
+option.TERRAIN_PARALLAX=Terrain Parallax
+option.TERRAIN_PARALLAX.comment=Will not work properly if Texture Resolution has not been set correctly.
+option.TERRAIN_PARALLAX_DEPTH=Terrain Parallax Depth
+
 option.WATER_PARALLAX=Water Parallax
 option.WATER_TEXTURE=Use Water Texture
+
+option.TEXTURE_RESOLUTION=Texture Resolution

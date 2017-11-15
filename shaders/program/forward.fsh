@@ -4,6 +4,8 @@ const bool gaux1MipmapEnabled = true;
 
 //----------------------------------------------------------------------------//
 
+uniform ivec2 atlasSize;
+
 // Viewport
 uniform float viewWidth, viewHeight;
 
@@ -79,6 +81,7 @@ varying vec3 positionScene;
 
 //--//
 
+#include "/lib/fragment/terrainParallax.fsh"
 #include "/lib/fragment/directionalLightmap.fsh"
 
 #include "/lib/fragment/masks.fsh"
@@ -101,6 +104,8 @@ varying vec3 positionScene;
 //--//
 
 void main() {
+	vec2 parallaxUV = calculateParallaxedUV(baseUV, normalize(positionView * tbn));
+
 	vec4 base = texture2D(tex,      baseUV) * tint; if (base.a < 0.102) discard;
 	#ifdef MC_NORMAL_MAP
 	vec4 norm = texture2D(normals,  baseUV) * 2.0 - 1.0; norm.w = length(norm.xyz); norm.xyz = tbn * norm.xyz / norm.w;
@@ -117,16 +122,17 @@ void main() {
 
 	mat3 position = mat3(vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z), positionView, positionScene);
 
-	if (mask.water) {
-		#ifndef WATER_TEXTURE
-		base = vec4(0.02, 0.03, 0.06, 0.15);
-		#endif
-		norm.xyz = water_calculateNormal(position[2] + cameraPosition, tbn, normalize(position[1]));
-		spec = vec4(pow(0.02, 1.0 / 3.0), 0.0, 0.995, 0.0);
-	}
-
 	material mat = calculateMaterial(base.rgb, spec, mask);
 	vec3 normal = norm.xyz;
+
+	if (mask.water) {
+		#ifndef WATER_TEXTURE
+		mat.albedo = sRGBToLinear(vec3(0.02, 0.03, 0.06)); base.a = 0.15;
+		#endif
+		normal = water_calculateNormal(position[2] + cameraPosition, tbn, normalize(position[1]));
+		mat.reflectance = 0.02;
+		mat.roughness   = 0.0001;
+	}
 
 	// kinda hacky
 	float fresnel = f_dielectric(clamp01(dot(normal, -normalize(position[1]))), 1.0 / f0ToIOR(mat.reflectance));

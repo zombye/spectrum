@@ -2,6 +2,8 @@
 
 //----------------------------------------------------------------------------//
 
+uniform ivec2 atlasSize;
+
 // Samplers
 uniform sampler2D tex;
 #if PROGRAM != PROGRAM_ENTITIES && PROGRAM != PROGRAM_HAND && defined MC_NORMAL_MAP
@@ -32,16 +34,19 @@ varying vec3 positionView;
 #include "/lib/util/packing.glsl"
 
 #include "/lib/fragment/directionalLightmap.fsh"
+#include "/lib/fragment/terrainParallax.fsh"
 
 void main() {
-	vec4 base = texture2D(tex,      baseUV) * tint; if (base.a < 0.102) discard;
-	#if PROGRAM != PROGRAM_ENTITIES && PROGRAM != PROGRAM_HAND && defined MC_NORMAL_MAP
-	vec4 norm = texture2D(normals,  baseUV) * 2.0 - 1.0; norm.w = length(norm.xyz); norm.xyz = tbn * norm.xyz / norm.w;
+	vec2 parallaxUV = calculateParallaxedUV(baseUV, normalize(positionView * tbn));
+
+	vec4 base = texture2D(tex,      parallaxUV) * tint; if (base.a < 0.102) discard;
+	#if PROGRAM != PROGRAM_ENTITIES && PROGRAM != PROGRAM_HAND && defined MC_NORMAL_MAP 
+	vec4 norm = texture2D(normals,  parallaxUV) * 2.0 - 1.0; norm.w = length(norm.xyz); norm.xyz = tbn * norm.xyz / norm.w;
 	#else
 	vec4 norm = vec4(tbn[2], 1.0);
 	#endif
 	#ifdef MC_SPECULAR_MAP
-	vec4 spec = texture2D(specular, baseUV);
+	vec4 spec = texture2D(specular, parallaxUV);
 	#else
 	vec4 spec = vec4(0.0, 0.0, 0.0, 0.0);
 	#endif

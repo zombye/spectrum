@@ -6,6 +6,7 @@ vec4 debugVisual = vec4(0.0);
 
 void show(float x) { debugVisual.rgb = vec3(x); debugVisual.a = 1.0; }
 void show(vec3  x) { debugVisual.rgb = x;       debugVisual.a = 1.0; }
+void show(bool  x) { debugVisual.rgb = vec3(x); debugVisual.a = 1.0; }
 
 void exit() {
 	#ifndef DEBUG

@@ -235,11 +235,7 @@ void main() {
 	vec3 composite = texture2D(gaux1, screenCoord).rgb;
 
 	vec4 tex0 = texture2D(colortex0, screenCoord);
-	vec4 tex2 = texture2D(colortex2, screenCoord);
 	vec2 tex7 = texture2D(colortex7, screenCoord).rg;
-
-	vec3 normal   = unpackNormal(tex2.rg);
-	vec2 lightmap = tex2.ba;
 	masks mask = calculateMasks(round(tex0.a * 255.0), round(unpack2x8(tex7.r).r * 255.0));
 
 	mat2x3 backPosition;
@@ -253,11 +249,15 @@ void main() {
 		vec4 clouds = flatClouds_calculate(direction);
 		composite = composite * clouds.a + clouds.rgb;
 		#endif
-	} else {
+	}
+
+	vec4 tex2 = texture2D(colortex2, screenCoord);
+	vec3 normal   = unpackNormal(tex2.rg);
+	vec2 lightmap = tex2.ba;
+
+	if (mask.opaque) {
 		#ifdef MC_SPECULAR_MAP
 		material mat = calculateMaterial(tex0.rgb, texture2D(colortex1, screenCoord), mask);
-
-		composite *= 1.0 - f_dielectric(clamp01(dot(normal, -direction)), 1.0 / f0ToIOR(mat.reflectance));
 
 		vec3 specular = calculateReflections(backPosition, direction, normal, mat.reflectance, mat.roughness, lightmap.y, texture2D(colortex5, screenCoord).rgb);
 		composite = blendMaterial(composite, specular, mat);
@@ -293,7 +293,7 @@ void main() {
 	}
 
 	float prevLuminance = texture2D(colortex3, screenCoord).a;
-	if (prevLuminance == 0.0) prevLuminance = 3.0;
+	if (prevLuminance == 0.0) prevLuminance = 100.0;
 	composite *= EXPOSURE / prevLuminance;
 
 /* DRAWBUFFERS:4 */

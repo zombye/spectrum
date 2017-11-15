@@ -15,6 +15,7 @@ bool raytraceIntersection(vec3 start, vec3 direction, out vec3 position, float d
 
 	for (float i = 1.0; i <= quality && !intersected && position.p < 1.0; i++) {
 		position   += direction;
+		if (floor(position.st) != vec2(0.0)) break; // makes sure we don't improperly intersect anything off-screen
 		difference  = texture2D(depthtex1, position.st).r - position.p;
 		intersected = min(-2.0 * direction.z, position.p - delinearizeDepth(linearizeDepth(position.p, projectionInverse) - surfaceThickness, projection)) < difference && difference < 0.0;
 	}
