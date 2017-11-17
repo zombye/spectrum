@@ -37,6 +37,7 @@ varying vec2 screenCoord;
 #include "/lib/util/constants.glsl"
 #include "/lib/util/math.glsl"
 #include "/lib/util/spaceConversion.glsl"
+#include "/lib/util/texture.glsl"
 
 #include "/lib/misc/temporalAA.glsl"
 

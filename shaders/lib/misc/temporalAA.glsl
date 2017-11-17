@@ -45,7 +45,7 @@ vec3 taa_apply() {
 	vec2 resolution = vec2(viewWidth, viewHeight);
 	vec2 pixel = 1.0 / resolution;
 	vec3 position = vec3(screenCoord, texture2D(depthtex0, screenCoord).r);
-	float blendWeight = 0.85; // Base blend weight
+	float blendWeight = 0.94; // Base blend weight
 
 	// Get velocity from closest fragment in 3x3 to camera rather than current fragment, gives nicer edges in motion.
 	vec3 closestFragment = taa_getClosestFragment();
@@ -58,7 +58,7 @@ vec3 taa_apply() {
 	if (floor(reprojectedPosition.xy) != vec2(0.0)) blendWeight = 0.0;
 
 	// Reduce weight when further from a texel center, reduces blurring
-	blendWeight *= sqrt(dot(0.5 - abs(fract(reprojectedPosition.xy * resolution) - 0.5), vec2(1.0)));
+	blendWeight *= sqrt(dot(0.5 - abs(fract(reprojectedPosition.xy * resolution) - 0.5), vec2(1.0))) * 0.6 + 0.4;
 
 	// Get color values in 3x3 around current fragment
 	vec3 centerColor, minColor, maxColor;
@@ -81,7 +81,7 @@ vec3 taa_apply() {
 	}
 
 	// Get reprojected previous frame color, clamped with min & max around current frame fragment to prevent ghosting
-	vec3 prevColor = clamp(texture2D(colortex3, reprojectedPosition.st).rgb, minColor, maxColor);
+	vec3 prevColor = clamp(textureSmooth(colortex3, reprojectedPosition.st).rgb, minColor, maxColor);
 
 	// Apply a simple tonemap, blend, reverse tonemap, and return.
 	centerColor /= 1.0 + centerColor;
