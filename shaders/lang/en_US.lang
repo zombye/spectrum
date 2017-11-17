@@ -12,6 +12,7 @@ screen.unassigned=Unassigned
 screen.unassigned.comment=Options that have not been assigned to any screens. These may not work properly or at all.
 screen.developer=Developer
 screen.developer.comment=Options intended for use when developing the shaderpack.
+option.sunPathRotation=Sun Angle
 option.TEMPORAL_AA=Temporal Anti-Aliasing
 option.TEMPORAL_AA.comment=Can cause small amounts of ghosting and/or blurring when in motion.
 
