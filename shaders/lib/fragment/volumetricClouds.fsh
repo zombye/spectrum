@@ -9,14 +9,13 @@
 #define VOLUMETRICCLOUDS_ALTITUDE_MIN  500.0
 #define VOLUMETRICCLOUDS_ALTITUDE_MAX 2000.0
 
-#define VOLUMETRICCLOUDS_COVERAGE 0.43
+#define VOLUMETRICCLOUDS_COVERAGE 0.37
 
 //--// Constants
 
-const float volumetricClouds_coeffScatter  = 0.050;
-const float volumetricClouds_coeffTransmit = volumetricClouds_coeffScatter * 1.11; // range for cumulus is approximately 0.05-0.12
+const float volumetricClouds_coeff  = 0.05; // range for cumulus is approximately 0.05-0.12
 
-const float volumetricClouds_visibilityMult = 0.5; // unrealisic, only exists because there isn't a multiple scattering approximation
+const float volumetricClouds_visibilityMult = 0.7; // unrealisic, only exists because there isn't a multiple scattering approximation
 
 const vec3 volumetricClouds_bouncedLightColor = vec3(0.31, 0.34, 0.31); // wish I had an average sunlit color for 1-2 km around the player, a grey with subtle green tint looks natural enough so that will have to do
 
@@ -28,19 +27,18 @@ struct volumetricClouds_noiseLayer {
 	float weight;
 };
 
-float volumetricClouds_density(vec3 position, const bool hq) {
-	const volumetricClouds_noiseLayer[5] layer = volumetricClouds_noiseLayer[5](
-		volumetricClouds_noiseLayer(vec3(0.001, 0.001, 0.001), vec3(0.01, 0.00, 0.01), 1.0000 / 1.6496),
-		volumetricClouds_noiseLayer(vec3(0.003, 0.003, 0.003), vec3(0.05, 0.00, 0.05), 0.4000 / 1.6496),
-		volumetricClouds_noiseLayer(vec3(0.009, 0.009, 0.009), vec3(0.25, 0.00, 0.25), 0.1600 / 1.6496),
-		volumetricClouds_noiseLayer(vec3(0.027, 0.027, 0.027), vec3(1.25, 0.00, 1.25), 0.0640 / 1.6496),
-		volumetricClouds_noiseLayer(vec3(0.081, 0.081, 0.081), vec3(6.28, 0.00, 6.28), 0.0256 / 1.6496)
+float volumetricClouds_density(vec3 position) {
+	const volumetricClouds_noiseLayer[6] layer = volumetricClouds_noiseLayer[6](
+		volumetricClouds_noiseLayer(vec3(0.0005, 0.0005, 0.0005), vec3(0.003, 0.000, 0.003), 1.00000 / 1.96875),
+		volumetricClouds_noiseLayer(vec3(0.0010, 0.0010, 0.0010), vec3(0.006, 0.000, 0.006), 0.50000 / 1.96875),
+		volumetricClouds_noiseLayer(vec3(0.0030, 0.0030, 0.0030), vec3(0.030, 0.000, 0.030), 0.25000 / 1.96875),
+		volumetricClouds_noiseLayer(vec3(0.0090, 0.0090, 0.0090), vec3(0.150, 0.000, 0.150) * 0.5, 0.12500 / 1.96875),
+		volumetricClouds_noiseLayer(vec3(0.0270, 0.0270, 0.0270), vec3(0.750, 0.000, 0.750) * 0.5, 0.06250 / 1.96875),
+		volumetricClouds_noiseLayer(vec3(0.0810, 0.0810, 0.0810), vec3(1.750, 0.000, 1.750) * 0.5, 0.03125 / 1.96875)
 	);
 
-	//--//
-
 	float density = get3DNoise(position * layer[0].mul + layer[0].add * frameTimeCounter) * layer[0].weight;
-	for (int i = 1; i < (hq ? 5 : 3); i++) {
+	for (int i = 1; i < layer.length(); i++) {
 		density += get3DNoise(position * layer[i].mul + layer[i].add * frameTimeCounter) * layer[i].weight;
 	}
 
@@ -79,9 +77,9 @@ float volumetricClouds_shadow(vec3 position) {
 
 	float od = 0.0;
 	for (int i = 0; i < samples; i++, position += increment) {
-		od -= volumetricClouds_density(position, true);
+		od -= volumetricClouds_density(position);
 	}
-	return exp(volumetricClouds_coeffTransmit * stepSize * od);
+	return exp(volumetricClouds_coeff * stepSize * od);
 }
 
 #if PROGRAM != PROGRAM_DEFERRED
@@ -97,7 +95,7 @@ float volumetricClouds_phase(float cosTheta) {
 	return dot(res, vec2(0.4)) + 0.2;
 }
 
-float volumetricClouds_visibility(vec3 position, vec3 direction, float odAtStart, const float range, const float samples, const bool hq) {
+float volumetricClouds_visibility(vec3 position, vec3 direction, float odAtStart, const float range, const float samples) {
 	const float stepSize = range / (samples + 0.5);
 
 	direction *= stepSize;
@@ -105,9 +103,9 @@ float volumetricClouds_visibility(vec3 position, vec3 direction, float odAtStart
 
 	float od = -0.5 * odAtStart;
 	for (float i = 0.0; i < samples; i++, position += direction) {
-		od -= volumetricClouds_density(position, hq);
+		od -= volumetricClouds_density(position);
 	}
-	return exp(volumetricClouds_coeffTransmit * stepSize * od * volumetricClouds_visibilityMult);
+	return exp(volumetricClouds_coeff * volumetricClouds_visibilityMult * stepSize * od);
 }
 /*
 vec3 volumetricClouds_basicIndirect(vec3 position) {
@@ -155,23 +153,23 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 	vec3 indirectBouncedMul = dot(shadowLightVector, upVector) * volumetricClouds_bouncedLightColor * shadowLightColor * 0.5 / pi;
 
 	// transmitted scattering integral constants
-	const float a = -volumetricClouds_coeffTransmit / log(2.0);
-	const float b = -1.0 / volumetricClouds_coeffTransmit;
-	const float c =  1.0 / volumetricClouds_coeffTransmit;
+	const float a = -volumetricClouds_coeff / log(2.0);
+	const float b = -1.0 / volumetricClouds_coeff;
+	const float c =  1.0 / volumetricClouds_coeff;
 
 	// loop
 	vec4 clouds = vec4(vec3(0.0), 1.0);
 	vec2 distanceAverage = vec2((distances.x + distances.y) * 0.5, 1.0) * 0.0001;
 	for (int i = 0; i < samples; i++, position += increment) {
 		// get density at current position
-		float od = volumetricClouds_density(position, true);
+		float od = volumetricClouds_density(position);
 
 		if (od == 0.0) continue;
 
 		vec3 // density for step is input to these, essentially gives half a visibility step for free
-		sampleLighting  = volumetricClouds_visibility(position, shadowDirection,  od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_DIRECT,   VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT,   true) * directMul;
-		sampleLighting += volumetricClouds_visibility(position, skyDirection,     od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT, VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT, true) * indirectScatterMul;
-		sampleLighting += volumetricClouds_visibility(position, bouncedDirection, od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT, VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT, true) * indirectBouncedMul;
+		sampleLighting  = volumetricClouds_visibility(position, shadowDirection,  od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_DIRECT,   VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT)   * directMul;
+		sampleLighting += volumetricClouds_visibility(position, skyDirection,     od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT, VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT) * indirectScatterMul;
+		sampleLighting += volumetricClouds_visibility(position, bouncedDirection, od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT, VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT) * indirectBouncedMul;
 
 		// now go from density to optical depth
 		od *= stepSize;
@@ -181,10 +179,10 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 		float transmittedScattering = (transmittanceStep * b + c) * clouds.a;
 		clouds.rgb += sampleLighting * transmittedScattering;
 		clouds.a   *= transmittanceStep;
-		
+
 		// add to distance average weighted based on importance
 		distanceAverage += vec2(distance(position, worldStart), 1.0) * transmittedScattering;
-	} clouds.rgb *= volumetricClouds_coeffScatter;
+	} clouds.rgb *= volumetricClouds_coeff;
 
 	// fade out distant clouds based on average weighted distance
 	clouds = mix(vec4(vec3(0.0), 1.0), clouds, exp(-2e-5 * distanceAverage.x / distanceAverage.y));

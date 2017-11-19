@@ -23,14 +23,14 @@ uniform float frameTimeCounter;
 uniform vec3 cameraPosition;
 
 // Samplers
-uniform sampler2D colortex0; // gbuffer0 | Albedo
-uniform sampler2D colortex1; // gbuffer1 | ID, lightmap
-uniform sampler2D colortex2; // gbuffer2 | Normal, Specular
+uniform sampler2D colortex0; // gbuffer0
+uniform sampler2D colortex1; // gbuffer1
+uniform sampler2D colortex2; // gbuffer2
 uniform sampler2D colortex3; // temporal
 uniform sampler2D gaux1;     // composite
-uniform sampler2D colortex5; // aux0 | Sunlight visibility
-uniform sampler2D colortex6; // aux1 | Transparent composite
-uniform sampler2D colortex7; // aux2 | Transparent normal, id, skylight
+uniform sampler2D colortex5; // aux0
+uniform sampler2D colortex6; // aux1
+uniform sampler2D colortex7; // aux2
 
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
@@ -112,6 +112,7 @@ vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
 	float mistFactor = pow5(dot(sunVector, gbufferModelView[0].xyz) * 0.5 + 0.5);
 	float mistScaleHeight = mix(200.0, 8.0, mistFactor);
 	float mistDensity = 0.02 / mistScaleHeight;
+	      mistDensity *= 0.0;
 	vec3 ish = vec3(inverseScaleHeights, 1.0 / mistScaleHeight);
 	mat3 transmittanceMatrix = mat3(transmittanceCoefficients[0], transmittanceCoefficients[1], vec3(1.0));
 
@@ -232,46 +233,44 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 //--//
 
 void main() {
-	vec3 composite = texture2D(gaux1, screenCoord).rgb;
-
 	vec4 tex0 = texture2D(colortex0, screenCoord);
+	vec4 tex2 = texture2D(colortex2, screenCoord);
 	vec2 tex7 = texture2D(colortex7, screenCoord).rg;
 	masks mask = calculateMasks(round(tex0.a * 255.0), round(unpack2x8(tex7.r).r * 255.0));
+
+	vec2  lightmap      = tex2.ba;
+	float frontSkylight = tex7.g;
 
 	mat2x3 backPosition;
 	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
 	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
 	vec3 direction = normalize(backPosition[1]);
 
+	vec3 composite = texture2D(gaux1, screenCoord).rgb;
+	//composite *= 0.0;
+
 	if (mask.sky) {
 		composite = sky_render(composite, direction);
 		#ifdef FLATCLOUDS
-		vec4 clouds = flatClouds_calculate(direction);
-		composite = composite * clouds.a + clouds.rgb;
+		vec4 flatClouds = flatClouds_calculate(direction);
+		composite = composite * flatClouds.a + flatClouds.rgb;
 		#endif
+		vec4 volumetricClouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction, true);
+		composite = composite * volumetricClouds.a + volumetricClouds.rgb;
 	}
-
-	vec4 tex2 = texture2D(colortex2, screenCoord);
-	vec3 normal   = unpackNormal(tex2.rg);
-	vec2 lightmap = tex2.ba;
-
-	if (mask.opaque) {
-		#ifdef MC_SPECULAR_MAP
+	#ifdef MC_SPECULAR_MAP
+	else {
+		vec3 normal  = unpackNormal(tex2.rg);
 		material mat = calculateMaterial(tex0.rgb, texture2D(colortex1, screenCoord), mask);
 
 		vec3 specular = calculateReflections(backPosition, direction, normal, mat.reflectance, mat.roughness, lightmap.y, texture2D(colortex5, screenCoord).rgb);
 		composite = blendMaterial(composite, specular, mat);
-		#endif
 	}
+	#endif
 
-	vec4 clouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction, mask.sky);
-	composite = composite * clouds.a + clouds.rgb;
-
-	mat3 frontPosition;
+	mat2x3 frontPosition;
 	frontPosition[0] = vec3(screenCoord, texture2D(depthtex0, screenCoord).r);
 	frontPosition[1] = screenSpaceToViewSpace(frontPosition[0], projectionInverse);
-	frontPosition[2] = viewSpaceToSceneSpace(frontPosition[1], gbufferModelViewInverse);
-	float frontSkylight = tex7.g;
 
 	if (mask.water) {
 		if (isEyeInWater != 1) {

@@ -1,6 +1,6 @@
 #define FLATCLOUDS
 #define FLATCLOUDS_ALTITUDE 10000.0
-#define FLATCLOUDS_COVERAGE 0.47
+#define FLATCLOUDS_COVERAGE 0.3
 
 float flatClouds_phase(float cosTheta) {
 	const vec2 g    = vec2(0.25, -0.15);
@@ -23,11 +23,11 @@ vec4 flatClouds_calculate(vec3 viewDirection) {
 	vec2 cloudPosition = direction.xz * planeDistance + cameraPosition.xz;
 
 	float
-	density  = texture2D(noisetex, cloudPosition * 0.000001 + 0.00005 * frameTimeCounter).r * 1.000 / 1.65;
-	density += texture2D(noisetex, cloudPosition * 0.000003 + 0.00025 * frameTimeCounter).r * 0.400 / 1.65;
-	density += texture2D(noisetex, cloudPosition * 0.000009 + 0.00125 * frameTimeCounter).r * 0.160 / 1.65;
-	density += texture2D(noisetex, cloudPosition * 0.000027 + 0.00625 * frameTimeCounter).r * 0.065 / 1.65;
-	density += texture2D(noisetex, cloudPosition * 0.000081 + 0.01565 * frameTimeCounter).r * 0.025 / 1.65;
+	density  = texture2D(noisetex, cloudPosition * -0.0000007 + -0.00005 * frameTimeCounter).r * 1.000 / 1.65;
+	density += texture2D(noisetex, cloudPosition * -0.0000021 + -0.00025 * frameTimeCounter).r * 0.400 / 1.65;
+	density += texture2D(noisetex, cloudPosition * -0.0000063 + -0.00125 * frameTimeCounter).r * 0.160 / 1.65;
+	density += texture2D(noisetex, cloudPosition * -0.0000189 + -0.00625 * frameTimeCounter).r * 0.065 / 1.65;
+	density += texture2D(noisetex, cloudPosition * -0.0000567 + -0.01565 * frameTimeCounter).r * 0.025 / 1.65;
 
 	const float densityFactor  = 1.0 / FLATCLOUDS_COVERAGE;
 	const float coverageFactor = FLATCLOUDS_COVERAGE * densityFactor - densityFactor;

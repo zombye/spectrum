@@ -9,8 +9,8 @@ void calculateShadowMatrices() {
 	projectionShadow        = shadowProjection;
 	projectionShadowInverse = shadowProjectionInverse;
 
-	projectionShadow[2].z         /= 6.0;
-	projectionShadow[3].z         /= 6.0;
-	projectionShadowInverse[2].zw *= 6.0;
+	projectionShadow[2].z         /= 10.0;
+	projectionShadow[3].z         /= 10.0;
+	projectionShadowInverse[2].zw *= 10.0;
 }
 #endif
