@@ -15,10 +15,6 @@
 
 const float volumetricClouds_coeff  = 0.05; // range for cumulus is approximately 0.05-0.12
 
-const float volumetricClouds_visibilityMult = 0.7; // unrealisic, only exists because there isn't a multiple scattering approximation
-
-const vec3 volumetricClouds_bouncedLightColor = vec3(0.31, 0.34, 0.31); // wish I had an average sunlit color for 1-2 km around the player, a grey with subtle green tint looks natural enough so that will have to do
-
 //--//
 
 struct volumetricClouds_noiseLayer {
@@ -95,27 +91,18 @@ float volumetricClouds_phase(float cosTheta) {
 	return dot(res, vec2(0.4)) + 0.2;
 }
 
-float volumetricClouds_visibility(vec3 position, vec3 direction, float odAtStart, const float range, const float samples) {
+float volumetricClouds_odDirection(vec3 position, vec3 direction, float startDensity, const float range, const float samples) {
 	const float stepSize = range / (samples + 0.5);
 
 	direction *= stepSize;
 	position += direction * 0.75;
 
-	float od = -0.5 * odAtStart;
+	float od = -0.5 * startDensity;
 	for (float i = 0.0; i < samples; i++, position += direction) {
 		od -= volumetricClouds_density(position);
 	}
-	return exp(volumetricClouds_coeff * volumetricClouds_visibilityMult * stepSize * od);
+	return stepSize * od;
 }
-/*
-vec3 volumetricClouds_basicIndirect(vec3 position) {
-	vec3 skyLighting = skyLightColor * 0.5;
-	vec3 bouncedLighting = volumetricClouds_bouncedLightColor * dot(shadowLightVector, upVector) * shadowLightColor * 0.5 / pi;
-
-	float fade = (position.y - VOLUMETRICCLOUDS_ALTITUDE_MIN) / (VOLUMETRICCLOUDS_ALTITUDE_MAX - VOLUMETRICCLOUDS_ALTITUDE_MIN);
-	return mix(bouncedLighting, skyLighting, fade);
-}
-*/
 
 vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewDirection, bool sky) {
 	#if VOLUMETRICCLOUDS_SAMPLES == 0
@@ -148,41 +135,60 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 	const vec3 bouncedDirection = vec3(0.0, -1.0, 0.0);
 
 	// multipliers for each light source
+	const vec3 bouncedLightColor = vec3(0.31, 0.34, 0.31); // wish I had an average sunlit color for 1-2 km around the player, a grey with subtle green tint looks natural enough so that will have to do
+
 	vec3 directMul = shadowLightColor * volumetricClouds_phase(dot(viewDirection, shadowLightVector));
 	vec3 indirectScatterMul = skyLightColor * 0.5;
-	vec3 indirectBouncedMul = dot(shadowLightVector, upVector) * volumetricClouds_bouncedLightColor * shadowLightColor * 0.5 / pi;
+	vec3 indirectBouncedMul = dot(shadowLightVector, upVector) * bouncedLightColor * shadowLightColor * 0.5 / pi;
 
 	// transmitted scattering integral constants
-	const float a = -volumetricClouds_coeff / log(2.0);
-	const float b = -1.0 / volumetricClouds_coeff;
-	const float c =  1.0 / volumetricClouds_coeff;
+	const float tsi_a = -volumetricClouds_coeff / log(2.0);
+	const float tsi_b = -1.0 / volumetricClouds_coeff;
+	const float tsi_c =  1.0 / volumetricClouds_coeff;
+
+	// multiple scattering approximation constants
+	const int   msa_octaves = 2;
+	const float msa_a = 0.618; // msa_a <= msa_b
+	const float msa_b = 0.618;
+	const float msa_c = 0.5; // TODO: Use this
 
 	// loop
 	vec4 clouds = vec4(vec3(0.0), 1.0);
 	vec2 distanceAverage = vec2((distances.x + distances.y) * 0.5, 1.0) * 0.0001;
 	for (int i = 0; i < samples; i++, position += increment) {
 		// get density at current position
-		float od = volumetricClouds_density(position);
+		float density = volumetricClouds_density(position);
 
-		if (od == 0.0) continue;
+		if (density == 0.0) continue;
 
-		vec3 // density for step is input to these, essentially gives half a visibility step for free
-		sampleLighting  = volumetricClouds_visibility(position, shadowDirection,  od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_DIRECT,   VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT)   * directMul;
-		sampleLighting += volumetricClouds_visibility(position, skyDirection,     od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT, VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT) * indirectScatterMul;
-		sampleLighting += volumetricClouds_visibility(position, bouncedDirection, od, VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT, VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT) * indirectBouncedMul;
+		vec3 visOD = vec3( // find optical depths towards the sun, upwards, and downwards
+			volumetricClouds_odDirection(position, shadowDirection,  density, VOLUMETRICCLOUDS_VISIBILITY_RANGE_DIRECT,   VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_DIRECT),
+			volumetricClouds_odDirection(position, skyDirection,     density, VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT, VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT),
+			volumetricClouds_odDirection(position, bouncedDirection, density, VOLUMETRICCLOUDS_VISIBILITY_RANGE_INDIRECT, VOLUMETRICCLOUDS_VISIBILITY_SAMPLES_INDIRECT)
+		);
 
-		// now go from density to optical depth
-		od *= stepSize;
+		float od = density * stepSize;
+
+		// approximate multiple scattering
+		vec3 sampleScattering = vec3(0.0);
+		for (int j = 1; j <= msa_octaves; j++) {
+			vec2 coeffs = volumetricClouds_coeff * pow(vec2(msa_a, msa_b), vec2(j));
+
+			vec3 msaLight = exp(coeffs.y * visOD);
+			msaLight = msaLight.x * directMul + msaLight.y * indirectScatterMul + msaLight.z * indirectBouncedMul;
+
+			sampleScattering += coeffs.x * msaLight;
+		}
 
 		// add step to result, integrate transmitted scattering
-		float transmittanceStep     = exp2(a * od);
-		float transmittedScattering = (transmittanceStep * b + c) * clouds.a;
-		clouds.rgb += sampleLighting * transmittedScattering;
+		float transmittanceStep     = exp2(tsi_a * od);
+		float transmittedScattering = (transmittanceStep * tsi_b + tsi_c) * clouds.a;
+		clouds.rgb += sampleScattering * transmittedScattering;
 		clouds.a   *= transmittanceStep;
 
 		// add to distance average weighted based on importance
 		distanceAverage += vec2(distance(position, worldStart), 1.0) * transmittedScattering;
-	} clouds.rgb *= volumetricClouds_coeff;
+	}
 
 	// fade out distant clouds based on average weighted distance
 	clouds = mix(vec4(vec3(0.0), 1.0), clouds, exp(-2e-5 * distanceAverage.x / distanceAverage.y));
