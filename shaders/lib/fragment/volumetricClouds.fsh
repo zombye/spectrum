@@ -42,8 +42,9 @@ float volumetricClouds_density(vec3 position) {
 	      falloff = 6.75 * falloff * pow2(1.0 - falloff);
 	density *= falloff * VOLUMETRICCLOUDS_COVERAGE + (1.0 - VOLUMETRICCLOUDS_COVERAGE);
 
-	const float densityFactor  = 1.0 / VOLUMETRICCLOUDS_COVERAGE;
-	const float coverageFactor = 1.0 - densityFactor;
+	float coverage       = mix(VOLUMETRICCLOUDS_COVERAGE, 1.4, rainStrength);
+	float densityFactor  = 1.0 / coverage;
+	float coverageFactor = 1.0 - densityFactor;
 	density  = clamp01(density * densityFactor + coverageFactor);
 	density *= density * (-2.0 * density + 3.0);
 
@@ -52,7 +53,7 @@ float volumetricClouds_density(vec3 position) {
 
 float volumetricClouds_shadow(vec3 position) {
 	#if VOLUMETRICCLOUDS_SAMPLES == 0
-	return 1.0;
+	return mix(1.0, 0.0, rainStrength);
 	#endif
 
 	vec3 worldStart = position + cameraPosition;

@@ -39,5 +39,6 @@ vec4 flatClouds_calculate(vec3 viewDirection) {
 	clouds.a = exp(-1.11 * density);
 	clouds.rgb *= clouds.a;
 
+	clouds = mix(clouds, vec4(0.0, 0.0, 0.0, 1.0), rainStrength);
 	return mix(vec4(0.0, 0.0, 0.0, 1.0), clouds, smoothstep(0.0, 0.1, dot(viewDirection, upVector)));
 }

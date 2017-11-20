@@ -47,6 +47,10 @@ float sky_miePhase(float cosTheta, float g) {
 	return p1 * p2;
 }
 
+vec3 sky_atmosphereRainOverlay(vec3 atmosphere) {
+	return mix(atmosphere * (-0.98 * rainStrength + 1.0), vec3(0.012, 0.014, 0.02), rainStrength * 0.6);
+}
+
 #ifdef PHYSICAL_ATMOSPHERE
 vec2 sky_opticalDepth(vec3 position, vec3 dir, const float steps) {
 	float stepSize  = dot(position, dir);
@@ -105,7 +109,7 @@ vec3 sky_atmosphere(vec3 background, vec3 viewVector) {
 	vec3 scattering = scatteringSun + scatteringMoon;
 	vec3 transmittance = exp(transmittanceCoefficients * iOpticalDepth);
 
-	return background * transmittance + scattering;
+	return sky_atmosphereRainOverlay(background * transmittance + scattering);
 }
 #else
 vec2 sky_opticalDepthApprox(vec3 position, vec3 direction) {
@@ -134,15 +138,15 @@ vec3 sky_atmosphere(vec3 bg, vec3 viewVector) {
 	     moonScattering   += baseMie      * sky_miePhase(dot(viewVector, moonVector), 0.8) * moonTransmittance;
 	     moonScattering   *= moonIlluminance;
 
-	return bg * transmittance + sunScattering + moonScattering;
+	return sky_atmosphereRainOverlay(bg * transmittance + sunScattering + moonScattering);
 }
 #endif
 
 vec3 sky_sun(vec3 bg, vec3 viewVector) {
-	return dot(viewVector, sunVector) < cos(sunAngularRadius) ? bg : sunLuminance;
+	return mix(bg, sunLuminance, float(dot(viewVector, sunVector) >= cos(sunAngularRadius)) * pow5(1.0 - rainStrength));
 }
 vec3 sky_moon(vec3 bg, vec3 viewVector) {
-	return dot(viewVector, moonVector) < cos(moonAngularRadius) ? bg : moonLuminance;
+	return mix(bg, moonLuminance, float(dot(viewVector, moonVector) >= cos(moonAngularRadius)) * pow5(1.0 - rainStrength));
 }
 
 vec3 sky_render(vec3 bg, vec3 viewVector) {

@@ -2,6 +2,8 @@
 
 //----------------------------------------------------------------------------//
 
+uniform float rainStrength;
+
 uniform int isEyeInWater;
 
 // Time

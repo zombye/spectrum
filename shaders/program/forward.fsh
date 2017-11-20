@@ -6,6 +6,8 @@ const bool gaux1MipmapEnabled = true;
 
 uniform ivec2 atlasSize;
 
+uniform float rainStrength;
+
 // Viewport
 uniform float viewWidth, viewHeight;
 

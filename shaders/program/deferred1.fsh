@@ -2,6 +2,8 @@
 
 //----------------------------------------------------------------------------//
 
+uniform float rainStrength;
+
 // Time
 uniform int   frameCounter;
 uniform float frameTimeCounter;
