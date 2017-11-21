@@ -1,5 +1,9 @@
 #define DIFFUSE_MODEL 0 // [0 1]
 
+#define RTCS
+#define RTCS_SAMPLES 16
+#define RTCS_RANGE   0.3
+
 #define RTAO_SAMPLES     0   // [0 1 2 3 4]
 #define RTAO_RAY_QUALITY 2.0 // [1.0 1.5 2.0 2.5]
 
@@ -186,6 +190,40 @@ float getCloudShadows(vec3 position){
 	return texture2D(gaux2, shadows_distortShadowSpace(position.xy) * 0.5 + 0.5).a;
 }
 
+#ifdef RTCS
+float raytracedContactShadows(vec3 position) {
+	const float surfaceThickness = 0.2;
+
+	float dither = bayer8(gl_FragCoord.st);
+
+	vec3 startViewSpace = screenSpaceToViewSpace(position, projectionInverse);
+
+	vec3 direction = shadowLightVector * RTCS_RANGE / RTCS_SAMPLES;
+	     direction = viewSpaceToScreenSpace(direction + startViewSpace, projection) - position;
+
+	float difference;
+	bool  intersected = false;
+
+	// raytrace for intersection
+	position   += direction * dither;
+	difference  = texture2D(depthtex1, position.st).r - position.p;
+	intersected = min(-2.0 * direction.z, position.p - delinearizeDepth(linearizeDepth(position.p, projectionInverse) - surfaceThickness, projection)) < difference && difference < -3e-3 * (1.0 - position.z);
+
+	float i;
+	for (i = dither; i < RTCS_SAMPLES && !intersected; i++) {
+		position += direction;
+		if (floor(position.st) != vec2(0.0)) break; // makes sure we don't improperly intersect anything off-screen
+		difference  = texture2D(depthtex1, position.st).r - position.p;
+		intersected = min(-2.0 * direction.z, position.p - delinearizeDepth(linearizeDepth(position.p, projectionInverse) - surfaceThickness, projection)) < difference && difference < -3e-3 * (1.0 - position.z);
+	}
+
+	// validate intersection
+	intersected = intersected && (difference + position.p) < 1.0 && position.p > 0.0;
+
+	return mix(1.0, smoothstep(0.5, 1.0, i / RTCS_SAMPLES), float(intersected));
+}
+#endif
+
 vec3 waterShadows(vec3 position) {
 	const vec3 scatteringCoeff = vec3(0.3e-2, 1.8e-2, 2.0e-2) * 0.4;
 	const vec3 absorbtionCoeff = vec3(0.8, 0.45, 0.11);
@@ -284,10 +322,7 @@ float hbao(mat3 position, vec3 normal) {
 	return result / (HBAO_DIRECTIONS * pi * 0.5);
 }
 float rtao(vec3 position, vec3 normal) {
-	#if RTAO_SAMPLES == 0
-	return 1.0;
-	#endif
-
+	#if RTAO_SAMPLES > 0
 	float dither = bayer8(gl_FragCoord.st);
 
 	float result = 0.0;
@@ -299,6 +334,9 @@ float rtao(vec3 position, vec3 normal) {
 
 		result += 1.0 / RTAO_SAMPLES;
 	} return result;
+	#else
+	return 1.0;
+	#endif
 }
 float ssao(vec3 position, vec3 normal) {
 	#if SSAO_SAMPLES == 0
@@ -342,7 +380,13 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 
 		if (diffuse != vec3(0.0)) {
 			sunVisibility *= shadows(position[2], cloudShadow);
-			if (sunVisibility != vec3(0.0)) sunVisibility *= waterShadows(position[2]);
+			if (sunVisibility != vec3(0.0)) {
+				sunVisibility *= waterShadows(position[2]);
+				#ifdef RTCS
+				if (mat.subsurface == 0.0)
+					sunVisibility *= raytracedContactShadows(position[0]);
+				#endif
+			}
 		} else {
 			sunVisibility *= 0.0;
 		}

@@ -3,9 +3,8 @@
 
 //----------------------------------------------------------------------------//
 
+// Weather
 uniform float rainStrength;
-
-uniform int isEyeInWater;
 
 // Time
 uniform float frameTimeCounter;
@@ -43,7 +42,6 @@ varying vec2 screenCoord;
 #include "/lib/util/miscellaneous.glsl"
 #include "/lib/util/packing.glsl"
 #include "/lib/util/spaceConversion.glsl"
-#include "/lib/util/texture.glsl"
 
 #include "/lib/uniform/gbufferMatrices.glsl"
 #include "/lib/uniform/shadowMatrices.glsl"
@@ -52,18 +50,11 @@ varying vec2 screenCoord;
 #include "/lib/misc/get3DNoise.glsl"
 #include "/lib/misc/shadowDistortion.glsl"
 
-//--//
-
-#include "/lib/fragment/water/waves.fsh"
-#include "/lib/fragment/water/normal.fsh"
-
+#if RSM_SAMPLES > 0
 vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float dither) {
-	#if RSM_SAMPLES == 0
-	return vec3(0.0);
-	#endif
-
 	const float radiusSquared = RSM_RADIUS * RSM_RADIUS;
 	const float perSampleArea = radiusSquared / RSM_SAMPLES;
+	const float sampleDistAdd = (RSM_RADIUS / RSM_SAMPLES) * (RSM_RADIUS / RSM_SAMPLES);
 	      float offsetScale   = RSM_RADIUS * projectionShadow[0].x;
 
 	vec3 projectionScale        = vec3(projectionShadow[0].x, projectionShadow[1].y, projectionShadow[2].z);
@@ -98,7 +89,7 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float dither) {
 		if (sampleVis <= 0.0) continue;
 
 		// Approximate an area light
-		sampleDistSq += pow2(RSM_RADIUS / RSM_SAMPLES);
+		sampleDistSq += sampleDistAdd;
 
 		vec4 sampleAlbedo = texture2D(shadowcolor0, sampleCoord.st);
 		rsm += sampleAlbedo.rgb * sampleAlbedo.a * sampleVis / sampleDistSq;
@@ -106,9 +97,10 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float dither) {
 
 	return rsm * perSampleArea * RSM_BRIGHTNESS / pi;
 }
+#endif
 
 #include "/lib/fragment/volumetricClouds.fsh"
-
+#if VOLUMETRICCLOUDS_SAMPLES > 0
 float calculateCloudShadowMap() {
 	vec3 shadowPos = vec3(screenCoord, 0.0) * 2.0 - 1.0;
 	shadowPos.st /= 1.0 - length(shadowPos.st);
@@ -116,8 +108,7 @@ float calculateCloudShadowMap() {
 
 	return volumetricClouds_shadow(shadowPos);
 }
-
-//--//
+#endif
 
 void main() {
 	vec3 tex7; // id, specular alpha channel, skylight
@@ -128,12 +119,13 @@ void main() {
 	gl_FragData[1] = vec4(texture2D(colortex1, screenCoord).rgb, tex7.g);
 	gl_FragData[2] = vec4(texture2D(colortex2, screenCoord).rgb, tex7.b);
 
+	#if VOLUMETRICCLOUDS_SAMPLES > 0
 	gl_FragData[3].a = calculateCloudShadowMap();
-
-	#if RSM_SAMPLES == 0
-	exit(); return;
+	#else
+	gl_FragData[3].a = 1.0;
 	#endif
 
+	#if RSM_SAMPLES > 0
 	if (round(tex7.r * 255.0) == 0.0 || floor(screenCoord) != vec2(0.0) || tex7.b == 0.0) { exit(); return; }
 
 	mat3 backPosition;
@@ -150,6 +142,7 @@ void main() {
 /* DRAWBUFFERS:0125 */
 
 	gl_FragData[3].rgb = rsm;
+	#endif
 
 	exit();
 }
