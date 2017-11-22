@@ -1,8 +1,11 @@
 #define textureRaw(sampler, coord) texelFetch2D(sampler, ivec2(coord * textureSize2D(sampler, 0)), 0)
 
 float textureShadow(sampler2D sampler, vec3 coord) {
-	vec4 samples = step(coord.p, textureGather(sampler, coord.st));
-	vec4 weights = (fract(coord.st * textureSize2D(sampler, 0) + 0.502).xxyy) * vec4(1,-1,1,-1) + vec4(0,1,0,1);
+	ivec2 resolution = textureSize2D(sampler, 0);
+	coord.st = coord.st * resolution + 0.5;
+	vec2 floored = floor(coord.st);
+	vec4 samples = step(coord.p, textureGather(sampler, floored / resolution));
+	vec4 weights = (coord.st - floored).xxyy * vec4(1,-1,1,-1) + vec4(0,1,0,1);
 	return dot(samples, weights.yxxy * weights.zzww);
 }
 
