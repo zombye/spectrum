@@ -4,6 +4,8 @@
 float minof(vec3 x) { return min(min(x.x, x.y), x.z); }
 float minof(vec4 x) { x.xy = min(x.xy, x.zw); return min(x.x, x.y); }
 
+float maxof(vec2 x) { return max(x.x, x.y); }
+
 float almostIdentity(float x, float m, float n) {
 	if (x > m) return x;
 	float t = x / m;

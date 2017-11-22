@@ -3,6 +3,7 @@
 #define RTCS
 #define RTCS_SAMPLES 16
 #define RTCS_RANGE   0.3
+#define RTCS_SURFACE_THICKNESS 0.2
 
 #define RTAO_SAMPLES     0   // [0 1 2 3 4]
 #define RTAO_RAY_QUALITY 2.0 // [1.0 1.5 2.0 2.5]
@@ -191,34 +192,39 @@ float getCloudShadows(vec3 position){
 }
 
 #ifdef RTCS
-float raytracedContactShadows(vec3 position) {
-	const float surfaceThickness = 0.2;
+bool checkContactShadowIntersection(vec3 position, vec3 interval, float depth, float difference, vec2 pixel) {
+	vec2 dd = vec2(
+		max(abs(texture2D(depthtex1, vec2( 1.0,  0.0) * pixel + position.st).r - depth),
+		    abs(texture2D(depthtex1, vec2(-1.0,  0.0) * pixel + position.st).r - depth)),
+		max(abs(texture2D(depthtex1, vec2( 0.0,  1.0) * pixel + position.st).r - depth),
+		    abs(texture2D(depthtex1, vec2( 0.0, -1.0) * pixel + position.st).r - depth)));
 
+	return difference < -maxof(dd) && min(-interval.z, position.z - delinearizeDepth(linearizeDepth(position.z, projectionInverse) - RTCS_SURFACE_THICKNESS, projection)) < difference;
+}
+
+float raytracedContactShadows(vec3 start) {
 	float dither = bayer8(gl_FragCoord.st);
-
-	vec3 startViewSpace = screenSpaceToViewSpace(position, projectionInverse);
+	vec2  pixel = 1.0 / textureSize2D(depthtex1, 0);
 
 	vec3 direction = shadowLightVector * RTCS_RANGE / RTCS_SAMPLES;
-	     direction = viewSpaceToScreenSpace(direction + startViewSpace, projection) - position;
-
-	float difference;
-	bool  intersected = false;
+	     direction = viewSpaceToScreenSpace(direction + screenSpaceToViewSpace(start, projectionInverse), projection) - start;
 
 	// raytrace for intersection
-	position   += direction * dither;
-	difference  = texture2D(depthtex1, position.st).r - position.p;
-	intersected = min(-2.0 * direction.z, position.p - delinearizeDepth(linearizeDepth(position.p, projectionInverse) - surfaceThickness, projection)) < difference && difference < -3e-3 * (1.0 - position.z);
+	vec3  position    = direction * dither + start;
+	float depth       = texture2D(depthtex1, position.st).r;
+	float difference  = depth - position.p;
+	bool  intersected = checkContactShadowIntersection(position, direction, depth, difference, pixel);
 
 	float i;
 	for (i = dither; i < RTCS_SAMPLES && !intersected; i++) {
-		position += direction;
-		if (floor(position.st) != vec2(0.0)) break; // makes sure we don't improperly intersect anything off-screen
-		difference  = texture2D(depthtex1, position.st).r - position.p;
-		intersected = min(-2.0 * direction.z, position.p - delinearizeDepth(linearizeDepth(position.p, projectionInverse) - surfaceThickness, projection)) < difference && difference < -3e-3 * (1.0 - position.z);
+		position   += direction;
+		depth       = texture2D(depthtex1, position.st).r;
+		difference  = depth - position.p;
+		intersected = checkContactShadowIntersection(position, direction, depth, difference, pixel);
 	}
 
 	// validate intersection
-	intersected = intersected && (difference + position.p) < 1.0 && position.p > 0.0;
+	intersected = intersected && (difference + position.p) < 1.0 && position.p > 0.0 && floor(position.st) == vec2(0.0);
 
 	return mix(1.0, smoothstep(0.5, 1.0, i / RTCS_SAMPLES), float(intersected));
 }
