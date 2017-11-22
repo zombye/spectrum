@@ -2,7 +2,6 @@ float waterCaustics(vec3 position, float waterDepth) {
 	const int   samples           = CAUSTICS_SAMPLES;
 	const float radius            = CAUSTICS_RADIUS;
 	const float defocus           = CAUSTICS_DEFOCUS;
-	const float distancePower     = CAUSTICS_DISTANCE_POWER;
 	const float distanceThreshold = (sqrt(samples) - 1.0) / (radius * defocus);
 	const float resultPower       = CAUSTICS_RESULT_POWER;
 
@@ -22,10 +21,10 @@ float waterCaustics(vec3 position, float waterDepth) {
 		vec3 refractVector = refract(lightVector, water_calculateNormal(samplePos), 0.75);
 		     samplePos     = refractVector * (surfDistUp / refractVector.y) + samplePos;
 
-		result += pow(1.0 - clamp01(distance(position, samplePos) * distanceThreshold), distancePower);
+		result += 1.0 - clamp01(distance(position, samplePos) * distanceThreshold);
 	}
 
-	return pow(result * distancePower / (defocus * defocus), resultPower);
+	return pow(result / (defocus * defocus), resultPower);
 }
 
 float waterCaustics(vec3 position, vec3 shadowPosition, vec3 shadowCoord) {

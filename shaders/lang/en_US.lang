@@ -42,33 +42,37 @@ screen.lighting=Lighting
 screen.lighting.comment=Options for surface lighting effects, such as shadows and reflections.
 
 # Caustics
-option.CAUSTICS_SAMPLES=Water Caustics Quality
-value.CAUSTICS_SAMPLES.0=Off
-option.CAUSTICS_DEFOCUS=Water Caustics Defocus
-option.CAUSTICS_DEFOCUS.comment=Essentially adjusts the "focus" of caustics. Higher values give blurrier caustics, which helps hide noise.
-option.CAUSTICS_DISTANCE_POWER.comment=1.0 is most realistic, but higher values tend to look better, especially with lower sample counts.
-
-# Raytraced Contact shadows
-option.RTCS=Contact Shadows
+screen.caustics=Water Caustics
+option.CAUSTICS_SAMPLES=Samples
+option.CAUSTICS_SAMPLES.comment=Using more samples give more accurate and detailed caustics, but are more demanding.
+option.CAUSTICS_RADIUS=Radius
+option.CAUSTICS_RADIUS.comment=A larger radius takes into account more of the water surface, but gives a less detailed result.
+option.CAUSTICS_DEFOCUS=Defocus
+option.CAUSTICS_DEFOCUS.comment=Essentially adjusts the "focus" of caustics. Higher values result in less detail but also less noise.
+option.CAUSTICS_RESULT_POWER=Contrast
+option.CAUSTICS_RESULT_POWER.comment=Values above 1.0 exaggerate the difference between the bright and dark portions.
 
 # Reflections
 option.REFLECTION_SAMPLES=Reflection Samples
 
-# Shadow mapping
-option.shadowMapResolution=Shadow Map Resolution
-option.SHADOW_FILTER_TYPE=Shadow Filter Type
+# Shadows
+screen.shadows=Shadows
+option.shadowMapResolution=Resolution
+option.SHADOW_FILTER_TYPE=Filter Type
 value.SHADOW_FILTER_TYPE.0=PCF (LQ)
 value.SHADOW_FILTER_TYPE.1=PCF (HQ)
 value.SHADOW_FILTER_TYPE.2=PCSS
 value.SHADOW_FILTER_TYPE.3=LPCSS
 option.SHADOW_FILTER_TYPE.comment=PCF filters have fixed penumbra. PCSS filters have variable penumbra dependent on distance from the shadow caster, improving realism. LPCSS is an extension to PCSS that allows opaque and transparent objects to have separate penumbra, further improving realism.
 option.SHADOW_COLORED=Colored Shadows
+option.RTCS=Contact Shadows
 
 # Reflective Shadow Maps
-option.RSM_SAMPLES=Bounced Sunlight Quality
+screen.rsm=Bounced Sunlight
+option.RSM_SAMPLES=Quality
 value.RSM_SAMPLES.0=Off
-option.RSM_RADIUS=Bounced Sunlight Range
-option.RSM_BRIGHTNESS=Bounced Sunlight Brightness
+option.RSM_RADIUS=Range
+option.RSM_BRIGHTNESS=Brightness
 
 # Ambient Occlusion
 option.RTAO_SAMPLES=RTAO Quality

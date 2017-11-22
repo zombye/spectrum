@@ -54,7 +54,7 @@ vec3 sky_atmosphereRainOverlay(vec3 atmosphere) {
 #ifdef PHYSICAL_ATMOSPHERE
 vec2 sky_opticalDepth(vec3 position, vec3 dir, const float steps) {
 	float stepSize  = dot(position, dir);
-	      stepSize  = sqrt((stepSize * stepSize) + atmosphereRadiusSquared - dot(position, position)) - stepSize;
+	      stepSize  = sqrt(max0((stepSize * stepSize) + atmosphereRadiusSquared - dot(position, position))) - stepSize;
 	      stepSize /= steps;
 	vec3  increment = dir * stepSize;
 	position += increment * 0.5;
@@ -68,8 +68,8 @@ vec2 sky_opticalDepth(vec3 position, vec3 dir, const float steps) {
 }
 
 vec3 sky_atmosphere(vec3 background, vec3 viewVector) {
-	const float iSteps = 50.0;
-	const float jSteps = 3.0;
+	const float iSteps = 50.0; // Requires a ridiculous amount of steps before the difference is even rarely noticable. It's somewhere beyond 2000, comparing 2000 with 3000 is where it starts to get hard to notice when comparing side-by-side.
+	const float jSteps = 3.0;  // Difference is rarely noticable beyond 6 where you only notice it below the horizon and so is not normally visible, and almost imperceptible beyond ~25 where you notice it because of the dithering done in final
 
 	vec3 viewPosition = upVector * (PLANET_RADIUS + cameraPosition.y - 63.0);
 
