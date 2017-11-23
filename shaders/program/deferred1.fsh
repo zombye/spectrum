@@ -56,13 +56,9 @@ varying vec2 screenCoord;
 #include "/lib/uniform/shadowMatrices.glsl"
 #include "/lib/uniform/vectors.glsl"
 
-#include "/lib/misc/get3DNoise.glsl"
-#include "/lib/misc/importanceSampling.glsl"
 #include "/lib/misc/shadowDistortion.glsl"
 
 //--//
-
-#include "/lib/fragment/raytracer.fsh"
 
 #include "/lib/fragment/masks.fsh"
 #include "/lib/fragment/materials.fsh"
@@ -96,8 +92,6 @@ vec3 bilateralResample(vec3 normal, float depth) {
 #include "/lib/fragment/water/waves.fsh"
 #include "/lib/fragment/water/normal.fsh"
 #include "/lib/fragment/water/caustics.fsh"
-
-#include "/lib/fragment/volumetricClouds.fsh"
 
 #include "/lib/fragment/lighting.fsh"
 

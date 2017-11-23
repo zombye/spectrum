@@ -5,7 +5,7 @@
 #define RTCS_RANGE   0.3
 #define RTCS_SURFACE_THICKNESS 0.2
 
-//#define HBAO
+#define HBAO
 #define HBAO_RADIUS            2.0 // [0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0]
 #define HBAO_DIRECTIONS        5   // [2 3 4 5 6 7 8]
 #define HBAO_SAMPLES_DIRECTION 3   // [2 3 4 5 6 7 8]
@@ -245,7 +245,7 @@ float skyLight(float lightmap, vec3 normal) {
 	return (dot(normal, upVector) * 0.2 + 0.8) * lightmap / (pow2(-4.0 * lightmap + 4.0) + 1.0);
 }
 
-float handLight(mat3 position, vec3 normal) {
+float handLight(vec3 position, vec3 normal) {
 	// TODO: Make this accurate to standard block lighting
 
 	if (heldBlockLightValue + heldBlockLightValue2 == 0) return 0.0;
@@ -255,14 +255,14 @@ float handLight(mat3 position, vec3 normal) {
 		vec3(-1.4, -0.6, -1.0) * MC_HAND_DEPTH
 	);
 
-	mat2x3 lightVector = handPosition - mat2x3(position[1], position[1]);
+	mat2x3 lightVector = handPosition - mat2x3(position, position);
 
 	vec2 dist = clamp01((vec2(heldBlockLightValue, heldBlockLightValue2) - vec2(length(lightVector[0]), length(lightVector[1]))) * 0.0625);
 	vec2 lm   = dist / (pow2(-4.0 * dist + 4.0) + 1.0);
 
 	lm *= vec2(
-		diffuse(normalize(position[1]), normal, normalize(lightVector[0]), 0.0),
-		diffuse(normalize(position[1]), normal, normalize(lightVector[1]), 0.0)
+		diffuse(-normalize(position), normal, normalize(lightVector[0]), 0.0),
+		diffuse(-normalize(position), normal, normalize(lightVector[1]), 0.0)
 	) * pi;
 
 	return lm.x + lm.y;
@@ -326,7 +326,7 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	vec3 shadowLight = vec3(lightmap.y * lightmap.y);
 	if (shadowLight != vec3(0.0)) {
 		vec3 fakeSubsurface = (1.0 - mat.albedo) * sqrt(mat.albedo) * (max0(-dot(normal, shadowLightVector)) * 0.5 + 0.5) / pi;
-		vec3 diffuse = fakeSubsurface * mat.subsurface + diffuse(normalize(position[1]), normal, shadowLightVector, mat.roughness);
+		vec3 diffuse = fakeSubsurface * mat.subsurface + diffuse(-normalize(position[1]), normal, shadowLightVector, mat.roughness);
 
 		if (diffuse != vec3(0.0)) {
 			sunVisibility *= shadows(position[2], shadowPosition, shadowClip, shadowCoord, cloudShadow);
@@ -354,7 +354,7 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 
 	float
 	blockLight  = blockLight(lightmap.x);
-	blockLight += handLight(position, normal);
+	blockLight += handLight(position[1], normal);
 
 	vec3
 	lighting  = shadowLightColor * shadowLight;
