@@ -11,11 +11,10 @@
 #define SRAO_RADIUS 1.0 // Radius of short-range AO (HBAO, SSAO)
 
 //#define HBAO
-#define HBAO_DIRECTIONS        4
-#define HBAO_SAMPLES_DIRECTION 4
+#define HBAO_DIRECTIONS        5
+#define HBAO_SAMPLES_DIRECTION 3
 
 #define SSAO_SAMPLES 0 // [0 9 16]
-#define SSAO_RADIUS  SRAO_RADIUS
 
 //--//
 
@@ -159,36 +158,59 @@ vec3 lpcss(vec3 position, float angularRadius) {
 	return result;
 }
 
-vec3 shadows(vec3 position, float cloudShadow) {
-	position = mat3(shadowModelView) * position + shadowModelView[3].xyz;
-	position = vec3(projectionShadow[0].x, projectionShadow[1].y, projectionShadow[2].z) * position + projectionShadow[3].xyz;
+vec3 waterShadows(vec3 position, vec3 shadowPosition, vec3 shadowCoord) {
+	const vec3 scatteringCoeff = vec3(0.3e-2, 1.8e-2, 2.0e-2) * 0.4;
+	const vec3 absorbtionCoeff = vec3(0.8, 0.45, 0.11);
+	const vec3 transmittanceCoeff = scatteringCoeff + absorbtionCoeff;
+
+	// Checks if there's water on the shadow map at this location
+	if (texture2D(shadowcolor1, shadowCoord.xy).b > 0.5) return vec3(1.0);
+
+	float waterDepth = texture2D(shadowtex0, shadowCoord.xy).r * 2.0 - 1.0;
+	waterDepth = waterDepth * projectionShadowInverse[2].z + projectionShadowInverse[3].z;
+	waterDepth = shadowPosition.z - waterDepth;
+
+	// Make sure we're not in front of the water
+	if (waterDepth >= 0.0) return vec3(1.0);
+
+	// Water fog transmittance - has issues around edges of shadows, and not really needed as I already fade out the shadow light with the skylightmap (it still helps tough).
+	vec3 result = vec3(1.0);//exp(transmittanceCoeff * waterDepth);
+
+	#if CAUSTICS_SAMPLES > 0
+	result *= waterCaustics(position, waterDepth);
+	#endif
+
+	return result;
+}
+
+vec3 shadows(vec3 position, out float cloudShadow) {
+	vec3 shadowPosition = mat3(shadowModelView) * position + shadowModelView[3].xyz;
+	vec3 shadowClip     = vec3(projectionShadow[0].x, projectionShadow[1].y, projectionShadow[2].z) * shadowPosition + projectionShadow[3].xyz;
+	vec3 shadowCoord    = shadows_distortShadowSpace(shadowClip) * 0.5 + 0.5;
+
+	cloudShadow = texture2D(gaux2, shadowCoord.xy).a;
+
+	vec3 result = vec3(cloudShadow);
 
 	#if SHADOW_FILTER_TYPE == 2 || SHADOW_FILTER_TYPE == 3
 	float angularRadius  = mix(moonAngularRadius, sunAngularRadius, smoothstep(-0.01, 0.01, dot(sunVector, upVector)));
 	      angularRadius *= mix(10.0, 1.0, sqrt(cloudShadow));
 	#endif
 
-	#if SHADOW_FILTER_TYPE == 2 || (SHADOW_FILTER_TYPE == 3 && !defined SHADOW_COLORED)
-	return pcss(position, angularRadius);
-	#elif SHADOW_FILTER_TYPE == 3
-	return lpcss(position, angularRadius);
-	#endif
-
-	float distortFactor = shadows_calculateDistortionCoeff(position.xy);
-
-	position.xy *= distortFactor;
-	position = position * 0.5 + 0.5;
-
 	#if SHADOW_FILTER_TYPE == 1
-	return softShadow(position);
+	result *= softShadow(shadowCoord);
+	#elif SHADOW_FILTER_TYPE == 2 || (SHADOW_FILTER_TYPE == 3 && !defined SHADOW_COLORED)
+	result *= pcss(shadowClip, angularRadius);
+	#elif SHADOW_FILTER_TYPE == 3
+	result *= lpcss(shadowClip, angularRadius);
 	#else
-	return shadowSample(position);
+	result *= shadowSample(shadowCoord);
 	#endif
-}
-float getCloudShadows(vec3 position){
-	position    = mat3(shadowModelView) * position + shadowModelView[3].xyz;
-	position.xy = vec2(projectionShadow[0].x, projectionShadow[1].y) * position.xy + projectionShadow[3].xy;
-	return texture2D(gaux2, shadows_distortShadowSpace(position.xy) * 0.5 + 0.5).a;
+
+	if (result != vec3(0.0))
+		result *= waterShadows(position, shadowPosition, shadowCoord);
+
+	return result;
 }
 
 #ifdef RTCS
@@ -230,34 +252,6 @@ float raytracedContactShadows(vec3 start) {
 }
 #endif
 
-vec3 waterShadows(vec3 position) {
-	const vec3 scatteringCoeff = vec3(0.3e-2, 1.8e-2, 2.0e-2) * 0.4;
-	const vec3 absorbtionCoeff = vec3(0.8, 0.45, 0.11);
-	const vec3 transmittanceCoeff = scatteringCoeff + absorbtionCoeff;
-
-	vec3 shadowPosition = transformPosition(position, shadowModelView);
-	vec2 shadowCoord = shadows_distortShadowSpace((mat3(projectionShadow) * shadowPosition + projectionShadow[3].xyz).xy) * 0.5 + 0.5;
-
-	// Checks if there's water on the shadow map at this location
-	if (texture2D(shadowcolor1, shadowCoord).b > 0.5) return vec3(1.0);
-
-	float waterDepth = texture2D(shadowtex0, shadowCoord).r * 2.0 - 1.0;
-	waterDepth = waterDepth * projectionShadowInverse[2].z + projectionShadowInverse[3].z;
-	waterDepth = shadowPosition.z - waterDepth;
-
-	// Make sure we're not in front of the water
-	if (waterDepth >= 0.0) return vec3(1.0);
-
-	// Water fog transmittance - has issues around edges of shadows, and not really needed as I already fade out the shadow light with the skylightmap (it still helps tough).
-	vec3 result = vec3(1.0);//exp(transmittanceCoeff * waterDepth);
-
-	#if CAUSTICS_SAMPLES > 0
-	result *= waterCaustics(position, waterDepth);
-	#endif
-
-	return result;
-}
-
 float blockLight(float lightmap) {
 	return lightmap / (pow2(-4.0 * lightmap + 4.0) + 1.0);
 }
@@ -288,12 +282,10 @@ float handLight(mat3 position, vec3 normal) {
 	return lm.x + lm.y;
 }
 
-float hbao(mat3 position, vec3 normal) {
+float hbao(vec3 position, vec3 normal) {
 	#ifndef HBAO
 	return 1.0;
-	#endif
-
-	const float hbao_nir2 = -1.0 / SRAO_RADIUS;
+	#else
 	const float alpha = tau / HBAO_DIRECTIONS;
 
 	#ifdef TEMPORAL_AA
@@ -302,56 +294,64 @@ float hbao(mat3 position, vec3 normal) {
 	vec2 noise = hash22(vec2(bayer8(gl_FragCoord.st))) * vec2(alpha, 1.0);
 	#endif
 
+	vec3 view = -normalize(position);
+
 	float result = 0.0;
 	for (int i = 0; i < HBAO_DIRECTIONS; i++) {
 		float angle = alpha * i + noise.x;
-		vec3 dir = vec3(cos(angle), sin(angle), 0.0) * SRAO_RADIUS / HBAO_SAMPLES_DIRECTION;
+		vec3 dir = vec3(cos(angle), sin(angle), 0.0);
 
-		// Find cosinus of angle between normal & horizon
-		float cosHorizon = 0.0;
+		float cosHorizon = -dot(normal, dir); // TODO: Figure out value cosHorizon should actually start as
+
+		dir *= SRAO_RADIUS / HBAO_SAMPLES_DIRECTION;
+		
+		// Find cosinus of angle between view & horizon
 		for (int j = 0; j < HBAO_SAMPLES_DIRECTION; j++) {
-			vec2 sampleUV = viewSpaceToScreenSpace(dir * (j + noise.y) + position[1], projection).st;
+			vec2 sampleUV = viewSpaceToScreenSpace(dir * (j + noise.y) + position, projection).st;
+			if (floor(sampleUV) != vec2(0.0)) break;
 			vec3 samplePosition = screenSpaceToViewSpace(vec3(sampleUV, texture2D(depthtex1, sampleUV).r), projectionInverse);
 
-			vec3 sampleVector = samplePosition - position[1];
+			vec3 sampleVector = samplePosition - position;
 			float distanceSquared = dot(sampleVector, sampleVector);
 
 			if (distanceSquared > SRAO_RADIUS * SRAO_RADIUS) continue;
 
-			cosHorizon = max(cosHorizon, dot(normal, sampleVector) * inversesqrt(distanceSquared));
+			cosHorizon = max(cosHorizon, dot(view, sampleVector) * inversesqrt(distanceSquared));
 		}
 
 		// Add angle above horizon to result
-		result += acos(clamp01(cosHorizon));
+		result += acos(clamp(cosHorizon, -1.0, 1.0));
 	}
 
-	return result / (HBAO_DIRECTIONS * pi * 0.5);
+	// clamp01 is temporary until i get this to take into account normals correctly
+	return clamp01(result / (HBAO_DIRECTIONS * pi * 0.5));
+	#endif
 }
 float rtao(vec3 position, vec3 normal) {
+	float result = 1.0;
+
 	#if RTAO_SAMPLES > 0
 	float dither = bayer8(gl_FragCoord.st);
 
-	float result = 0.0;
 	for (int i = 0; i < RTAO_SAMPLES; i++) {
 		vec3 rayDir = is_lambertian(normal, hash42(vec2(((frameCounter % 16) * RTAO_SAMPLES + i) * 0.2516, dither)));
+		if (dot(rayDir, normal) < 0.0) rayDir = -rayDir;
 
 		vec3 temp;
-		if (raytraceIntersection(position, rayDir, temp, dither, RTAO_RAY_QUALITY, 0.0, 200.0)) continue;
+		if (!raytraceIntersection(position, rayDir, temp, dither, RTAO_RAY_QUALITY, 0.0, 200.0)) continue;
 
-		result += 1.0 / RTAO_SAMPLES;
-	} return result;
-	#else
-	return 1.0;
+		result -= 1.0 / RTAO_SAMPLES;
+	}
 	#endif
+
+	return result;
 }
 float ssao(vec3 position, vec3 normal) {
-	#if SSAO_SAMPLES == 0
-	return 1.0;
-	#endif
+	float result = 1.0;
 
+	#if SSAO_SAMPLES > 0
 	float dither = bayer8(gl_FragCoord.st);
 
-	float result = 1.0;
 	for (int i = 0; i < SSAO_SAMPLES; i++) {
 		#ifdef TEMPORAL_AA
 		vec4 noise = hash42(vec2(((frameCounter % 16) * SSAO_SAMPLES + i) * 0.2516, dither));
@@ -362,23 +362,26 @@ float ssao(vec3 position, vec3 normal) {
 		vec3 offset = normalize(noise.xyz * 2.0 - 1.0) * noise.w;
 		if (dot(offset, normal) < 0.0) offset = -offset;
 
-		vec3 sd = viewSpaceToScreenSpace(offset * SSAO_RADIUS + position, projection);
+		vec3 sd = viewSpaceToScreenSpace(offset * SRAO_RADIUS + position, projection);
+		if (floor(sd) != vec3(0.0)) continue;
 		float od = texture2D(depthtex1, sd.st).r;
 		vec3 op = screenSpaceToViewSpace(vec3(sd.st, od), projectionInverse);
 
 		vec3 v = op - position;
 
-		if (dot(v, v) > SSAO_RADIUS * SSAO_RADIUS) continue;
+		if (dot(v, v) > SRAO_RADIUS * SRAO_RADIUS) continue;
 
 		result -= float(od < sd.z) / SSAO_SAMPLES;
 	}
+	#endif
+
 	return result;
 }
 
 vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, out vec3 sunVisibility) {
-	float cloudShadow = getCloudShadows(position[2]);
+	float cloudShadow = 1.0;
+	sunVisibility = vec3(1.0);
 
-	sunVisibility = vec3(cloudShadow);
 	vec3 shadowLight = vec3(lightmap.y * lightmap.y);
 	if (shadowLight != vec3(0.0)) {
 		vec3 fakeSubsurface = (1.0 - mat.albedo) * sqrt(mat.albedo) * (max0(-dot(normal, shadowLightVector)) * 0.5 + 0.5) / pi;
@@ -386,13 +389,10 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 
 		if (diffuse != vec3(0.0)) {
 			sunVisibility *= shadows(position[2], cloudShadow);
-			if (sunVisibility != vec3(0.0)) {
-				sunVisibility *= waterShadows(position[2]);
-				#ifdef RTCS
-				if (mat.subsurface == 0.0)
-					sunVisibility *= raytracedContactShadows(position[0]);
-				#endif
-			}
+			#ifdef RTCS
+			if (sunVisibility != vec3(0.0) && mat.subsurface == 0.0)
+				sunVisibility *= raytracedContactShadows(position[0]);
+			#endif
 		} else {
 			sunVisibility *= 0.0;
 		}
@@ -408,7 +408,7 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 
 	float skyLight = skyLight(lightmap.y, normal);
 	if (skyLight > 0.0) {
-		skyLight *= hbao(position, normal);
+		skyLight *= hbao(position[1], normal);
 		skyLight *= rtao(position[0], normal);
 		#ifndef HBAO
 		skyLight *= ssao(position[1], normal);
