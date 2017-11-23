@@ -183,28 +183,20 @@ vec3 waterShadows(vec3 position, vec3 shadowPosition, vec3 shadowCoord) {
 	return result;
 }
 
-vec3 shadows(vec3 position, out float cloudShadow) {
-	vec3 shadowPosition = mat3(shadowModelView) * position + shadowModelView[3].xyz;
-	vec3 shadowClip     = vec3(projectionShadow[0].x, projectionShadow[1].y, projectionShadow[2].z) * shadowPosition + projectionShadow[3].xyz;
-	vec3 shadowCoord    = shadows_distortShadowSpace(shadowClip) * 0.5 + 0.5;
-
-	cloudShadow = texture2D(gaux2, shadowCoord.xy).a;
-
-	vec3 result = vec3(cloudShadow);
-
+vec3 shadows(vec3 position, vec3 shadowPosition, vec3 shadowClip, vec3 shadowCoord, float cloudShadow) {
 	#if SHADOW_FILTER_TYPE == 2 || SHADOW_FILTER_TYPE == 3
 	float angularRadius  = mix(moonAngularRadius, sunAngularRadius, smoothstep(-0.01, 0.01, dot(sunVector, upVector)));
 	      angularRadius *= mix(10.0, 1.0, sqrt(cloudShadow));
 	#endif
 
 	#if SHADOW_FILTER_TYPE == 1
-	result *= softShadow(shadowCoord);
+	vec3 result = softShadow(shadowCoord);
 	#elif SHADOW_FILTER_TYPE == 2 || (SHADOW_FILTER_TYPE == 3 && !defined SHADOW_COLORED)
-	result *= pcss(shadowClip, angularRadius);
+	vec3 result = pcss(shadowClip, angularRadius);
 	#elif SHADOW_FILTER_TYPE == 3
-	result *= lpcss(shadowClip, angularRadius);
+	vec3 result = lpcss(shadowClip, angularRadius);
 	#else
-	result *= shadowSample(shadowCoord);
+	vec3 result = shadowSample(shadowCoord);
 	#endif
 
 	if (result != vec3(0.0))
@@ -379,8 +371,12 @@ float ssao(vec3 position, vec3 normal) {
 }
 
 vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, out vec3 sunVisibility) {
-	float cloudShadow = 1.0;
-	sunVisibility = vec3(1.0);
+	vec3 shadowPosition = mat3(shadowModelView) * position[2] + shadowModelView[3].xyz;
+	vec3 shadowClip     = vec3(projectionShadow[0].x, projectionShadow[1].y, projectionShadow[2].z) * shadowPosition + projectionShadow[3].xyz;
+	vec3 shadowCoord    = shadows_distortShadowSpace(shadowClip) * 0.5 + 0.5;
+
+	float cloudShadow = texture2D(gaux2, shadowCoord.xy).a;
+	sunVisibility = vec3(cloudShadow);
 
 	vec3 shadowLight = vec3(lightmap.y * lightmap.y);
 	if (shadowLight != vec3(0.0)) {
@@ -388,7 +384,7 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 		vec3 diffuse = fakeSubsurface * mat.subsurface + diffuse(normalize(position[1]), normal, shadowLightVector, mat.roughness);
 
 		if (diffuse != vec3(0.0)) {
-			sunVisibility *= shadows(position[2], cloudShadow);
+			sunVisibility *= shadows(position[2], shadowPosition, shadowClip, shadowCoord, cloudShadow);
 			#ifdef RTCS
 			if (sunVisibility != vec3(0.0) && mat.subsurface == 0.0)
 				sunVisibility *= raytracedContactShadows(position[0]);
