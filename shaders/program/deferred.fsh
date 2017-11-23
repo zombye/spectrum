@@ -100,7 +100,6 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float dither) {
 #endif
 
 #include "/lib/fragment/volumetricClouds.fsh"
-#if VOLUMETRICCLOUDS_SAMPLES > 0
 float calculateCloudShadowMap() {
 	vec3 shadowPos = vec3(screenCoord, 0.0) * 2.0 - 1.0;
 	shadowPos.st /= 1.0 - length(shadowPos.st);
@@ -108,7 +107,6 @@ float calculateCloudShadowMap() {
 
 	return volumetricClouds_shadow(shadowPos);
 }
-#endif
 
 void main() {
 	vec3 tex7; // id, specular alpha channel, skylight
@@ -119,11 +117,7 @@ void main() {
 	gl_FragData[1] = vec4(texture2D(colortex1, screenCoord).rgb, tex7.g);
 	gl_FragData[2] = vec4(texture2D(colortex2, screenCoord).rgb, tex7.b);
 
-	#if VOLUMETRICCLOUDS_SAMPLES > 0
 	gl_FragData[3].a = calculateCloudShadowMap();
-	#else
-	gl_FragData[3].a = 1.0;
-	#endif
 
 	#if RSM_SAMPLES > 0
 	if (round(tex7.r * 255.0) == 0.0 || floor(screenCoord) != vec2(0.0) || tex7.b == 0.0) { exit(); return; }
