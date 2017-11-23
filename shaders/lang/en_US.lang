@@ -52,6 +52,13 @@ option.CAUSTICS_DEFOCUS.comment=Essentially adjusts the "focus" of caustics. Hig
 option.CAUSTICS_RESULT_POWER=Contrast
 option.CAUSTICS_RESULT_POWER.comment=Values above 1.0 exaggerate the difference between the bright and dark portions.
 
+# Horizon Based Ambient Occlusion
+screen.hbao=Ambient Occlusion
+option.HBAO=Ambient Occlusion
+option.HBAO_RADIUS=Radius
+option.HBAO_DIRECTIONS=Directions
+option.HBAO_SAMPLES_DIRECTION=Samples Per Direction
+
 # Reflections
 option.REFLECTION_SAMPLES=Reflection Samples
 
@@ -73,12 +80,6 @@ option.RSM_SAMPLES=Quality
 value.RSM_SAMPLES.0=Off
 option.RSM_RADIUS=Range
 option.RSM_BRIGHTNESS=Brightness
-
-# Ambient Occlusion
-option.RTAO_SAMPLES=RTAO Quality
-option.RTAO_SAMPLES.comment=For best results enable temporal anti-aliasing. It is also recommended that you enable SSAO for smaller scale detail.
-option.SSAO_SAMPLES=SSAO Quality
-option.SSAO_SAMPLES.comment=For best results enable temporal anti-aliasing.
 
 ##--## Optics
 

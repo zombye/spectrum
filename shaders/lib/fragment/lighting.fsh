@@ -5,16 +5,10 @@
 #define RTCS_RANGE   0.3
 #define RTCS_SURFACE_THICKNESS 0.2
 
-#define RTAO_SAMPLES     0   // [0 1 2 3 4]
-#define RTAO_RAY_QUALITY 2.0 // [1.0 1.5 2.0 2.5]
-
-#define SRAO_RADIUS 1.0 // Radius of short-range AO (HBAO, SSAO)
-
 //#define HBAO
-#define HBAO_DIRECTIONS        5
-#define HBAO_SAMPLES_DIRECTION 3
-
-#define SSAO_SAMPLES 0 // [0 9 16]
+#define HBAO_RADIUS            2.0 // [0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0]
+#define HBAO_DIRECTIONS        5   // [2 3 4 5 6 7 8]
+#define HBAO_SAMPLES_DIRECTION 3   // [2 3 4 5 6 7 8]
 
 //--//
 
@@ -281,10 +275,11 @@ float hbao(vec3 position, vec3 normal) {
 	const float alpha = tau / HBAO_DIRECTIONS;
 
 	#ifdef TEMPORAL_AA
-	vec2 noise = hash22(vec2(bayer8(gl_FragCoord.st), frameCounter % 16)) * vec2(alpha, 1.0);
+	vec2 noise = hash22(vec2(bayer8(gl_FragCoord.st), frameCounter % 16));
 	#else
-	vec2 noise = hash22(vec2(bayer8(gl_FragCoord.st))) * vec2(alpha, 1.0);
+	vec2 noise = hash22(vec2(bayer8(gl_FragCoord.st)));
 	#endif
+	noise.x *= alpha;
 
 	vec3 view = -normalize(position);
 
@@ -293,11 +288,12 @@ float hbao(vec3 position, vec3 normal) {
 		float angle = alpha * i + noise.x;
 		vec3 dir = vec3(cos(angle), sin(angle), 0.0);
 
-		float cosHorizon = -dot(normal, dir); // TODO: Figure out value cosHorizon should actually start as
+		vec3 pv = 1e-2 * dir + view * 1e2;
+		float cosHorizon = dot(view, normalize(pv * dot(view, normal) / dot(pv, normal) - view));
 
-		dir *= SRAO_RADIUS / HBAO_SAMPLES_DIRECTION;
-		
-		// Find cosinus of angle between view & horizon
+		dir *= HBAO_RADIUS / HBAO_SAMPLES_DIRECTION;
+
+		// Find cosine of the angle between view & horizon
 		for (int j = 0; j < HBAO_SAMPLES_DIRECTION; j++) {
 			vec2 sampleUV = viewSpaceToScreenSpace(dir * (j + noise.y) + position, projection).st;
 			if (floor(sampleUV) != vec2(0.0)) break;
@@ -306,7 +302,7 @@ float hbao(vec3 position, vec3 normal) {
 			vec3 sampleVector = samplePosition - position;
 			float distanceSquared = dot(sampleVector, sampleVector);
 
-			if (distanceSquared > SRAO_RADIUS * SRAO_RADIUS) continue;
+			if (distanceSquared > HBAO_RADIUS * HBAO_RADIUS) continue;
 
 			cosHorizon = max(cosHorizon, dot(view, sampleVector) * inversesqrt(distanceSquared));
 		}
@@ -315,59 +311,8 @@ float hbao(vec3 position, vec3 normal) {
 		result += acos(clamp(cosHorizon, -1.0, 1.0));
 	}
 
-	// clamp01 is temporary until i get this to take into account normals correctly
-	return clamp01(result / (HBAO_DIRECTIONS * pi * 0.5));
+	return result / (HBAO_DIRECTIONS * pi * 0.5);
 	#endif
-}
-float rtao(vec3 position, vec3 normal) {
-	float result = 1.0;
-
-	#if RTAO_SAMPLES > 0
-	float dither = bayer8(gl_FragCoord.st);
-
-	for (int i = 0; i < RTAO_SAMPLES; i++) {
-		vec3 rayDir = is_lambertian(normal, hash42(vec2(((frameCounter % 16) * RTAO_SAMPLES + i) * 0.2516, dither)));
-		if (dot(rayDir, normal) < 0.0) rayDir = -rayDir;
-
-		vec3 temp;
-		if (!raytraceIntersection(position, rayDir, temp, dither, RTAO_RAY_QUALITY, 0.0, 200.0)) continue;
-
-		result -= 1.0 / RTAO_SAMPLES;
-	}
-	#endif
-
-	return result;
-}
-float ssao(vec3 position, vec3 normal) {
-	float result = 1.0;
-
-	#if SSAO_SAMPLES > 0
-	float dither = bayer8(gl_FragCoord.st);
-
-	for (int i = 0; i < SSAO_SAMPLES; i++) {
-		#ifdef TEMPORAL_AA
-		vec4 noise = hash42(vec2(((frameCounter % 16) * SSAO_SAMPLES + i) * 0.2516, dither));
-		#else
-		vec4 noise = hash42(vec2(i, dither));
-		#endif
-
-		vec3 offset = normalize(noise.xyz * 2.0 - 1.0) * noise.w;
-		if (dot(offset, normal) < 0.0) offset = -offset;
-
-		vec3 sd = viewSpaceToScreenSpace(offset * SRAO_RADIUS + position, projection);
-		if (floor(sd) != vec3(0.0)) continue;
-		float od = texture2D(depthtex1, sd.st).r;
-		vec3 op = screenSpaceToViewSpace(vec3(sd.st, od), projectionInverse);
-
-		vec3 v = op - position;
-
-		if (dot(v, v) > SRAO_RADIUS * SRAO_RADIUS) continue;
-
-		result -= float(od < sd.z) / SSAO_SAMPLES;
-	}
-	#endif
-
-	return result;
 }
 
 vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, out vec3 sunVisibility) {
@@ -405,10 +350,6 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	float skyLight = skyLight(lightmap.y, normal);
 	if (skyLight > 0.0) {
 		skyLight *= hbao(position[1], normal);
-		skyLight *= rtao(position[0], normal);
-		#ifndef HBAO
-		skyLight *= ssao(position[1], normal);
-		#endif
 	}
 
 	float
