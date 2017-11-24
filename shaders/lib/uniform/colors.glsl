@@ -58,6 +58,6 @@ void calculateColors() {
 
 	shadowLightColor = mix(moonIlluminance, sunIlluminance, smoothstep(-0.01, 0.01, dot(sunVector, upVector))) * sunTransmittance;
 	blockLightColor  = vec3(1.00, 0.70, 0.35) * 1.0e2;
-	skyLightColor    = mix(vec3(0.55, 0.65, 1.00), vec3(0.012, 0.014, 0.02), rainStrength * rainStrength * rainStrength) * 0.05 * shadowLightColor.r;
+	skyLightColor    = mix(vec3(0.012, 0.014, 0.02), vec3(0.55, 0.65, 1.00), pow(1.0 - rainStrength, 3.0)) * 0.05 * shadowLightColor.r;
 }
 #endif

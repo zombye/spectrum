@@ -111,8 +111,8 @@ vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
 	shadowPos += shadowIncrement * bayer8(gl_FragCoord.st);
 
 	float mistFactor = pow5(dot(sunVector, gbufferModelView[0].xyz) * 0.5 + 0.5);
-	float mistScaleHeight = mix(mix(200.0, 8.0, mistFactor), 500.0, rainStrength);
-	float mistDensity = mix(0.02 / mistScaleHeight, 0.003, rainStrength);
+	float mistScaleHeight = mix(500.0, mix(200.0, 8.0, mistFactor), pow3(1.0 - rainStrength));
+	float mistDensity = mix(0.003, 0.02 / mistScaleHeight, pow3(1.0 - rainStrength));
 	vec3 ish = vec3(inverseScaleHeights, 1.0 / mistScaleHeight);
 	mat3 transmittanceMatrix = mat3(transmittanceCoefficients[0], transmittanceCoefficients[1], vec3(1.0));
 
@@ -140,7 +140,7 @@ vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
 	#else
 	float phase = sky_rayleighPhase(dot(direction, shadowLightVector));
 
-	vec3 lighting = (shadowLightColor * (1.0 - rainStrength) + skyLightColor) * max(eyeBrightness.y / 240.0, lightmap.y);
+	vec3 lighting = (shadowLightColor * pow3(1.0 - rainStrength) + skyLightColor) * max(eyeBrightness.y / 240.0, lightmap.y);
 
 	vec3 transmittance = exp(-(transmittanceCoefficients[0] + rainStrength * 0.003) * stepSize);
 	vec3 scattering    = lighting * (scatteringCoefficients[0] + rainStrength * 0.003) * phase * transmittedScatteringIntegral(stepSize, transmittanceCoefficients[0]);
@@ -156,7 +156,7 @@ vec3 fakeCrepuscularRays(vec3 viewVector) {
 
 	float mistFactor = pow5(dot(sunVector, gbufferModelView[0].xyz) * 0.5 + 0.5);
 	float mistScaleHeight = mix(200.0, 8.0, mistFactor);
-	float mistDensity = mix(0.02 / mistScaleHeight, 0.0, rainStrength);
+	float mistDensity = mix(0.0, 0.02 / mistScaleHeight, pow3(1.0 - rainStrength));
 
 	const float steps = 6.0;
 
@@ -224,7 +224,7 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 	float waterDepth = distance(startPosition, endPosition);
 
 	vec3 transmittance = exp(-attenCoeff * waterDepth);
-	vec3 scattering    = ((shadowLightColor * 0.25 / pi * (1.0 - rainStrength)) + (skyLightColor * 0.5)) * skylight * scatterCoeff * (1.0 - transmittance) / attenCoeff;
+	vec3 scattering    = ((shadowLightColor * 0.25 / pi * pow3(1.0 - rainStrength)) + (skyLightColor * 0.5)) * skylight * scatterCoeff * (1.0 - transmittance) / attenCoeff;
 	#endif
 
 	return background * transmittance + scattering;

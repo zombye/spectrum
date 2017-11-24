@@ -53,7 +53,7 @@ float volumetricClouds_density(vec3 position) {
 
 float volumetricClouds_shadow(vec3 position) {
 	#if VOLUMETRICCLOUDS_SAMPLES == 0
-	return mix(1.0, 0.0, rainStrength);
+	return mix(0.0, 1.0, pow3(1.0 - rainStrength));
 	#endif
 
 	vec3 worldStart = position + cameraPosition;
