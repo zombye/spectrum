@@ -76,9 +76,10 @@ option.RTCS=Contact Shadows
 
 # Reflective Shadow Maps
 screen.rsm=Bounced Sunlight
-option.RSM_SAMPLES=Quality
+option.RSM_SAMPLES=Samples
 value.RSM_SAMPLES.0=Off
-option.RSM_RADIUS=Range
+option.RSM_RADIUS=Radius
+suffix.RSM_RADIUS= Blocks
 option.RSM_BRIGHTNESS=Brightness
 
 ##--## Optics

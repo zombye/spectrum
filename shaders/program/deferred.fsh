@@ -54,7 +54,7 @@ varying vec2 screenCoord;
 vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float dither) {
 	const float radiusSquared = RSM_RADIUS * RSM_RADIUS;
 	const float perSampleArea = radiusSquared / RSM_SAMPLES;
-	const float sampleDistAdd = (RSM_RADIUS / RSM_SAMPLES) * (RSM_RADIUS / RSM_SAMPLES);
+	const float sampleDistAdd = sqrt(perSampleArea) / 16.0;
 	      float offsetScale   = RSM_RADIUS * projectionShadow[0].x;
 
 	vec3 projectionScale        = vec3(projectionShadow[0].x, projectionShadow[1].y, projectionShadow[2].z);
@@ -88,7 +88,6 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float dither) {
 
 		if (sampleVis <= 0.0) continue;
 
-		// Approximate an area light
 		sampleDistSq += sampleDistAdd;
 
 		vec4 sampleAlbedo = texture2D(shadowcolor0, sampleCoord.st);

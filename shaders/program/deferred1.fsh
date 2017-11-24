@@ -1,5 +1,7 @@
 #include "/settings.glsl"
 
+const bool colortex5MipmapEnabled = true;
+
 //----------------------------------------------------------------------------//
 
 uniform float rainStrength;
@@ -64,23 +66,27 @@ varying vec2 screenCoord;
 #include "/lib/fragment/materials.fsh"
 
 vec3 bilateralResample(vec3 normal, float depth) {
-	const float range = 3.0;
-	vec2 px = 1.0 / vec2(viewWidth, viewHeight);
+	const float filterLod = 2.0;
+	const float range = 1.5;
+
+	const float lodScale = exp2(filterLod);
+
+	vec2 px = lodScale / vec2(viewWidth, viewHeight);
 
 	vec3 filtered = vec3(0.0);
-	float totalWeight = 0.0;
+	float totalWeight = 1e-9;
 	for (float i = -range; i <= range; i++) {
 		for (float j = -range; j <= range; j++) {
 			vec2 offset = vec2(i, j) * px;
 			vec2 coord = clamp01(screenCoord + offset);
 
-			vec3 normalSample = unpackNormal(texture2D(colortex2, coord).rg);
+			vec3 normalSample = unpackNormal(textureRaw(colortex2, coord).rg);
 			float depthSample = linearizeDepth(texture2D(depthtex1, coord).r, projectionInverse);
 
 			float weight  = clamp01(dot(normal, normalSample));
 			      weight *= 1.0 - clamp(abs(depth - depthSample), 0.0, 1.0);
 
-			filtered += texture2D(gaux2, coord).rgb * weight;
+			filtered += texture2DLod(gaux2, coord, filterLod).rgb * weight;
 			totalWeight += weight;
 		}
 	}
