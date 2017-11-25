@@ -64,6 +64,7 @@ varying vec2 screenCoord;
 
 #include "/lib/misc/get3DNoise.glsl"
 #include "/lib/misc/importanceSampling.glsl"
+#include "/lib/misc/lightmapCurve.glsl"
 #include "/lib/misc/shadowDistortion.glsl"
 
 //--//

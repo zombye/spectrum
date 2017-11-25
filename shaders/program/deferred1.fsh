@@ -58,6 +58,7 @@ varying vec2 screenCoord;
 #include "/lib/uniform/shadowMatrices.glsl"
 #include "/lib/uniform/vectors.glsl"
 
+#include "/lib/misc/lightmapCurve.glsl"
 #include "/lib/misc/shadowDistortion.glsl"
 
 //--//

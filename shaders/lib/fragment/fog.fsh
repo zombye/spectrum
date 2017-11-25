@@ -100,6 +100,8 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 	const vec3 absorbCoeff  = vec3(0.8, 0.45, 0.11);
 	const vec3 attenCoeff   = scatterCoeff + absorbCoeff;
 
+	skylight = lightmapCurve(skylight, LIGHTMAP_FALLOFF_SKY);
+
 	#if CREPUSCULAR_RAYS == 2
 	const float steps = 6.0;
 

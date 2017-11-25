@@ -14,6 +14,9 @@
 
 //--// Lighting
 
+#define LIGHTMAP_FALLOFF_BLOCK 2.0
+#define LIGHTMAP_FALLOFF_SKY   1.5
+
 const int shadowMapResolution = 2048; // [1024 2048 4096 8192]
 #define SHADOW_FILTER_TYPE 1 // [0 1 2 3]
 #define SHADOW_COLORED

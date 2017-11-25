@@ -239,10 +239,10 @@ float raytracedContactShadows(vec3 start) {
 #endif
 
 float blockLight(float lightmap) {
-	return lightmap / (pow2(-4.0 * lightmap + 4.0) + 1.0);
+	return lightmapCurve(lightmap, LIGHTMAP_FALLOFF_BLOCK);
 }
 float skyLight(float lightmap, vec3 normal) {
-	return (dot(normal, upVector) * 0.2 + 0.8) * lightmap / (pow2(-4.0 * lightmap + 4.0) + 1.0);
+	return (dot(normal, upVector) * 0.2 + 0.8) * lightmapCurve(lightmap, LIGHTMAP_FALLOFF_SKY);
 }
 
 float handLight(vec3 position, vec3 normal) {
@@ -258,7 +258,7 @@ float handLight(vec3 position, vec3 normal) {
 	mat2x3 lightVector = handPosition - mat2x3(position, position);
 
 	vec2 dist = clamp01((vec2(heldBlockLightValue, heldBlockLightValue2) - vec2(length(lightVector[0]), length(lightVector[1]))) * 0.0625);
-	vec2 lm   = dist / (pow2(-4.0 * dist + 4.0) + 1.0);
+	vec2 lm   = lightmapCurve(dist, LIGHTMAP_FALLOFF_BLOCK);
 
 	lm *= vec2(
 		diffuse(-normalize(position), normal, normalize(lightVector[0]), 0.0),
