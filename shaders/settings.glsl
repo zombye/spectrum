@@ -10,6 +10,8 @@
 
 //#define WATER_TEXTURE
 
+//#define TOTAL_INTERNAL_REFLECTION
+
 //--// Lighting
 
 const int shadowMapResolution = 2048; // [1024 2048 4096 8192]

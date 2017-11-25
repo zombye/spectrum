@@ -141,7 +141,11 @@ void main() {
 		mat.roughness   = 0.0001;
 	}
 
+	#ifdef TOTAL_INTERNAL_REFLECTION
 	float eta = isEyeInWater == 1 ? f0ToIOR(mat.reflectance) : 1.0 / f0ToIOR(mat.reflectance);
+	#else
+	float eta = 1.0 / f0ToIOR(mat.reflectance);
+	#endif
 
 	// kinda hacky
 	float fresnel = f_dielectric(clamp01(dot(normal, -normalize(position[1]))), eta);

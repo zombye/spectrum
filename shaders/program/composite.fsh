@@ -119,7 +119,11 @@ void main() {
 		vec3 normal  = unpackNormal(tex2.rg);
 		material mat = calculateMaterial(tex0.rgb, texture2D(colortex1, screenCoord), mask);
 
+		#ifdef TOTAL_INTERNAL_REFLECTION
 		float eta = isEyeInWater == 1 ? f0ToIOR(mat.reflectance) : 1.0 / f0ToIOR(mat.reflectance);
+		#else
+		float eta = 1.0 / f0ToIOR(mat.reflectance);
+		#endif
 
 		vec3 specular = calculateReflections(backPosition, direction, normal, eta, mat.roughness, lightmap, texture2D(gaux2, screenCoord).rgb);
 		composite = blendMaterial(composite, specular, mat);
