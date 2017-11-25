@@ -2,6 +2,7 @@
 #define REFLECTION_QUALITY 4.0
 #define REFLECTION_REFINEMENTS 4 // The max number needed depends on your resolution and reflection quality setting.
 #define VOLUMETRICCLOUDS_REFLECTED // Can have a very high performance impact!
+#define FOG_REFLECTED
 
 float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDistance, float alpha2) {
 	vec3 halfVector = normalize(view + light);
@@ -45,11 +46,13 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 			#endif
 		}
 
+		#ifdef FOG_REFLECTED
 		if (isEyeInWater == 1) {
 			reflectionSample = waterFog(reflectionSample, position[1], intersected ? hitPosView : rayDir * 1e3, lightmap.y);
 		} else {
 			reflectionSample = fog(reflectionSample, position[1], intersected ? hitPosView : rayDir * 1e3, lightmap);
 		}
+		#endif
 
 		reflectionSample *= smoothstep(0.1, 0.9, lightmap.y + float(intersected));
 		reflectionSample *= f_dielectric(clamp01(dot(facetNormal, -viewDirection)), eta);
