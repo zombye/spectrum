@@ -12,12 +12,10 @@ float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDista
 	return max0(0.25 * log2(4.0 * projection[1].y * zDistance * dot(view, halfVector) * p * p / (REFLECTION_SAMPLES * alpha2 * NoH)));
 }
 
-vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, float reflectance, float roughness, float skyLight, vec3 sunVisibility) {
-	if (reflectance == 0.0) return vec3(0.0);
+vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, float eta, float roughness, vec2 lightmap, vec3 sunVisibility) {
+	if (eta == 1.0) return vec3(0.0);
 
 	float dither = bayer8(gl_FragCoord.st);
-
-	float eta = 1.0 / f0ToIOR(reflectance);
 	float alpha2 = roughness * roughness;
 
 	vec3 reflection = vec3(0.0);
@@ -29,27 +27,30 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 
 		vec3 hitPos;
 		bool intersected = raytraceIntersection(position[0], rayDir, hitPos, dither, REFLECTION_QUALITY, REFLECTION_REFINEMENTS);
+		vec3 hitPosView = screenSpaceToViewSpace(hitPos, projectionInverse);
 
 		vec3 reflectionSample = vec3(0.0);
 
 		if (intersected) {
 			reflectionSample = texture2DLod(gaux1, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, position[1].z - linearizeDepth(hitPos.z, projectionInverse), alpha2)).rgb;
-		} else if (skyLight > 0.1) {
+		} else if (lightmap.y > 0.1 && isEyeInWater != 1) {
 			reflectionSample = sky_atmosphere(vec3(0.0), rayDir);
 			#ifdef FLATCLOUDS
-			vec4 clouds = flatClouds_calculate(rayDir);
-			reflectionSample = reflectionSample * clouds.a + clouds.rgb;
+			vec4 flatClouds = flatClouds_calculate(rayDir);
+			reflectionSample = reflectionSample * flatClouds.a + flatClouds.rgb;
 			#endif
-			reflectionSample *= smoothstep(0.1, 0.9, skyLight);
+			#ifdef VOLUMETRICCLOUDS_REFLECTED
+			vec4 volumetricClouds = volumetricClouds_calculate(position[1], hitPosView, rayDir, !intersected);
+			reflectionSample = reflectionSample * volumetricClouds.a + volumetricClouds.rgb;
+			#endif
+			reflectionSample *= smoothstep(0.1, 0.9, lightmap.y);
 		}
 
-		#ifdef VOLUMETRICCLOUDS_REFLECTED
-		if (skyLight > 0.1) {
-			vec4 clouds = volumetricClouds_calculate(position[1], screenSpaceToViewSpace(hitPos, projectionInverse), rayDir, !intersected);
-			clouds = mix(vec4(0.0, 0.0, 0.0, 1.0), clouds, smoothstep(0.1, 0.9, skyLight));
-			reflectionSample = reflectionSample * clouds.a + clouds.rgb;
+		if (isEyeInWater == 1) {
+			reflectionSample = waterFog(reflectionSample, position[1], intersected ? hitPosView : rayDir * 1e3, lightmap.y);
+		} else {
+			reflectionSample = fog(reflectionSample, position[1], intersected ? hitPosView : rayDir * 1e3, lightmap);
 		}
-		#endif
 
 		reflectionSample *= f_dielectric(clamp01(dot(facetNormal, -viewDirection)), eta);
 
@@ -57,7 +58,7 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 	} reflection /= REFLECTION_SAMPLES;
 	#else
 	vec3 rayDir = reflect(viewDirection, normal);
-	if (skyLight > 0.1) {
+	if (lightmap.y > 0.1) {
 		reflection = sky_atmosphere(vec3(0.0), rayDir);
 
 		#ifdef FLATCLOUDS
@@ -69,13 +70,13 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 		reflection = reflection * clouds.a + clouds.rgb;
 		#endif
 
-		reflection *= smoothstep(0.1, 0.9, skyLight);
+		reflection *= smoothstep(0.1, 0.9, lightmap.y);
 		reflection *= f_dielectric(clamp01(dot(normal, -viewDirection)), eta);
 	}
 	#endif
 
 	vec3 slmrp = mrp_sphere(reflect(normalize(position[1]), normal), shadowLightVector, sunAngularRadius);
-	reflection += sunVisibility * shadowLightColor * specularBRDF(-normalize(position[1]), normal, slmrp, reflectance, alpha2);
+	reflection += sunVisibility * shadowLightColor * specularBRDF(-normalize(position[1]), normal, slmrp, eta, alpha2);
 
 	return reflection;
 }

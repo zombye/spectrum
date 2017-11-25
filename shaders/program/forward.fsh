@@ -8,6 +8,9 @@ uniform ivec2 atlasSize;
 
 uniform float rainStrength;
 
+uniform ivec2 eyeBrightness;
+uniform int isEyeInWater;
+
 // Viewport
 uniform float viewWidth, viewHeight;
 
@@ -100,6 +103,8 @@ varying vec3 positionScene;
 
 #include "/lib/fragment/lighting.fsh"
 
+#include "/lib/fragment/fog.fsh"
+
 #include "/lib/fragment/specularBRDF.fsh"
 #include "/lib/fragment/reflections.fsh"
 
@@ -136,8 +141,10 @@ void main() {
 		mat.roughness   = 0.0001;
 	}
 
+	float eta = isEyeInWater == 1 ? f0ToIOR(mat.reflectance) : 1.0 / f0ToIOR(mat.reflectance);
+
 	// kinda hacky
-	float fresnel = f_dielectric(clamp01(dot(normal, -normalize(position[1]))), 1.0 / f0ToIOR(mat.reflectance));
+	float fresnel = f_dielectric(clamp01(dot(normal, -normalize(position[1]))), eta);
 	base.a = mix(base.a, 1.0, fresnel);
 
 	vec2 lightmapShaded = directionalLightmap(lightmap, norm.xyz);
@@ -145,7 +152,7 @@ void main() {
 	vec3 sunVisibility;
 	vec3 diffuse   = calculateLighting(position, normal, lightmapShaded, mat, sunVisibility) * mat.albedo;
 	     diffuse  *= 1.0 - fresnel;
-	vec3 specular  = calculateReflections(mat2x3(position), normalize(position[1]), normal, mat.reflectance, mat.roughness, lightmapShaded.y, sunVisibility) / base.a;
+	vec3 specular  = calculateReflections(mat2x3(position), normalize(position[1]), normal, eta, mat.roughness, lightmapShaded, sunVisibility) / base.a;
 	vec3 composite = blendMaterial(diffuse, specular, mat);
 
 /* DRAWBUFFERS:67 */

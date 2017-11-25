@@ -34,14 +34,14 @@ float v_smithGGXCorrelated(float NoV, float NoL, float alpha2) {
 	return 0.5 / max(delta.x + delta.y, 1e-9);
 }
 
-float specularBRDF(vec3 view, vec3 normal, vec3 light, float reflectance, float alpha2) {
+float specularBRDF(vec3 view, vec3 normal, vec3 light, float eta, float alpha2) {
 	vec3 halfVec = normalize(view + light);
 	float NoV = clamp01(dot(normal, view));
 	float NoH = clamp01(dot(normal, halfVec));
 	float NoL = clamp01(dot(normal, light));
 
 	float d = d_GGX(NoH, alpha2);
-	float f = f_dielectric(NoV, 1.0 / f0ToIOR(reflectance));
+	float f = f_dielectric(NoV, eta);
 	float v = v_smithGGXCorrelated(NoV, NoL, alpha2);
 
 	return d * f * v * NoL;
