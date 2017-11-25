@@ -43,7 +43,6 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 			vec4 volumetricClouds = volumetricClouds_calculate(position[1], hitPosView, rayDir, !intersected);
 			reflectionSample = reflectionSample * volumetricClouds.a + volumetricClouds.rgb;
 			#endif
-			reflectionSample *= smoothstep(0.1, 0.9, lightmap.y);
 		}
 
 		if (isEyeInWater == 1) {
@@ -52,6 +51,7 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 			reflectionSample = fog(reflectionSample, position[1], intersected ? hitPosView : rayDir * 1e3, lightmap);
 		}
 
+		reflectionSample *= smoothstep(0.1, 0.9, lightmap.y + float(intersected));
 		reflectionSample *= f_dielectric(clamp01(dot(facetNormal, -viewDirection)), eta);
 
 		reflection += reflectionSample;
