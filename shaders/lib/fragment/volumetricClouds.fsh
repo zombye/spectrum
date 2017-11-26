@@ -28,9 +28,9 @@ float volumetricClouds_density(vec3 position) {
 		volumetricClouds_noiseLayer(vec3(0.0005, 0.0005, 0.0005), vec3(0.003, 0.000, 0.003), 1.00000 / 1.96875),
 		volumetricClouds_noiseLayer(vec3(0.0010, 0.0010, 0.0010), vec3(0.006, 0.000, 0.006), 0.50000 / 1.96875),
 		volumetricClouds_noiseLayer(vec3(0.0030, 0.0030, 0.0030), vec3(0.030, 0.000, 0.030), 0.25000 / 1.96875),
-		volumetricClouds_noiseLayer(vec3(0.0090, 0.0090, 0.0090), vec3(0.150, 0.000, 0.150) * 0.5, 0.12500 / 1.96875),
-		volumetricClouds_noiseLayer(vec3(0.0270, 0.0270, 0.0270), vec3(0.750, 0.000, 0.750) * 0.5, 0.06250 / 1.96875),
-		volumetricClouds_noiseLayer(vec3(0.0810, 0.0810, 0.0810), vec3(1.750, 0.000, 1.750) * 0.5, 0.03125 / 1.96875)
+		volumetricClouds_noiseLayer(vec3(0.0090, 0.0090, 0.0090), vec3(0.075, 0.000, 0.075), 0.12500 / 1.96875),
+		volumetricClouds_noiseLayer(vec3(0.0270, 0.0270, 0.0270), vec3(0.375, 0.000, 0.375), 0.06250 / 1.96875),
+		volumetricClouds_noiseLayer(vec3(0.0810, 0.0810, 0.0810), vec3(0.875, 0.000, 0.875), 0.03125 / 1.96875)
 	);
 
 	float density = get3DNoise(position * layer[0].mul + layer[0].add * frameTimeCounter) * layer[0].weight;

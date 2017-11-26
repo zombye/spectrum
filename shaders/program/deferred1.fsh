@@ -66,6 +66,8 @@ varying vec2 screenCoord;
 #include "/lib/fragment/masks.fsh"
 #include "/lib/fragment/materials.fsh"
 
+#include "/lib/fragment/sky.fsh"
+
 vec3 bilateralResample(vec3 normal, float depth) {
 	const float filterLod = 2.0;
 	const float range = 1.5;

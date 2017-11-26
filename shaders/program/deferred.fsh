@@ -71,26 +71,23 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float dither) {
 		// Discard samples that definitely can't contribute ASAP
 		if (dot(shadowNormal.xy, sampleOffset) > 0.0) continue;
 
-		vec2  sampleCoord  = shadowClipPosition.xy + sampleOffset;
-		float distortCoeff = shadows_calculateDistortionCoeff(sampleCoord);
-		      sampleCoord *= distortCoeff;
-		      sampleCoord  = sampleCoord * 0.5 + 0.5;
-
-		vec3 samplePosition = projectionInverseScale * vec3(shadowClipPosition.xy + sampleOffset, texture2D(shadowtex0, sampleCoord).r * 2.0 - 1.0) + projectionShadowInverse[3].xyz;
+		vec3 samplePosition = shadowClipPosition + vec3(sampleOffset, 0.0);
+		vec2 sampleCoord    = shadows_distortShadowSpace(samplePosition.xy) * 0.5 + 0.5;
+		     samplePosition = projectionInverseScale * vec3(samplePosition.xy, texture2D(shadowtex0, sampleCoord).r * 2.0 - 1.0) + projectionShadowInverse[3].xyz;
 
 		vec3  sampleVector = shadowPosition - samplePosition;
 		float sampleDistSq = dot(sampleVector, sampleVector);
 		if (sampleDistSq > radiusSquared) continue;
 		      sampleVector = sampleVector * inversesqrt(sampleDistSq);
 
-		vec3 sampleNormal = texture2D(shadowcolor1, sampleCoord.st).rgb * 2.0 - 1.0; sampleNormal.z = abs(sampleNormal.z);
+		vec3 sampleNormal = texture2D(shadowcolor1, sampleCoord).rgb * 2.0 - 1.0; sampleNormal.z = abs(sampleNormal.z);
 		float sampleVis = clamp01(dot(sampleVector, shadowNormal)) * clamp01(dot(sampleVector, sampleNormal)) * sampleNormal.z;
 
 		if (sampleVis <= 0.0) continue;
 
 		sampleDistSq += sampleDistAdd;
 
-		vec4 sampleAlbedo = texture2D(shadowcolor0, sampleCoord.st);
+		vec4 sampleAlbedo = texture2D(shadowcolor0, sampleCoord);
 		rsm += sampleAlbedo.rgb * sampleAlbedo.a * sampleVis / sampleDistSq;
 	}
 

@@ -12,9 +12,7 @@
 
 //--//
 
-float diffuse_lambertian(vec3 normal, vec3 light) {
-	return clamp01(dot(normal, light)) / pi;
-}
+#if DIFFUSE_MODEL == 1
 float diffuse_burley(vec3 view, vec3 normal, vec3 light, float roughness) {
 	const vec2 efc = vec2(-51.0 / 151.0, 1.0) / pi;
 
@@ -25,13 +23,38 @@ float diffuse_burley(vec3 view, vec3 normal, vec3 light, float roughness) {
 
 	return NoL * rs.x * rs.y * (efc.x * roughness + efc.y);
 }
-
-#if DIFFUSE_MODEL == 1
 #define diffuse(v, n, l, r) diffuse_burley(v, n, l, r)
 #else
+float diffuse_lambertian(vec3 normal, vec3 light) {
+	return clamp01(dot(normal, light)) / pi;
+}
 #define diffuse(v, n, l, r) diffuse_lambertian(n, l)
 #endif
 
+#if SHADOW_FILTER_TYPE == 2 || SHADOW_FILTER_TYPE == 3
+const vec2[18] pcss_offset = vec2[18](
+	vec2(-0.98685560, -0.03261871),
+	vec2(-0.47958790,  0.23570540),
+	vec2(-0.30706600, -0.15843290),
+	vec2(-0.60807480,  0.01524314),
+	vec2(-0.17485240,  0.49767420),
+	vec2( 0.18764890,  0.45603400),
+	vec2(-0.14323580,  0.75790890),
+	vec2(-0.78102060, -0.44097930),
+	vec2(-0.12428560, -0.78665660),
+	vec2(-0.01482044, -0.48689910),
+	vec2( 0.18829080,  0.71168610),
+	vec2( 0.26197550, -0.61955050),
+	vec2( 0.52478220,  0.61679990),
+	vec2( 0.75702890,  0.08125463),
+	vec2( 0.33045960, -0.31044460),
+	vec2( 0.69684450, -0.61393110),
+	vec2( 0.07468465,  0.99449370),
+	vec2( 0.45471010, -0.78973980)
+);
+#endif
+
+#if SHADOW_FILTER_TYPE != 3 || !defined SHADOW_COLORED
 vec3 shadowSample(vec3 position) {
 	float opaque = textureShadow(shadowtex1, position);
 	
@@ -48,6 +71,9 @@ vec3 shadowSample(vec3 position) {
 
 	return transparent * opaque;
 }
+#endif
+
+#if SHADOW_FILTER_TYPE == 1
 vec3 softShadow(vec3 position) {
 	const vec2[12] offset = vec2[12](
 		vec2(-0.5, 1.5),
@@ -71,27 +97,7 @@ vec3 softShadow(vec3 position) {
 
 	return result / offset.length();
 }
-
-const vec2[18] pcss_offset = vec2[18](
-	vec2(-0.98685560, -0.03261871),
-	vec2(-0.47958790,  0.23570540),
-	vec2(-0.30706600, -0.15843290),
-	vec2(-0.60807480,  0.01524314),
-	vec2(-0.17485240,  0.49767420),
-	vec2( 0.18764890,  0.45603400),
-	vec2(-0.14323580,  0.75790890),
-	vec2(-0.78102060, -0.44097930),
-	vec2(-0.12428560, -0.78665660),
-	vec2(-0.01482044, -0.48689910),
-	vec2( 0.18829080,  0.71168610),
-	vec2( 0.26197550, -0.61955050),
-	vec2( 0.52478220,  0.61679990),
-	vec2( 0.75702890,  0.08125463),
-	vec2( 0.33045960, -0.31044460),
-	vec2( 0.69684450, -0.61393110),
-	vec2( 0.07468465,  0.99449370),
-	vec2( 0.45471010, -0.78973980)
-);
+#elif SHADOW_FILTER_TYPE == 2
 vec3 pcss(vec3 position, float angularRadius) {
 	const float searchScale = 0.05;
 	float spread = -tan(angularRadius) * projectionShadowInverse[2].z * projectionShadow[0].x;
@@ -116,6 +122,7 @@ vec3 pcss(vec3 position, float angularRadius) {
 
 	return result;
 }
+#elif SHADOW_FILTER_TYPE == 3
 vec3 lpcss(vec3 position, float angularRadius) {
 	const float searchScale = 0.05;
 	float spread = -tan(angularRadius) * projectionShadowInverse[2].z * projectionShadow[0].x;
@@ -151,31 +158,7 @@ vec3 lpcss(vec3 position, float angularRadius) {
 
 	return result;
 }
-
-vec3 waterShadows(vec3 position, vec3 shadowPosition, vec3 shadowCoord) {
-	const vec3 scatteringCoeff = vec3(0.3e-2, 1.8e-2, 2.0e-2) * 0.4;
-	const vec3 absorbtionCoeff = vec3(0.8, 0.45, 0.11);
-	const vec3 transmittanceCoeff = scatteringCoeff + absorbtionCoeff;
-
-	// Checks if there's water on the shadow map at this location
-	if (texture2D(shadowcolor1, shadowCoord.xy).b > 0.5) return vec3(1.0);
-
-	float waterDepth = texture2D(shadowtex0, shadowCoord.xy).r * 2.0 - 1.0;
-	waterDepth = waterDepth * projectionShadowInverse[2].z + projectionShadowInverse[3].z;
-	waterDepth = shadowPosition.z - waterDepth;
-
-	// Make sure we're not in front of the water
-	if (waterDepth >= 0.0) return vec3(1.0);
-
-	// Water fog transmittance - has issues around edges of shadows, and not really needed as I already fade out the shadow light with the skylightmap (it still helps tough).
-	vec3 result = vec3(1.0);//exp(transmittanceCoeff * waterDepth);
-
-	#if CAUSTICS_SAMPLES > 0
-	result *= waterCaustics(position, waterDepth);
-	#endif
-
-	return result;
-}
+#endif
 
 vec3 shadows(vec3 position, vec3 shadowPosition, vec3 shadowClip, vec3 shadowCoord, float cloudShadow) {
 	#if SHADOW_FILTER_TYPE == 2 || SHADOW_FILTER_TYPE == 3
@@ -193,8 +176,10 @@ vec3 shadows(vec3 position, vec3 shadowPosition, vec3 shadowClip, vec3 shadowCoo
 	vec3 result = shadowSample(shadowCoord);
 	#endif
 
+	#if CAUSTICS_SAMPLES > 0
 	if (result != vec3(0.0))
-		result *= waterShadows(position, shadowPosition, shadowCoord);
+		result *= waterCaustics(position, shadowPosition, shadowCoord);
+	#endif
 
 	return result;
 }
@@ -268,10 +253,17 @@ float handLight(vec3 position, vec3 normal) {
 	return lm.x + lm.y;
 }
 
+#ifdef HBAO
+float hbao_depthFetch(vec2 c) {
+	//return texture2D(depthtex1, c).r; // can result in incorrect occlusion
+
+	vec2 r = vec2(viewWidth, viewHeight);
+	vec4 g = textureGather(depthtex1, c);
+	vec4 w = fract(c * r + 0.5).xxyy * vec4(1,-1,1,-1) + vec4(0,1,0,1);
+	return dot(g, w.yxxy * w.zzww) + maxof(abs(g.xzxy - g.ywzw));
+}
+
 float hbao(vec3 position, vec3 normal) {
-	#ifndef HBAO
-	return 1.0;
-	#else
 	const float alpha = tau / HBAO_DIRECTIONS;
 
 	#ifdef TEMPORAL_AA
@@ -297,7 +289,7 @@ float hbao(vec3 position, vec3 normal) {
 		for (int j = 0; j < HBAO_SAMPLES_DIRECTION; j++) {
 			vec2 sampleUV = viewSpaceToScreenSpace(dir * (j + noise.y) + position, projection).st;
 			if (floor(sampleUV) != vec2(0.0)) break;
-			vec3 samplePosition = screenSpaceToViewSpace(vec3(sampleUV, texture2D(depthtex1, sampleUV).r), projectionInverse);
+			vec3 samplePosition = screenSpaceToViewSpace(vec3(sampleUV, hbao_depthFetch(sampleUV)), projectionInverse);
 
 			vec3 sampleVector = samplePosition - position;
 			float distanceSquared = dot(sampleVector, sampleVector);
@@ -312,8 +304,8 @@ float hbao(vec3 position, vec3 normal) {
 	}
 
 	return result / (HBAO_DIRECTIONS * pi * 0.5);
-	#endif
 }
+#endif
 
 vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, out vec3 sunVisibility) {
 	vec3 shadowPosition = mat3(shadowModelView) * position[2] + shadowModelView[3].xyz;
@@ -348,9 +340,10 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	#endif
 
 	float skyLight = skyLight(lightmap.y, normal);
-	if (skyLight > 0.0) {
+	#ifdef HBAO
+	if (skyLight > 0.0)
 		skyLight *= hbao(position[1], normal);
-	}
+	#endif
 
 	float
 	blockLight  = blockLight(lightmap.x);
@@ -358,7 +351,7 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 
 	vec3
 	lighting  = shadowLightColor * shadowLight;
-	lighting += skyLightColor * skyLight;
+	lighting += sky_atmosphere(vec3(0.0), upVector) * skyLight;
 	lighting += blockLightColor * blockLight;
 
 	return lighting;
