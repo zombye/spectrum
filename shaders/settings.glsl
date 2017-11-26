@@ -12,6 +12,8 @@
 
 //#define TOTAL_INTERNAL_REFLECTION
 
+//#define PHYSICAL_ATMOSPHERE // Physically based atmosphere model. Much more realistic, but also much slower.
+
 //--// Lighting
 
 #define LIGHTMAP_FALLOFF_BLOCK 2.0

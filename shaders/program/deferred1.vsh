@@ -18,10 +18,15 @@ varying vec2 screenCoord;
 
 //----------------------------------------------------------------------------//
 
+#include "/lib/util/clamping.glsl"
 #include "/lib/util/constants.glsl"
 #include "/lib/util/math.glsl"
+#include "/lib/util/miscellaneous.glsl"
 
 #include "/lib/misc/temporalAA.glsl"
+
+#include "/lib/sky/constants.glsl"
+#include "/lib/sky/phaseFunctions.glsl"
 
 #include "/lib/uniform/vectors.glsl"
 #include "/lib/uniform/colors.glsl"

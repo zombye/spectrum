@@ -87,6 +87,12 @@ varying vec3 positionScene;
 
 //--//
 
+#include "/lib/sky/constants.glsl"
+#include "/lib/sky/phaseFunctions.glsl"
+#include "/lib/sky/main.glsl"
+
+//--//
+
 #include "/lib/fragment/terrainParallax.fsh"
 #include "/lib/fragment/directionalLightmap.fsh"
 
@@ -97,7 +103,6 @@ varying vec3 positionScene;
 #include "/lib/fragment/water/normal.fsh"
 #include "/lib/fragment/water/caustics.fsh"
 
-#include "/lib/fragment/sky.fsh"
 #include "/lib/fragment/volumetricClouds.fsh"
 
 #include "/lib/fragment/raytracer.fsh"

@@ -351,7 +351,7 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 
 	vec3
 	lighting  = shadowLightColor * shadowLight;
-	lighting += sky_atmosphere(vec3(0.0), upVector) * skyLight;
+	lighting += skyLightColor * skyLight;
 	lighting += blockLightColor * blockLight;
 
 	return lighting;

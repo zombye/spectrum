@@ -16,48 +16,15 @@ const vec3  moonLuminance       = sunIlluminance * moonColor;
 const vec3  moonIlluminance     = moonLuminance * (tau * (1.0 - cos(moonAngularRadius)));
 
 #if STAGE == STAGE_VERTEX
-const float planetRadius     = 6731e3;
-const float atmosphereHeight =  100e3;
-const float atmosphereRadius = planetRadius + atmosphereHeight;
-
-const vec2 scaleHeights = vec2(8e3, 1.2e3);
-
-const vec2  inverseScaleHeights     = 1.0 / scaleHeights;
-const vec2  scaledPlanetRadius      = planetRadius * inverseScaleHeights;
-const float atmosphereRadiusSquared = atmosphereRadius * atmosphereRadius;
-
-const vec3 rayleighCoeff = vec3(5.800e-6, 1.350e-5, 3.310e-5);
-const vec3 ozoneCoeff    = vec3(3.426e-7, 8.298e-7, 0.356e-7) * 6.0;
-const vec3 mieCoeff      = vec3(3e-6);
-
-const mat2x3 scatteringCoefficients    = mat2x3(rayleighCoeff, mieCoeff);
-const mat2x3 transmittanceCoefficients = mat2x3(rayleighCoeff + ozoneCoeff, mieCoeff * 1.11);
-
-vec2 sky_opticalDepth(vec3 position, vec3 dir) {
-	const float steps = 50.0;
-
-	float stepSize  = dot(position, dir);
-	      stepSize  = sqrt((stepSize * stepSize) + atmosphereRadiusSquared - dot(position, position)) - stepSize;
-	      stepSize /= steps;
-	vec3  increment = dir * stepSize;
-
-	vec2 od = vec2(0.0);
-	for (float i = 0.0; i < steps; i++, position += increment) {
-		od += exp(length(position) * -inverseScaleHeights + scaledPlanetRadius);
-	}
-
-	return od * stepSize;
-}
-
-//--//
+#include "/lib/sky/main.glsl"
 
 void calculateColors() {
-	vec3 viewPosition = upVector * planetRadius;
-	vec2 sunOD = sky_opticalDepth(viewPosition, shadowLightVector);
+	vec3 viewPosition = upVector * PLANET_RADIUS;
+	vec2 sunOD = sky_opticalDepth(viewPosition, shadowLightVector, 50.0);
 	vec3 sunTransmittance = exp(-transmittanceCoefficients * sunOD);
 
 	shadowLightColor = mix(moonIlluminance, sunIlluminance, smoothstep(-0.01, 0.01, dot(sunVector, upVector))) * sunTransmittance;
 	blockLightColor  = vec3(1.00, 0.70, 0.35) * 1.0e2;
-	skyLightColor    = mix(vec3(0.012, 0.014, 0.02), vec3(0.55, 0.65, 1.00), pow(1.0 - rainStrength, 3.0)) * 0.05 * shadowLightColor.r;
+	skyLightColor    = sky_atmosphere(vec3(0.0), upVector);
 }
 #endif

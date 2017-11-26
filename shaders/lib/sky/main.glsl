@@ -1,57 +1,7 @@
-/*
-	TODO:
-	Clean up a bit
-	Make non-PBR atmosphere include moon
-*/
-
-/*
-	Referenced:
-	[Elek09] - http://old.cescg.org/CESCG-2009/papers/PragueCUNI-Elek-Oskar09.pdf
-*/
-
-// the distance a ray is from a point with the closest approach at distance h and x = 0
-// this is effectively the curve that sky_opticalDepth runs along
-// Noted here as I think I might need it at some point, like maybe for clouds.
-// pDistCurve(x) { h == 0 ? abs(x) : h * sqrt(pow2(x / h) + 1.0); }
-
-//--//
-
-//#define PHYSICAL_ATMOSPHERE // Physically based atmosphere model. Much more realistic, but also much slower.
-
-const float atmosphereHeight = 100e3;
-const float atmosphereRadius = PLANET_RADIUS + atmosphereHeight;
-
-const vec2 scaleHeights = vec2(8e3, 1.2e3);
-
-const vec2  inverseScaleHeights     = 1.0 / scaleHeights;
-const vec2  scaledPlanetRadius      = PLANET_RADIUS * inverseScaleHeights;
-const float atmosphereRadiusSquared = atmosphereRadius * atmosphereRadius;
-
-const vec3 rayleighCoeff = vec3(5.800e-6, 1.350e-5, 3.310e-5);
-const vec3 ozoneCoeff    = vec3(3.426e-7, 8.298e-7, 0.356e-7) * 6.0;
-const vec3 mieCoeff      = vec3(3e-6);
-
-const mat2x3 scatteringCoefficients    = mat2x3(rayleighCoeff, mieCoeff);
-const mat2x3 transmittanceCoefficients = mat2x3(rayleighCoeff + ozoneCoeff, mieCoeff * 1.11);
-
-//--//
-
-float sky_rayleighPhase(float cosTheta) {
-	const vec2 mul_add = vec2(0.1, 0.28) / pi;
-	return cosTheta * mul_add.x + mul_add.y; // optimized version from [Elek09], divided by 4 pi for energy conservation
-}
-float sky_miePhase(float cosTheta, float g) {
-	float gg = g * g;
-	float p1 = (0.75 * (1.0 - gg)) / (tau * (2.0 + gg));
-	float p2 = (cosTheta * cosTheta + 1.0) * pow(1.0 + gg - 2.0 * g * cosTheta, -1.5);
-	return p1 * p2;
-}
-
 vec3 sky_atmosphereRainOverlay(vec3 atmosphere) {
 	return mix(atmosphere * (-0.98 * rainStrength + 1.0), vec3(0.012, 0.014, 0.02), rainStrength * 0.6);
 }
 
-#ifdef PHYSICAL_ATMOSPHERE
 vec2 sky_opticalDepth(vec3 position, vec3 dir, const float steps) {
 	float stepSize  = dot(position, dir);
 	      stepSize  = sqrt(max0((stepSize * stepSize) + atmosphereRadiusSquared - dot(position, position))) - stepSize;
@@ -67,7 +17,8 @@ vec2 sky_opticalDepth(vec3 position, vec3 dir, const float steps) {
 	return od * stepSize;
 }
 
-vec3 sky_atmosphere(vec3 background, vec3 viewVector) {
+#ifdef PHYSICAL_ATMOSPHERE
+vec3 sky_atmosphere(vec3 background, vec3 viewVector, float dither) {
 	const float iSteps = 50.0; // Requires a ridiculous amount of steps before the difference is even rarely noticable. It's somewhere beyond 2000, comparing 2000 with 3000 is where it starts to get hard to notice when comparing side-by-side.
 	const float jSteps = 3.0;  // Difference is rarely noticable beyond 6 where you only notice it below the horizon and so is not normally visible, and almost imperceptible beyond ~25 where you notice it because of the dithering done in final
 
@@ -78,7 +29,7 @@ vec3 sky_atmosphere(vec3 background, vec3 viewVector) {
 	      iStepSize /= iSteps;
 	      iStepSize *= pow(0.01 * min(dot(viewVector, upVector), 0.0) + 1.0, 700.0); // stop before getting to regions that would have little to no impact on the result
 	vec3  iIncrement = viewVector * iStepSize;
-	vec3  iPosition  = iIncrement * bayer8(gl_FragCoord.st) + viewPosition;
+	vec3  iPosition  = iIncrement * dither + viewPosition;
 
 	float sunVoL    = dot(viewVector, sunVector);
 	float moonVoL   = dot(viewVector, moonVector);
