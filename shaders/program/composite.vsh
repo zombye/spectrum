@@ -6,6 +6,8 @@ uniform float rainStrength;
 
 uniform int isEyeInWater;
 
+uniform vec3 cameraPosition;
+
 // Time
 uniform int frameCounter;
 
