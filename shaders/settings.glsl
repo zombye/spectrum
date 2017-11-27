@@ -12,7 +12,7 @@
 
 //#define TOTAL_INTERNAL_REFLECTION
 
-//#define PHYSICAL_ATMOSPHERE // Physically based atmosphere model. Much more realistic, but also much slower.
+#define SKY_ATMOSPHERE_MODE 0 // [0 1]
 
 //--// Lighting
 

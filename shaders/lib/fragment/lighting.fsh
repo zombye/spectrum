@@ -75,19 +75,16 @@ vec3 shadowSample(vec3 position) {
 
 #if SHADOW_FILTER_TYPE == 1
 vec3 softShadow(vec3 position) {
-	const vec2[12] offset = vec2[12](
-		vec2(-0.5, 1.5),
-		vec2( 0.5, 1.5),
-		vec2(-1.5, 0.5),
-		vec2(-0.5, 0.5),
-		vec2( 0.5, 0.5),
-		vec2( 1.5, 0.5),
-		vec2(-1.5,-0.5),
-		vec2(-0.5,-0.5),
-		vec2( 0.5,-0.5),
-		vec2( 1.5,-0.5),
-		vec2(-0.5,-1.5),
-		vec2( 0.5,-1.5)
+	const vec2[9] offset = vec2[9](
+		vec2(-0.7, 0.7),
+		vec2( 0.0, 1.0),
+		vec2( 0.7, 0.7),
+		vec2(-1.0, 0.0),
+		vec2( 0.0, 0.0),
+		vec2( 1.0, 0.0),
+		vec2(-0.7,-0.7),
+		vec2( 0.0,-1.0),
+		vec2( 0.7,-0.7)
 	);
 
 	vec2 pixel = 1.0 / textureSize2D(shadowtex1, 0);

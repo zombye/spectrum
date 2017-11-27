@@ -17,13 +17,13 @@ vec2 sky_opticalDepth(vec3 position, vec3 dir, const float steps) {
 	return od * stepSize;
 }
 
-#ifdef PHYSICAL_ATMOSPHERE
+#if SKY_ATMOSPHERE_MODE == 1
 vec3 sky_atmosphere(vec3 background, vec3 viewVector) {
 	const float iSteps = 50.0; // Requires a ridiculous amount of steps before the difference is even rarely noticable. It's somewhere beyond 2000, comparing 2000 with 3000 is where it starts to get hard to notice when comparing side-by-side.
 	const float jSteps = 3.0;  // Difference is rarely noticable beyond 6 where you only notice it below the horizon and so is not normally visible, and almost imperceptible beyond ~25 where you notice it because of the dithering done in final
 
 	#if STAGE == STAGE_VERTEX
-	float dither = 0.0;
+	float dither = 0.5;
 	#else
 	float dither = bayer8(gl_FragCoord.st);
 	#endif

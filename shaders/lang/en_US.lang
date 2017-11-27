@@ -21,7 +21,10 @@ option.TEMPORAL_AA.comment=Can cause small amounts of ghosting and/or blurring w
 screen.atmospherics=Atmospherics
 screen.atmospherics.comment=Options for effects related to rendering the atmosphere, such as clouds and crepuscular rays.
 
-option.PHYSICAL_ATMOSPHERE=Physically Based Atmosphere
+option.SKY_ATMOSPHERE_MODE=Atmosphere
+option.SKY_ATMOSPHERE_MODE.comment=The Fancy setting significantly improves quality around sunrise and sunset, but is extremely demanding.
+value.SKY_ATMOSPHERE_MODE.0=Fast
+value.SKY_ATMOSPHERE_MODE.1=Fancy
 
 # Volumetric Clouds
 option.VOLUMETRICCLOUDS_SAMPLES=Volumetric Clouds Quality
@@ -85,7 +88,7 @@ option.RSM_BRIGHTNESS=Brightness
 ##--## Optics
 
 screen.optics=Optics
-screen.optics.comment=Options effects simulating artifacts of an optical system, such as Depth of Field.
+screen.optics.comment=Options for effects simulating artifacts of an optical system, such as Depth of Field.
 
 option.APERTURE_RADIUS=Aperture Radius
 option.APERTURE_BLADE_COUNT=Aperture Blade Count
