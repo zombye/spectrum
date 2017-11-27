@@ -309,7 +309,7 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	vec3 shadowClip     = vec3(projectionShadow[0].x, projectionShadow[1].y, projectionShadow[2].z) * shadowPosition + projectionShadow[3].xyz;
 	vec3 shadowCoord    = shadows_distortShadowSpace(shadowClip) * 0.5 + 0.5;
 
-	float cloudShadow = texture2D(gaux2, shadowCoord.xy).a;
+	float cloudShadow = texture2DLod(gaux2, shadowCoord.xy, 0.0).a;
 	sunVisibility = vec3(cloudShadow);
 
 	vec3 shadowLight = vec3(lightmap.y * lightmap.y);
