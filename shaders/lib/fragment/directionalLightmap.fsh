@@ -23,20 +23,22 @@ vec2 directionalLightmap(vec2 lightmap, vec3 normal) {
 	#ifdef DIRECTIONAL_LIGHTMAP_BLOCK
 	vec2 blockDerivatives = vec2(dFdx(lightmap.x), dFdy(lightmap.x));
 	vec3 blockLightVector = normalize((blockDerivatives.x * geometryDerivativeX) + (blockDerivatives.y * geometryDerivativeY) + (geometryDerivativeNormal * 1e-6));
+	if (dot(blockLightVector, tbn[2]) > 0.9) shading.x = normalBias.x * 0.5 + 0.5;
 	     blockLightVector = normalize(mix(blockLightVector, tbn[2], normalBias.x));
 
-	shading.x = clamp01(dot(blockLightVector, normal) * 0.5 + 0.5);
+	shading.x *= clamp01(dot(blockLightVector, normal) * 0.5 + 0.5);
 	if (shading.x == 0.0) shading.x = 1.0;
 	#endif
 
 	#ifdef DIRECTIONAL_LIGHTMAP_SKY
 	vec2 skyDerivatives   = vec2(dFdx(lightmap.y), dFdy(lightmap.y));
 	vec3 skyLightVector = normalize((skyDerivatives.x * geometryDerivativeX) + (skyDerivatives.y * geometryDerivativeY) + (geometryDerivativeNormal * 1e-6));
+	if (dot(skyLightVector, tbn[2]) > 0.9) shading.y = normalBias.y * 0.5 + 0.5;
 	     skyLightVector = normalize(mix(skyLightVector, tbn[2], normalBias.y));
 
-	shading.y = clamp01(dot(skyLightVector, normal) * 0.5 + 0.5);
+	shading.y *= clamp01(dot(skyLightVector, normal) * 0.5 + 0.5);
 	if (shading.y == 0.0) shading.y = 1.0;
 	#endif
 
-	return lightmap * shading;
+	return lightmap * shading / (normalBias * 0.5 + 0.5);
 }
