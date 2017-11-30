@@ -45,11 +45,11 @@ void main() {
 
 	vec3
 	blur  = generateBlurTileX(screenCoord * exp2(1), 1);
-	blur += generateBlurTileX((screenCoord - (vec2(0, 8) * px + vec2(0.0000, 0.50000))) * exp2(2), 2);
-	blur += generateBlurTileX((screenCoord - (vec2(2, 8) * px + vec2(0.2500, 0.50000))) * exp2(3), 3);
-	blur += generateBlurTileX((screenCoord - (vec2(2,16) * px + vec2(0.2500, 0.62500))) * exp2(4), 4);
-	blur += generateBlurTileX((screenCoord - (vec2(4,16) * px + vec2(0.3125, 0.62500))) * exp2(5), 5);
-	blur += generateBlurTileX((screenCoord - (vec2(4,24) * px + vec2(0.3125, 0.65625))) * exp2(6), 6);
+	blur += generateBlurTileX((screenCoord - (vec2(0, 9) * px + vec2(0.0000, 0.50000))) * exp2(2), 2);
+	blur += generateBlurTileX((screenCoord - (vec2(2, 9) * px + vec2(0.2500, 0.50000))) * exp2(3), 3);
+	blur += generateBlurTileX((screenCoord - (vec2(2,18) * px + vec2(0.2500, 0.62500))) * exp2(4), 4);
+	blur += generateBlurTileX((screenCoord - (vec2(4,18) * px + vec2(0.3125, 0.62500))) * exp2(5), 5);
+	blur += generateBlurTileX((screenCoord - (vec2(4,27) * px + vec2(0.3125, 0.65625))) * exp2(6), 6);
 
 /* DRAWBUFFERS:5 */
 

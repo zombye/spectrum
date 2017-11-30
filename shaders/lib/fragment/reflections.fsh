@@ -1,7 +1,7 @@
 #define REFLECTION_SAMPLES 1 // [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16]
 #define REFLECTION_QUALITY 4.0
 #define REFLECTION_REFINEMENTS 4 // The max number needed depends on your resolution and reflection quality setting.
-#define VOLUMETRICCLOUDS_REFLECTED // Can have a very high performance impact!
+#define VOLUMETRICCLOUDS_REFLECTED
 #define FOG_REFLECTED
 
 float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDistance, float alpha2) {

@@ -57,7 +57,7 @@ const vec2[18] pcss_offset = vec2[18](
 #if SHADOW_FILTER_TYPE != 3 || !defined SHADOW_COLORED
 vec3 shadowSample(vec3 position) {
 	float opaque = textureShadow(shadowtex1, position);
-	
+
 	#ifdef SHADOW_COLORED
 	opaque = sqrt(opaque);
 	vec4 colorSample = texture2D(shadowcolor0, position.st);
@@ -336,7 +336,7 @@ vec3 calculateLighting(mat3 position, vec3 direction, vec3 normal, vec2 lightmap
 	#endif
 
 	float skyLight = skyLight(lightmap.y, normal);
-	#ifdef HBAO
+	#if defined HBAO && PROGRAM != PROGRAM_WATER
 	if (skyLight > 0.0)
 		skyLight *= hbao(position[1], direction, normal, dither);
 	#endif

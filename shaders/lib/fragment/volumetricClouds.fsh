@@ -51,7 +51,7 @@ float volumetricClouds_density(vec3 position) {
 	return density;
 }
 
-float volumetricClouds_shadow(vec3 position) {
+float volumetricClouds_calculateShadow(vec3 position) {
 	#if VOLUMETRICCLOUDS_SAMPLES == 0
 	return mix(0.0, 1.0, pow3(1.0 - rainStrength));
 	#endif
@@ -66,7 +66,7 @@ float volumetricClouds_shadow(vec3 position) {
 	distances.x = max(distances.x, 0.0);                                                 // start can never be closer than 0
 	if (distances.y < distances.x) return 1.0;                                           // y still less than x? no clouds visible then
 
-	const float samples = 10.0;
+	const float samples = 5.0;
 	float stepSize = (distances.y - distances.x) / samples;
 
 	vec3 increment = direction * stepSize;
@@ -82,12 +82,12 @@ float volumetricClouds_shadow(vec3 position) {
 #if PROGRAM != PROGRAM_DEFERRED
 float volumetricClouds_phase(float cosTheta) {
 	const vec2 g    = vec2(0.25, -0.15);
-	const vec2 gm2  = 2.0 * g;
+	const vec2 gmn2 = -2.0 * g;
 	const vec2 gg   = g * g;
 	const vec2 gga1 = 1.0 + gg;
 	const vec2 p1   = (0.75 * (1.0 - gg)) / (tau * (2.0 + gg));
 
-	vec2 res = p1 * (cosTheta * cosTheta + 1.0) * pow(gga1 - gm2 * cosTheta, vec2(-1.5));
+	vec2 res = p1 * (cosTheta * cosTheta + 1.0) * pow(gmn2 * cosTheta + gga1, vec2(-1.5));
 
 	return dot(res, vec2(0.4)) + 0.2;
 }

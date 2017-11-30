@@ -133,7 +133,7 @@ void main() {
 	composite *= mat.albedo;
 	if (mat.reflectance > 0.0)
 		composite *= 1.0 - f_dielectric(clamp01(dot(normal, -direction)), 1.0 / f0ToIOR(mat.reflectance));
-	composite = mat.emittance * 1e3 + composite;
+	composite = mat.emittance * 1e2 + composite;
 
 /* DRAWBUFFERS:45 */
 

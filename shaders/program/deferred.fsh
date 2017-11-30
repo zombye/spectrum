@@ -101,7 +101,7 @@ float calculateCloudShadowMap() {
 	shadowPos.st /= 1.0 - length(shadowPos.st);
 	shadowPos = transformPosition(transformPosition(shadowPos, projectionShadowInverse), shadowModelViewInverse);
 
-	return volumetricClouds_shadow(shadowPos);
+	return volumetricClouds_calculateShadow(shadowPos);
 }
 
 void main() {

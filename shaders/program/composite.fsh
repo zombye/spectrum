@@ -82,7 +82,6 @@ varying vec2 screenCoord;
 #include "/lib/fragment/water/normal.fsh"
 #include "/lib/fragment/water/caustics.fsh"
 
-
 #include "/lib/fragment/flatClouds.fsh"
 #include "/lib/fragment/volumetricClouds.fsh"
 

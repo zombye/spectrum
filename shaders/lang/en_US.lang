@@ -63,7 +63,12 @@ option.HBAO_DIRECTIONS=Directions
 option.HBAO_SAMPLES_DIRECTION=Samples Per Direction
 
 # Reflections
-option.REFLECTION_SAMPLES=Reflection Samples
+screen.reflections=Reflections
+option.REFLECTION_SAMPLES=Samples
+option.TOTAL_INTERNAL_REFLECTION=Total Internal Reflection
+option.FOG_REFLECTED=Include Fog
+option.VOLUMETRICCLOUDS_REFLECTED=Include Volumetric Clouds
+option.VOLUMETRICCLOUDS_REFLECTED.comment=Can have a very high performance impact!
 
 # Shadows
 screen.shadows=Shadows
@@ -95,6 +100,7 @@ option.APERTURE_BLADE_COUNT=Aperture Blade Count
 option.APERTURE_BLADE_ROTATION=Aperture Blade Rotation
 
 option.DOF=Depth of Field
+option.DOF.comment=Currently does not take into account aperture blades
 option.BLOOM_AMOUNT=Bloom Amount
 option.DIFFRACTION_SPIKES=Diffraction Spikes
 

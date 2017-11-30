@@ -1,6 +1,6 @@
 #include "/settings.glsl"
 
-//#define DOF // Currently does not take into account aperture blades
+//#define DOF
 
 const bool colortex4MipmapEnabled = true;
 
