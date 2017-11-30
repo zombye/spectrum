@@ -251,10 +251,10 @@ float handLight(vec3 position, vec3 normal) {
 
 #ifdef HBAO
 float hbao_depthFetch(vec2 c) {
-	//return texture2D(depthtex1, c).r; // can result in incorrect occlusion
+	//return texture2D(depthtex2, c).r; // can result in incorrect occlusion
 
 	vec2 r = vec2(viewWidth, viewHeight);
-	vec4 g = textureGather(depthtex1, c);
+	vec4 g = textureGather(depthtex2, c);
 	vec4 w = fract(c * r + 0.5).xxyy * vec4(1,-1,1,-1) + vec4(0,1,0,1);
 	return dot(g, w.yxxy * w.zzww) + maxof(abs(g.xzxy - g.ywzw));
 }
