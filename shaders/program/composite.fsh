@@ -110,19 +110,21 @@ void main() {
 
 	vec3 composite = texture2D(gaux1, screenCoord).rgb;
 
+	float dither = bayer8(gl_FragCoord.st);
+
 	if (mask.sky) {
 		composite = sky_render(composite, direction);
 		#ifdef FLATCLOUDS
 		vec4 flatClouds = flatClouds_calculate(direction);
 		composite = composite * flatClouds.a + flatClouds.rgb;
 		#endif
-		vec4 volumetricClouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction, true);
+		vec4 volumetricClouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction, true, dither);
 		composite = composite * volumetricClouds.a + volumetricClouds.rgb;
 	}
 	#ifdef MC_SPECULAR_MAP
 	else {
-		vec3 normal  = unpackNormal(tex2.rg);
 		material mat = calculateMaterial(tex0.rgb, texture2D(colortex1, screenCoord), mask);
+		vec3 normal  = unpackNormal(tex2.rg);
 
 		#ifdef TOTAL_INTERNAL_REFLECTION
 		float eta = isEyeInWater == 1 ? f0ToIOR(mat.reflectance) : 1.0 / f0ToIOR(mat.reflectance);
@@ -130,7 +132,7 @@ void main() {
 		float eta = 1.0 / f0ToIOR(mat.reflectance);
 		#endif
 
-		vec3 specular = calculateReflections(backPosition, direction, normal, eta, mat.roughness, lightmap, texture2D(gaux2, screenCoord).rgb);
+		vec3 specular = calculateReflections(backPosition, direction, normal, eta, mat.roughness, lightmap, texture2D(gaux2, screenCoord).rgb, dither);
 		composite = blendMaterial(composite, specular, mat);
 	}
 	#endif
@@ -141,9 +143,9 @@ void main() {
 
 	if (mask.water) {
 		if (isEyeInWater != 1) {
-			composite = waterFog(composite, frontPosition[1], backPosition[1], frontSkylight);
+			composite = waterFog(composite, frontPosition[1], backPosition[1], frontSkylight, dither);
 		} else {
-			composite = fog(composite, frontPosition[1], backPosition[1], lightmap);
+			composite = fog(composite, frontPosition[1], backPosition[1], lightmap, dither);
 			// TODO: Fake crepuscular rays here as well
 		}
 	}
@@ -152,10 +154,10 @@ void main() {
 	composite = composite * (1.0 - transparent.a) + transparent.rgb;
 
 	if (isEyeInWater == 1) {
-		composite = waterFog(composite, vec3(0.0), frontPosition[1], mask.water ? frontSkylight : lightmap.y);
+		composite = waterFog(composite, vec3(0.0), frontPosition[1], mask.water ? frontSkylight : lightmap.y, dither);
 	} else {
-		composite  = fog(composite, vec3(0.0), frontPosition[1], lightmap);
-		composite += fakeCrepuscularRays(direction);
+		composite  = fog(composite, vec3(0.0), frontPosition[1], lightmap, dither);
+		composite += fakeCrepuscularRays(direction, dither);
 	}
 
 	float prevLuminance = texture2D(colortex3, screenCoord).a;

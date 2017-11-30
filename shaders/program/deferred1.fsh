@@ -107,11 +107,10 @@ vec3 bilateralResample(vec3 normal, float depth) {
 //--//
 
 void main() {
-	vec4 tex0 = texture2D(colortex0, screenCoord);
-
-	masks mask = calculateMasks(round(tex0.a * 255.0));
-
 	gl_FragData[1].a = texture2D(gaux2, screenCoord).a;
+
+	vec4 tex0 = texture2D(colortex0, screenCoord);
+	masks mask = calculateMasks(round(tex0.a * 255.0));
 
 	if (mask.sky) { exit(); return; }
 
@@ -122,16 +121,19 @@ void main() {
 	vec3 direction = normalize(backPosition[1]);
 
 	vec4 tex2 = texture2D(colortex2, screenCoord);
-
 	vec3 normal   = unpackNormal(tex2.rg);
 	vec2 lightmap = tex2.ba;
+
 	material mat  = calculateMaterial(tex0.rgb, texture2D(colortex1, screenCoord), mask);
 
+	float dither = bayer8(gl_FragCoord.st);
+
 	vec3
-	composite  = calculateLighting(backPosition, normal, lightmap, mat, gl_FragData[1].rgb);
+	composite  = calculateLighting(backPosition, direction, normal, lightmap, mat, dither, gl_FragData[1].rgb);
 	composite *= mat.albedo;
-	if (mat.reflectance > 0.0) composite *= 1.0 - f_dielectric(clamp01(dot(normal, -direction)), 1.0 / f0ToIOR(mat.reflectance));
-	composite += mat.emittance * 1e3;
+	if (mat.reflectance > 0.0)
+		composite *= 1.0 - f_dielectric(clamp01(dot(normal, -direction)), 1.0 / f0ToIOR(mat.reflectance));
+	composite = mat.emittance * 1e3 + composite;
 
 /* DRAWBUFFERS:45 */
 

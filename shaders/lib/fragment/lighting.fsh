@@ -90,17 +90,17 @@ vec3 softShadow(vec3 position) {
 	vec2 pixel = 1.0 / textureSize2D(shadowtex1, 0);
 
 	vec3 result = vec3(0.0);
-	for (int i = 0; i < offset.length(); i++) result += shadowSample(position + vec3(offset[i] * pixel, 0.0));
+	for (int i = 0; i < offset.length(); i++) result += shadowSample(vec3(offset[i] * pixel + position.xy, position.z));
 
 	return result / offset.length();
 }
 #elif SHADOW_FILTER_TYPE == 2
-vec3 pcss(vec3 position, float angularRadius) {
+vec3 pcss(vec3 position, float angularRadius, float dither) {
 	const float searchScale = 0.05;
 	float spread = -tan(angularRadius) * projectionShadowInverse[2].z * projectionShadow[0].x;
 	float searchRadius = spread * searchScale;
 
-	float dither = bayer2(gl_FragCoord.st) * tau;
+	dither *= tau;
 	mat2 ditherRotaion = mat2(cos(dither), sin(dither), -sin(dither), cos(dither));
 
 	// blocker search & penumbra estimation
@@ -120,12 +120,12 @@ vec3 pcss(vec3 position, float angularRadius) {
 	return result;
 }
 #elif SHADOW_FILTER_TYPE == 3
-vec3 lpcss(vec3 position, float angularRadius) {
+vec3 lpcss(vec3 position, float angularRadius, float dither) {
 	const float searchScale = 0.05;
 	float spread = -tan(angularRadius) * projectionShadowInverse[2].z * projectionShadow[0].x;
 	float searchRadius = spread * searchScale;
 
-	float dither = bayer2(gl_FragCoord.st) * tau;
+	dither *= tau;
 	mat2 ditherRotaion = mat2(cos(dither), sin(dither), -sin(dither), cos(dither));
 
 	// blocker search & penumbra estimation
@@ -157,7 +157,7 @@ vec3 lpcss(vec3 position, float angularRadius) {
 }
 #endif
 
-vec3 shadows(vec3 position, vec3 shadowPosition, vec3 shadowClip, vec3 shadowCoord, float cloudShadow) {
+vec3 shadows(vec3 position, vec3 shadowPosition, vec3 shadowClip, vec3 shadowCoord, float cloudShadow, float dither) {
 	#if SHADOW_FILTER_TYPE == 2 || SHADOW_FILTER_TYPE == 3
 	float angularRadius  = mix(moonAngularRadius, sunAngularRadius, smoothstep(-0.01, 0.01, dot(sunVector, upVector)));
 	      angularRadius *= mix(10.0, 1.0, sqrt(cloudShadow));
@@ -166,9 +166,9 @@ vec3 shadows(vec3 position, vec3 shadowPosition, vec3 shadowClip, vec3 shadowCoo
 	#if SHADOW_FILTER_TYPE == 1
 	vec3 result = softShadow(shadowCoord);
 	#elif SHADOW_FILTER_TYPE == 2 || (SHADOW_FILTER_TYPE == 3 && !defined SHADOW_COLORED)
-	vec3 result = pcss(shadowClip, angularRadius);
+	vec3 result = pcss(shadowClip, angularRadius, dither);
 	#elif SHADOW_FILTER_TYPE == 3
-	vec3 result = lpcss(shadowClip, angularRadius);
+	vec3 result = lpcss(shadowClip, angularRadius, dither);
 	#else
 	vec3 result = shadowSample(shadowCoord);
 	#endif
@@ -192,8 +192,7 @@ bool checkContactShadowIntersection(vec3 position, vec3 interval, float depth, f
 	return difference < -maxof(dd) && min(-interval.z, position.z - delinearizeDepth(linearizeDepth(position.z, projectionInverse) - RTCS_SURFACE_THICKNESS, projection)) < difference;
 }
 
-float raytracedContactShadows(vec3 start) {
-	float dither = bayer8(gl_FragCoord.st);
+float raytracedContactShadows(vec3 start, float dither) {
 	vec2  pixel = 1.0 / textureSize2D(depthtex1, 0);
 
 	vec3 direction = shadowLightVector * RTCS_RANGE / RTCS_SAMPLES;
@@ -260,25 +259,23 @@ float hbao_depthFetch(vec2 c) {
 	return dot(g, w.yxxy * w.zzww) + maxof(abs(g.xzxy - g.ywzw));
 }
 
-float hbao(vec3 position, vec3 normal) {
+float hbao(vec3 position, vec3 direction, vec3 normal, float dither) {
 	const float alpha = tau / HBAO_DIRECTIONS;
 
 	#ifdef TEMPORAL_AA
-	vec2 noise = hash22(vec2(bayer8(gl_FragCoord.st), frameCounter % 16));
+	vec2 noise = hash22(vec2(dither, frameCounter % 16));
 	#else
-	vec2 noise = hash22(vec2(bayer8(gl_FragCoord.st)));
+	vec2 noise = hash22(vec2(dither));
 	#endif
 	noise.x *= alpha;
-
-	vec3 view = -normalize(position);
 
 	float result = 0.0;
 	for (int i = 0; i < HBAO_DIRECTIONS; i++) {
 		float angle = alpha * i + noise.x;
 		vec3 dir = vec3(cos(angle), sin(angle), 0.0);
 
-		vec3 pv = 1e-2 * dir + view * 1e2;
-		float cosHorizon = dot(view, normalize(pv * dot(view, normal) / dot(pv, normal) - view));
+		vec3 pv = 1e-2 * dir + direction * 1e2;
+		float cosHorizon = dot(direction, normalize(pv * dot(direction, normal) / dot(pv, normal) - direction));
 
 		dir *= HBAO_RADIUS / HBAO_SAMPLES_DIRECTION;
 
@@ -293,7 +290,7 @@ float hbao(vec3 position, vec3 normal) {
 
 			if (distanceSquared > HBAO_RADIUS * HBAO_RADIUS) continue;
 
-			cosHorizon = max(cosHorizon, dot(view, sampleVector) * inversesqrt(distanceSquared));
+			cosHorizon = max(cosHorizon, dot(direction, sampleVector) * inversesqrt(distanceSquared));
 		}
 
 		// Add angle above horizon to result
@@ -304,7 +301,9 @@ float hbao(vec3 position, vec3 normal) {
 }
 #endif
 
-vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, out vec3 sunVisibility) {
+vec3 calculateLighting(mat3 position, vec3 direction, vec3 normal, vec2 lightmap, material mat, float dither, out vec3 sunVisibility) {
+	direction = -direction;
+
 	vec3 shadowPosition = mat3(shadowModelView) * position[2] + shadowModelView[3].xyz;
 	vec3 shadowClip     = vec3(projectionShadow[0].x, projectionShadow[1].y, projectionShadow[2].z) * shadowPosition + projectionShadow[3].xyz;
 	vec3 shadowCoord    = shadows_distortShadowSpace(shadowClip) * 0.5 + 0.5;
@@ -315,13 +314,13 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	vec3 shadowLight = vec3(lightmap.y * lightmap.y);
 	if (shadowLight != vec3(0.0)) {
 		vec3 fakeSubsurface = (1.0 - mat.albedo) * sqrt(mat.albedo) * (max0(-dot(normal, shadowLightVector)) * 0.5 + 0.5) / pi;
-		vec3 diffuse = fakeSubsurface * mat.subsurface + diffuse(-normalize(position[1]), normal, shadowLightVector, mat.roughness);
+		vec3 diffuse = fakeSubsurface * mat.subsurface + diffuse(direction, normal, shadowLightVector, mat.roughness);
 
 		if (diffuse != vec3(0.0)) {
-			sunVisibility *= shadows(position[2], shadowPosition, shadowClip, shadowCoord, cloudShadow);
+			sunVisibility *= shadows(position[2], shadowPosition, shadowClip, shadowCoord, cloudShadow, dither);
 			#ifdef RTCS
 			if (sunVisibility != vec3(0.0) && mat.subsurface == 0.0)
-				sunVisibility *= raytracedContactShadows(position[0]);
+				sunVisibility *= raytracedContactShadows(position[0], dither);
 			#endif
 		} else {
 			sunVisibility *= 0.0;
@@ -339,17 +338,15 @@ vec3 calculateLighting(mat3 position, vec3 normal, vec2 lightmap, material mat, 
 	float skyLight = skyLight(lightmap.y, normal);
 	#ifdef HBAO
 	if (skyLight > 0.0)
-		skyLight *= hbao(position[1], normal);
+		skyLight *= hbao(position[1], direction, normal, dither);
 	#endif
 
-	float
-	blockLight  = blockLight(lightmap.x);
-	blockLight += handLight(position[1], normal);
+	float blockLight = blockLight(lightmap.x) + handLight(position[1], normal);
 
 	vec3
 	lighting  = shadowLightColor * shadowLight;
-	lighting += skyLightColor * skyLight;
-	lighting += blockLightColor * blockLight;
+	lighting += skyLightColor    * skyLight;
+	lighting += blockLightColor  * blockLight;
 
 	return lighting;
 }

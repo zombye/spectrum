@@ -105,7 +105,7 @@ float volumetricClouds_odDirection(vec3 position, vec3 direction, float startDen
 	return stepSize * od;
 }
 
-vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewDirection, bool sky) {
+vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewDirection, bool sky, float dither) {
 	#if VOLUMETRICCLOUDS_SAMPLES == 0
 	return vec4(0.0, 0.0, 0.0, 1.0);
 	#endif
@@ -128,7 +128,7 @@ vec4 volumetricClouds_calculate(vec3 startPosition, vec3 endPosition, vec3 viewD
 
 	// set increment and initialize position
 	vec3 increment = direction * stepSize;
-	vec3 position = increment * bayer8(gl_FragCoord.st) + (direction * distances.x + worldStart);
+	vec3 position = increment * dither + (direction * distances.x + worldStart);
 
 	// directions for each light source
 	      vec3 shadowDirection  = mat3(gbufferModelViewInverse) * shadowLightVector;

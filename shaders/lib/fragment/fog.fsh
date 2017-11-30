@@ -3,7 +3,7 @@
 
 //--//
 
-vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
+vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap, float dither) {
 	vec3 direction = endPosition - startPosition;
 	float stepSize = length(direction);
 	if (stepSize == 0.0) return background; // Prevent divide by 0
@@ -24,8 +24,8 @@ vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
 	vec3 shadowPos = transformPosition(transformPosition(worldPos - cameraPosition, shadowModelView), projectionShadow);
 	vec3 shadowIncrement = mat3(projectionShadow) * mat3(shadowModelView) * worldIncrement;
 
-	worldPos  += worldIncrement  * bayer8(gl_FragCoord.st);
-	shadowPos += shadowIncrement * bayer8(gl_FragCoord.st);
+	worldPos  += worldIncrement  * dither;
+	shadowPos += shadowIncrement * dither;
 
 	float mistFactor = pow5(dot(sunVector, gbufferModelView[0].xyz) * 0.5 + 0.5);
 	float mistScaleHeight = mix(500.0, mix(200.0, 8.0, mistFactor), pow3(1.0 - rainStrength));
@@ -67,7 +67,7 @@ vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap) {
 }
 
 #if PROGRAM != PROGRAM_WATER
-vec3 fakeCrepuscularRays(vec3 viewVector) {
+vec3 fakeCrepuscularRays(vec3 viewVector, float dither) {
 	#if CREPUSCULAR_RAYS != 1
 	return vec3(0.0);
 	#endif
@@ -82,7 +82,7 @@ vec3 fakeCrepuscularRays(vec3 viewVector) {
 	lightPosition = (lightPosition / lightPosition.w) * 0.5 + 0.5;
 
 	vec2 increment = (lightPosition.xy - screenCoord) / steps;
-	vec2 sampleCoord = increment * bayer8(gl_FragCoord.st) + screenCoord;
+	vec2 sampleCoord = increment * dither + screenCoord;
 
 	float result = 0.0;
 	for (float i = 0.0; i < steps && floor(sampleCoord) == vec2(0.0); i++, sampleCoord += increment) {
@@ -95,7 +95,7 @@ vec3 fakeCrepuscularRays(vec3 viewVector) {
 }
 #endif
 
-vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skylight) {
+vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skylight, float dither) {
 	const vec3 scatterCoeff = vec3(0.3e-2, 1.8e-2, 2.0e-2) * 0.4;
 	const vec3 absorbCoeff  = vec3(0.8, 0.45, 0.11);
 	const vec3 attenCoeff   = scatterCoeff + absorbCoeff;
@@ -113,7 +113,7 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 	increment = mat3(projectionShadow) * mat3(shadowModelView) * mat3(gbufferModelViewInverse) * increment;
 	vec3 position = transformPosition(transformPosition(transformPosition(startPosition, gbufferModelViewInverse), shadowModelView), projectionShadow);
 
-	position += increment * bayer8(gl_FragCoord.st);
+	position += increment * dither;
 
 	vec3 transmittance = vec3(1.0);
 	vec3 scattering    = vec3(0.0);

@@ -13,10 +13,9 @@ float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDista
 	return max0(0.25 * log2(4.0 * projection[1].y * zDistance * dot(view, halfVector) * p * p / (REFLECTION_SAMPLES * alpha2 * NoH)));
 }
 
-vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, float eta, float roughness, vec2 lightmap, vec3 sunVisibility) {
+vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, float eta, float roughness, vec2 lightmap, vec3 sunVisibility, float dither) {
 	if (eta == 1.0) return vec3(0.0);
 
-	float dither = bayer8(gl_FragCoord.st);
 	float alpha2 = roughness * roughness;
 
 	vec3 reflection = vec3(0.0);
@@ -41,16 +40,16 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 			reflectionSample = reflectionSample * flatClouds.a + flatClouds.rgb;
 			#endif
 			#ifdef VOLUMETRICCLOUDS_REFLECTED
-			vec4 volumetricClouds = volumetricClouds_calculate(position[1], hitPosView, rayDir, !intersected);
+			vec4 volumetricClouds = volumetricClouds_calculate(position[1], hitPosView, rayDir, !intersected, dither);
 			reflectionSample = reflectionSample * volumetricClouds.a + volumetricClouds.rgb;
 			#endif
 		}
 
 		#ifdef FOG_REFLECTED
 		if (isEyeInWater == 1) {
-			reflectionSample = waterFog(reflectionSample, position[1], intersected ? hitPosView : rayDir * 1e3, lightmap.y);
+			reflectionSample = waterFog(reflectionSample, position[1], intersected ? hitPosView : rayDir * 1e3, lightmap.y, dither);
 		} else {
-			reflectionSample = fog(reflectionSample, position[1], intersected ? hitPosView : rayDir * 1e3, lightmap);
+			reflectionSample = fog(reflectionSample, position[1], intersected ? hitPosView : rayDir * 1e3, lightmap, dither);
 		}
 		#endif
 
@@ -69,7 +68,7 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 		reflection = reflection * flatClouds.a + flatClouds.rgb;
 		#endif
 		#ifdef VOLUMETRICCLOUDS_REFLECTED
-		vec4 clouds = volumetricClouds_calculate(position[1], position[1] + rayDir, rayDir, true);
+		vec4 clouds = volumetricClouds_calculate(position[1], position[1] + rayDir, rayDir, true, dither);
 		reflection = reflection * clouds.a + clouds.rgb;
 		#endif
 

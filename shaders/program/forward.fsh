@@ -134,6 +134,7 @@ void main() {
 	masks mask = calculateMasks(round(metadata.x));
 
 	mat3 position = mat3(vec3(gl_FragCoord.xy / vec2(viewWidth, viewHeight), gl_FragCoord.z), positionView, positionScene);
+	vec3 direction = normalize(position[1]);
 
 	material mat = calculateMaterial(base.rgb, spec, mask);
 	vec3 normal = norm.xyz;
@@ -154,15 +155,16 @@ void main() {
 	#endif
 
 	// kinda hacky
-	float fresnel = f_dielectric(clamp01(dot(normal, -normalize(position[1]))), eta);
+	float fresnel = f_dielectric(clamp01(dot(normal, -direction)), eta);
 	base.a = mix(base.a, 1.0, fresnel);
 
 	vec2 lightmapShaded = directionalLightmap(lightmap, norm.xyz);
 
+	float dither = bayer8(gl_FragCoord.st);
+
 	vec3 sunVisibility;
-	vec3 diffuse   = calculateLighting(position, normal, lightmapShaded, mat, sunVisibility) * mat.albedo;
-	     diffuse  *= 1.0 - fresnel;
-	vec3 specular  = calculateReflections(mat2x3(position), normalize(position[1]), normal, eta, mat.roughness, lightmapShaded, sunVisibility) / base.a;
+	vec3 diffuse   = calculateLighting(position, direction, normal, lightmapShaded, mat, dither, sunVisibility) * mat.albedo * (1.0 - fresnel);
+	vec3 specular  = calculateReflections(mat2x3(position), direction, normal, eta, mat.roughness, lightmapShaded, sunVisibility, dither) / base.a;
 	vec3 composite = blendMaterial(diffuse, specular, mat);
 
 /* DRAWBUFFERS:67 */
