@@ -111,17 +111,8 @@ void main() {
 
 	float dither = bayer8(gl_FragCoord.st);
 
-	if (mask.sky) {
-		composite = sky_render(composite, direction);
-		#ifdef FLATCLOUDS
-		vec4 flatClouds = flatClouds_calculate(direction);
-		composite = composite * flatClouds.a + flatClouds.rgb;
-		#endif
-		vec4 volumetricClouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction, true, dither);
-		composite = composite * volumetricClouds.a + volumetricClouds.rgb;
-	}
 	#ifdef MC_SPECULAR_MAP
-	else {
+	if (!mask.sky) {
 		material mat = calculateMaterial(tex0.rgb, texture2D(colortex1, screenCoord), mask);
 		vec3 normal  = unpackNormal(tex2.rg);
 

@@ -59,8 +59,15 @@ varying vec2 screenCoord;
 #include "/lib/uniform/shadowMatrices.glsl"
 #include "/lib/uniform/vectors.glsl"
 
+#include "/lib/misc/get3DNoise.glsl"
 #include "/lib/misc/lightmapCurve.glsl"
 #include "/lib/misc/shadowDistortion.glsl"
+
+//--//
+
+#include "/lib/sky/constants.glsl"
+#include "/lib/sky/phaseFunctions.glsl"
+#include "/lib/sky/main.glsl"
 
 //--//
 
@@ -101,6 +108,9 @@ vec3 bilateralResample(vec3 normal, float depth) {
 #include "/lib/fragment/water/normal.fsh"
 #include "/lib/fragment/water/caustics.fsh"
 
+#include "/lib/fragment/flatClouds.fsh"
+#include "/lib/fragment/volumetricClouds.fsh"
+
 #include "/lib/fragment/lighting.fsh"
 
 #include "/lib/fragment/specularBRDF.fsh"
@@ -113,28 +123,37 @@ void main() {
 	vec4 tex0 = texture2D(colortex0, screenCoord);
 	masks mask = calculateMasks(round(tex0.a * 255.0));
 
-	if (mask.sky) { exit(); return; }
-
 	mat3 backPosition;
 	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
 	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
 	backPosition[2] = viewSpaceToSceneSpace(backPosition[1], gbufferModelViewInverse);
 	vec3 direction = normalize(backPosition[1]);
 
-	vec4 tex2 = texture2D(colortex2, screenCoord);
-	vec3 normal   = unpackNormal(tex2.rg);
-	vec2 lightmap = tex2.ba;
-
-	material mat  = calculateMaterial(tex0.rgb, texture2D(colortex1, screenCoord), mask);
-
 	float dither = bayer8(gl_FragCoord.st);
 
-	vec3
-	composite  = calculateLighting(backPosition, direction, normal, lightmap, mat, dither, gl_FragData[1].rgb);
-	composite *= mat.albedo;
-	if (mat.reflectance > 0.0)
-		composite *= 1.0 - f_dielectric(clamp01(dot(normal, -direction)), 1.0 / f0ToIOR(mat.reflectance));
-	composite = mat.emittance * 1e2 + composite;
+	vec3 composite = vec3(0.0);
+
+	if (mask.sky) {
+		composite = sky_render(composite, direction);
+		#ifdef FLATCLOUDS
+		vec4 flatClouds = flatClouds_calculate(direction);
+		composite = composite * flatClouds.a + flatClouds.rgb;
+		#endif
+		vec4 volumetricClouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction, true, dither);
+		composite = composite * volumetricClouds.a + volumetricClouds.rgb;
+	} else {
+		vec4 tex2 = texture2D(colortex2, screenCoord);
+		vec3 normal   = unpackNormal(tex2.rg);
+		vec2 lightmap = tex2.ba;
+
+		material mat  = calculateMaterial(tex0.rgb, texture2D(colortex1, screenCoord), mask);
+
+		composite  = calculateLighting(backPosition, direction, normal, lightmap, mat, dither, gl_FragData[1].rgb);
+		composite *= mat.albedo;
+		if (mat.reflectance > 0.0)
+			composite *= 1.0 - f_dielectric(clamp01(dot(normal, -direction)), 1.0 / f0ToIOR(mat.reflectance));
+		composite = mat.emittance * 1e2 + composite;
+	}
 
 /* DRAWBUFFERS:45 */
 

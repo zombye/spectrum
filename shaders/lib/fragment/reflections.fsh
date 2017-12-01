@@ -1,7 +1,7 @@
 #define REFLECTION_SAMPLES 1 // [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16]
 #define REFLECTION_QUALITY 4.0
 #define REFLECTION_REFINEMENTS 4 // The max number needed depends on your resolution and reflection quality setting.
-#define VOLUMETRICCLOUDS_REFLECTED
+#define VOLUMETRICCLOUDS_REFLECTED 1 // [0 1 2]
 #define FOG_REFLECTED
 
 float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDistance, float alpha2) {
@@ -34,15 +34,23 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 		if (intersected) {
 			reflectionSample = texture2DLod(gaux1, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, position[1].z - linearizeDepth(hitPos.z, projectionInverse), alpha2)).rgb;
 		} else if (lightmap.y > 0.1 && isEyeInWater != 1) {
-			reflectionSample = sky_atmosphere(vec3(0.0), rayDir);
-			#ifdef FLATCLOUDS
-			vec4 flatClouds = flatClouds_calculate(rayDir);
-			reflectionSample = reflectionSample * flatClouds.a + flatClouds.rgb;
+			vec2 ssEndpoint = viewSpaceToScreenSpace(rayDir, projection).xy;
+			#if VOLUMETRICCLOUDS_REFLECTED != 2
+			if (floor(ssEndpoint) == vec2(0.0) && texture2D(depthtex1, ssEndpoint).r >= 1.0) {
+				reflectionSample = texture2D(gaux1, ssEndpoint).rgb;
+			} else
 			#endif
-			#ifdef VOLUMETRICCLOUDS_REFLECTED
-			vec4 volumetricClouds = volumetricClouds_calculate(position[1], hitPosView, rayDir, !intersected, dither);
-			reflectionSample = reflectionSample * volumetricClouds.a + volumetricClouds.rgb;
-			#endif
+			{
+				reflectionSample = sky_atmosphere(vec3(0.0), rayDir);
+				#ifdef FLATCLOUDS
+				vec4 flatClouds = flatClouds_calculate(rayDir);
+				reflectionSample = reflectionSample * flatClouds.a + flatClouds.rgb;
+				#endif
+				#if VOLUMETRICCLOUDS_REFLECTED != 0
+				vec4 volumetricClouds = volumetricClouds_calculate(position[1], hitPosView, rayDir, !intersected, dither);
+				reflectionSample = reflectionSample * volumetricClouds.a + volumetricClouds.rgb;
+				#endif
+			}
 		}
 
 		#ifdef FOG_REFLECTED
