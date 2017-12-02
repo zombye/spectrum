@@ -32,12 +32,12 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 		vec3 reflectionSample = vec3(0.0);
 
 		if (intersected) {
-			reflectionSample = texture2DLod(gaux1, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, position[1].z - linearizeDepth(hitPos.z, projectionInverse), alpha2)).rgb;
+			reflectionSample = texture2DLod(gaux1, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, position[1].z - linearizeDepth(hitPos.z, projectionInverse), alpha2)).rgb / PRE_EXPOSURE_SCALE;
 		} else if (lightmap.y > 0.1 && isEyeInWater != 1) {
 			vec2 ssEndpoint = viewSpaceToScreenSpace(rayDir, projection).xy;
 			#if VOLUMETRICCLOUDS_REFLECTED != 2
 			if (floor(ssEndpoint) == vec2(0.0) && texture2D(depthtex1, ssEndpoint).r >= 1.0) {
-				reflectionSample = texture2D(gaux1, ssEndpoint).rgb;
+				reflectionSample = texture2D(gaux1, ssEndpoint).rgb / PRE_EXPOSURE_SCALE;
 			} else
 			#endif
 			{

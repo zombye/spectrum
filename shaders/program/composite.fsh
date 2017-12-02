@@ -107,7 +107,7 @@ void main() {
 	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
 	vec3 direction = normalize(backPosition[1]);
 
-	vec3 composite = texture2D(gaux1, screenCoord).rgb;
+	vec3 composite = texture2D(gaux1, screenCoord).rgb / PRE_EXPOSURE_SCALE;
 
 	float dither = bayer8(gl_FragCoord.st);
 
@@ -141,7 +141,7 @@ void main() {
 	}
 
 	vec4 transparent = texture2D(colortex6, screenCoord);
-	composite = composite * (1.0 - transparent.a) + transparent.rgb;
+	composite = composite * (1.0 - transparent.a) + (transparent.rgb / PRE_EXPOSURE_SCALE);
 
 	if (isEyeInWater == 1) {
 		composite = waterFog(composite, vec3(0.0), frontPosition[1], mask.water ? frontSkylight : lightmap.y, dither);

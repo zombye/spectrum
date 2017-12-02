@@ -157,7 +157,7 @@ void main() {
 
 /* DRAWBUFFERS:45 */
 
-	gl_FragData[0] = vec4(composite, 1.0);
+	gl_FragData[0] = vec4(composite * PRE_EXPOSURE_SCALE, 1.0);
 
 	exit();
 }

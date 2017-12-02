@@ -5,6 +5,7 @@
 //--// Miscellaneous
 
 #define EXPOSURE 0.15
+#define PRE_EXPOSURE_SCALE 0.01
 
 #define TEMPORAL_AA
 
