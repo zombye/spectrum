@@ -2,7 +2,7 @@
 
 //#define DIFFRACTION_SPIKES // Diffraction spikes. Quite slow. Not finished.
 
-#define TONEMAP 1 // [1 2]
+#define TONEMAP 1 // [1 2 3 4]
 
 //----------------------------------------------------------------------------//
 
@@ -92,11 +92,33 @@ vec3 tonemap_filmic(vec3 color) {
 	return pow(color * color * (-2.0 * color + 3.0), cr / c);
 }
 
+vec3 tonemap_legacy(vec3 color) {
+	// This is the tonemap I used in my original shaderpack (and also a version of it where the toe is heavily reduced)
+	const vec3  p = vec3(0.08);
+	const float g = 0.0; // used to correct gamma
+
+	#if TONEMAP == 4
+	vec3 linCol = color;
+	#endif
+
+	color = pow(color / (1.0 + color), p);
+	color = pow(color * color * (-2.0 * color + 3.0), (1.0 / p) + g);
+	color = sRGBToLinear(color);
+
+	#if TONEMAP == 4
+	color = mix(linCol, color, (color / (0.02 + color)) * 0.8 + 0.2);
+	#endif
+
+	return color;
+}
+
 vec3 tonemap(vec3 color) {
 	#if   TONEMAP == 1
 	return tonemap_natural(color);
 	#elif TONEMAP == 2
 	return tonemap_filmic(color);
+	#elif TONEMAP == 3 || TONEMAP == 4
+	return tonemap_legacy(color);
 	#endif
 
 	return color; // Reference. This should always look acceptable.

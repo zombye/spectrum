@@ -116,6 +116,8 @@ option.MOTION_BLUR=Motion Blur
 option.TONEMAP=Tonemap
 value.TONEMAP.1=Natural
 value.TONEMAP.2=Filmic
+value.TONEMAP.3=Legacy
+value.TONEMAP.4=Legacy (Reduced toe)
 
 ##--## Surfaces
 
