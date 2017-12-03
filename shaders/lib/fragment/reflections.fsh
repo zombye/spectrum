@@ -26,7 +26,7 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 		vec3 rayDir = reflect(viewDirection, facetNormal);
 
 		vec3 hitPos;
-		bool intersected = raytraceIntersection(position[0], rayDir, hitPos, dither, REFLECTION_QUALITY, REFLECTION_REFINEMENTS);
+		bool intersected = raytraceIntersection(position[0], rayDir, hitPos, dither, REFLECTION_QUALITY, REFLECTION_REFINEMENTS, 0.0);
 		vec3 hitPosView = screenSpaceToViewSpace(hitPos, projectionInverse);
 
 		vec3 reflectionSample = vec3(0.0);
@@ -86,7 +86,7 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 	#endif
 
 	vec3 slmrp = mrp_sphere(reflect(normalize(position[1]), normal), shadowLightVector, sunAngularRadius);
-	reflection += sunVisibility * shadowLightColor * specularBRDF(-normalize(position[1]), normal, slmrp, eta, alpha2);
+	reflection += sunVisibility * shadowLightColor * min(specularBRDF(-normalize(position[1]), normal, slmrp, eta, alpha2), 1.0 / (tau * (1.0 - cos(sunAngularRadius))));
 
 	return reflection;
 }

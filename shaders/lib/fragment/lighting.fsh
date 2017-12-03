@@ -267,7 +267,7 @@ float hbao(vec3 position, vec3 direction, vec3 normal, float dither) {
 	#else
 	vec2 noise = hash22(vec2(dither));
 	#endif
-	noise.x *= alpha;
+	noise *= vec2(alpha, 1.0 / HBAO_SAMPLES_DIRECTION);
 
 	float result = 0.0;
 	for (int i = 0; i < HBAO_DIRECTIONS; i++) {
@@ -277,11 +277,11 @@ float hbao(vec3 position, vec3 direction, vec3 normal, float dither) {
 		vec3 pv = 1e-2 * dir + direction * 1e2;
 		float cosHorizon = dot(direction, normalize(pv * dot(direction, normal) / dot(pv, normal) - direction));
 
-		dir *= HBAO_RADIUS / HBAO_SAMPLES_DIRECTION;
+		dir *= HBAO_RADIUS;
 
 		// Find cosine of the angle between view & horizon
-		for (int j = 0; j < HBAO_SAMPLES_DIRECTION; j++) {
-			vec2 sampleUV = viewSpaceToScreenSpace(dir * (j + noise.y) + position, projection).st;
+		for (float j = 0.0; j < HBAO_SAMPLES_DIRECTION; j++) {
+			vec2 sampleUV = viewSpaceToScreenSpace(dir * pow2(j / HBAO_SAMPLES_DIRECTION + noise.y) + position, projection).st;
 			if (floor(sampleUV) != vec2(0.0)) break;
 			vec3 samplePosition = screenSpaceToViewSpace(vec3(sampleUV, hbao_depthFetch(sampleUV)), projectionInverse);
 

@@ -36,9 +36,3 @@ bool raytraceIntersection(vec3 start, vec3 direction, out vec3 position, float d
 
 	return intersected;
 }
-bool raytraceIntersection(vec3 start, vec3 direction, out vec3 position, float dither, const float quality, const float refinements) {
-	return raytraceIntersection(start, direction, position, dither, quality, refinements, 0.0);
-}
-bool raytraceIntersection(vec3 start, vec3 direction, out vec3 position, float dither, const float quality) {
-	return raytraceIntersection(start, direction, position, dither, quality, 0.0, 0.0);
-}

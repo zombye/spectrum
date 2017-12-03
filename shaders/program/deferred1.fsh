@@ -78,9 +78,7 @@ vec3 bilateralResample(vec3 normal, float depth) {
 	const float filterLod = 2.0;
 	const float range = 1.5;
 
-	const float lodScale = exp2(filterLod);
-
-	vec2 px = lodScale / vec2(viewWidth, viewHeight);
+	vec2 px = exp2(filterLod) / vec2(viewWidth, viewHeight);
 
 	vec3 filtered = vec3(0.0);
 	float totalWeight = 1e-9;
