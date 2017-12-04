@@ -17,7 +17,7 @@ float waterCaustics(vec3 position, float waterDepth) {
 	float result = 0.0;
 	for (float i = 0.0; i < samples; i++) {
 		vec3 samplePos     = surfacePosition;
-		     samplePos.xz += spiralPoint(i * 16.0 + dither, samples * 16.0) * radius;
+		     samplePos.xz += pointOnSpiral(i * 16.0 + dither, samples * 16.0) * radius;
 		vec3 refractVector = refract(lightVector, water_calculateNormal(samplePos), 0.75);
 		     samplePos     = refractVector * (surfDistUp / refractVector.y) + samplePos;
 

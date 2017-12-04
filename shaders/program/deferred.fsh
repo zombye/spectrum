@@ -66,7 +66,7 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float dither) {
 
 	vec3 rsm = vec3(0.0);
 	for (float i = 0.0; i < RSM_SAMPLES; i += 1.0) {
-		vec2 sampleOffset = spiralPoint(i * 256.0 + dither, RSM_SAMPLES * 256.0) * offsetScale;
+		vec2 sampleOffset = pointOnSpiral(i * 256.0 + dither, RSM_SAMPLES * 256.0) * offsetScale;
 
 		// Discard samples that definitely can't contribute ASAP
 		if (dot(shadowNormal.xy, sampleOffset) > 0.0) continue;
