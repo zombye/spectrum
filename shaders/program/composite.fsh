@@ -2,6 +2,8 @@
 
 const bool gaux1MipmapEnabled = true;
 
+#define REFRACTIONS 0 // [0 1 2]
+
 //----------------------------------------------------------------------------//
 
 uniform float rainStrength;
@@ -91,23 +93,57 @@ varying vec2 screenCoord;
 #include "/lib/fragment/specularBRDF.fsh"
 #include "/lib/fragment/reflections.fsh"
 
+vec3 calculateRefractions(vec3 frontPosition, vec3 frontNormal, masks mask, inout vec3 direction, inout vec3 backPosition) {
+	vec2 refractedCoord = screenCoord;
+
+	#if REFRACTIONS != 0
+	#if REFRACTIONS == 1
+	if (frontPosition != backPosition && mask.water) {
+	#else
+	if (frontPosition != backPosition) {
+	#endif
+		vec3 rayDirection = refract(direction, frontNormal, 0.75);
+
+		vec3 refractedPosition = rayDirection * clamp01(distance(frontPosition, backPosition)) + frontPosition;
+		refractedPosition = viewSpaceToScreenSpace(refractedPosition, projection);
+
+		float refractedDepth = texture2D(depthtex1, refractedPosition.st).r;
+		if (refractedDepth > delinearizeDepth(frontPosition.z, projection)) {
+			refractedPosition.z = refractedDepth;
+			refractedCoord = refractedPosition.st;
+
+			backPosition = screenSpaceToViewSpace(refractedPosition, projectionInverse);
+		}
+	}
+	#endif
+
+	return texture2D(gaux1, refractedCoord).rgb / PRE_EXPOSURE_SCALE;
+}
+
 //--//
 
 void main() {
 	vec4 tex0 = texture2D(colortex0, screenCoord);
 	vec4 tex2 = texture2D(colortex2, screenCoord);
-	vec2 tex7 = texture2D(colortex7, screenCoord).rg;
-	masks mask = calculateMasks(round(tex0.a * 255.0), round(unpack2x8(tex7.r).r * 255.0));
+	vec3 tex7 = texture2D(colortex7, screenCoord).rgb;
+	vec3 frontNormal = unpackNormal(tex7.rg);
+	tex7.rg = unpack2x8(tex7.b);
+
+	masks mask = calculateMasks(round(tex0.a * 255.0), round(tex7.r * 255.0));
 
 	vec2  lightmap      = tex2.ba;
 	float frontSkylight = tex7.g;
 
+	mat2x3 frontPosition;
+	frontPosition[0] = vec3(screenCoord, texture2D(depthtex0, screenCoord).r);
+	frontPosition[1] = screenSpaceToViewSpace(frontPosition[0], projectionInverse);
 	mat2x3 backPosition;
 	backPosition[0] = vec3(screenCoord, texture2D(depthtex1, screenCoord).r);
 	backPosition[1] = screenSpaceToViewSpace(backPosition[0], projectionInverse);
 	vec3 direction = normalize(backPosition[1]);
 
-	vec3 composite = texture2D(gaux1, screenCoord).rgb / PRE_EXPOSURE_SCALE;
+	vec3 refractedPosition = backPosition[1];
+	vec3 composite = calculateRefractions(frontPosition[1], frontNormal, mask, direction, refractedPosition);
 
 	float dither = bayer8(gl_FragCoord.st);
 
@@ -127,15 +163,11 @@ void main() {
 	}
 	#endif
 
-	mat2x3 frontPosition;
-	frontPosition[0] = vec3(screenCoord, texture2D(depthtex0, screenCoord).r);
-	frontPosition[1] = screenSpaceToViewSpace(frontPosition[0], projectionInverse);
-
 	if (mask.water) {
 		if (isEyeInWater != 1) {
-			composite = waterFog(composite, frontPosition[1], backPosition[1], frontSkylight, dither);
+			composite = waterFog(composite, frontPosition[1], refractedPosition, frontSkylight, dither);
 		} else {
-			composite = fog(composite, frontPosition[1], backPosition[1], lightmap, dither);
+			composite = fog(composite, frontPosition[1], refractedPosition, lightmap, dither);
 			// TODO: Fake crepuscular rays here as well
 		}
 	}

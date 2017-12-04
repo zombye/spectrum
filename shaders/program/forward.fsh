@@ -170,7 +170,7 @@ void main() {
 /* DRAWBUFFERS:67 */
 
 	gl_FragData[0] = vec4(composite * PRE_EXPOSURE_SCALE, base.a);
-	gl_FragData[1] = vec4(metadata.x / 255.0, lightmapShaded.y, 0.0, 1.0);
+	gl_FragData[1] = vec4(packNormal(normal), pack2x8(vec2(metadata.x / 255.0, lightmapShaded.y)), 1.0);
 
 	exit();
 }

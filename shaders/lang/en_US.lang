@@ -124,6 +124,12 @@ value.TONEMAP.4=Legacy (Reduced toe)
 screen.surface=Surfaces
 screen.surface.comment=Options for effects related to the rendering of surfaces.
 
+option.REFRACTIONS=Refractions
+option.REFRACTIONS.comment=Does not work well if there are multiple layers of transparency.
+value.REFRACTIONS.0=Off
+value.REFRACTIONS.1=Water Only
+value.REFRACTIONS.2=Full
+
 option.TERRAIN_PARALLAX=Terrain Parallax
 option.TERRAIN_PARALLAX.comment=Will not work properly if Texture Resolution has not been set correctly.
 option.TERRAIN_PARALLAX_DEPTH=Terrain Parallax Depth
