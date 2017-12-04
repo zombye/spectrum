@@ -1,6 +1,7 @@
 #define clamp01(x) clamp(x, 0, 1)
 #define max0(x) max(x, 0)
 
+float minof(vec2 x) { return min(x.x, x.y); }
 float minof(vec3 x) { return min(min(x.x, x.y), x.z); }
 float minof(vec4 x) { x.xy = min(x.xy, x.zw); return min(x.x, x.y); }
 

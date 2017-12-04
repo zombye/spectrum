@@ -93,23 +93,29 @@ varying vec2 screenCoord;
 #include "/lib/fragment/specularBRDF.fsh"
 #include "/lib/fragment/reflections.fsh"
 
-vec3 calculateRefractions(vec3 frontPosition, vec3 frontNormal, masks mask, inout vec3 direction, inout vec3 backPosition) {
-	vec2 refractedCoord = screenCoord;
+vec3 calculateRefractions(mat2x3 frontPosition, vec3 frontNormal, masks mask, vec3 direction, inout vec3 backPosition) {
+	vec2 refractedCoord = frontPosition[0].xy;
 
 	#if REFRACTIONS != 0
 	#if REFRACTIONS == 1
-	if (frontPosition != backPosition && mask.water) {
+	if (frontPosition[1] != backPosition && mask.water) {
 	#else
-	if (frontPosition != backPosition) {
+	if (frontPosition[1] != backPosition) {
 	#endif
 		vec3 rayDirection = refract(direction, frontNormal, 0.75);
 
-		vec3 refractedPosition = rayDirection * clamp01(distance(frontPosition, backPosition)) + frontPosition;
+		vec3 refractedPosition = rayDirection * clamp01(distance(frontPosition[1], backPosition)) + frontPosition[1];
 		refractedPosition = viewSpaceToScreenSpace(refractedPosition, projection);
 
-		float refractedDepth = texture2D(depthtex1, refractedPosition.st).r;
-		if (refractedDepth > delinearizeDepth(frontPosition.z, projection)) {
-			refractedPosition.z = refractedDepth;
+		// Fade refractions near edges of screen to avoid off-screen refractions
+		vec2 rv = refractedPosition.xy - frontPosition[0].xy;
+		refractedPosition.xy = rv * clamp01(minof((step(0.0, rv) - frontPosition[0].xy) / rv) * 0.5) + frontPosition[0].xy;
+
+		// Fetch depth at refracted position
+		refractedPosition.z = texture2D(depthtex1, refractedPosition.st).r;
+
+		// Don't refract if there's nothing to refract
+		if (refractedPosition.z > frontPosition[0].z) {
 			refractedCoord = refractedPosition.st;
 
 			backPosition = screenSpaceToViewSpace(refractedPosition, projectionInverse);
@@ -143,7 +149,7 @@ void main() {
 	vec3 direction = normalize(backPosition[1]);
 
 	vec3 refractedPosition = backPosition[1];
-	vec3 composite = calculateRefractions(frontPosition[1], frontNormal, mask, direction, refractedPosition);
+	vec3 composite = calculateRefractions(frontPosition, frontNormal, mask, direction, refractedPosition);
 
 	float dither = bayer8(gl_FragCoord.st);
 
