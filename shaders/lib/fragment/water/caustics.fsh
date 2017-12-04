@@ -2,7 +2,7 @@ float waterCaustics(vec3 position, float waterDepth) {
 	const int   samples           = CAUSTICS_SAMPLES;
 	const float radius            = CAUSTICS_RADIUS;
 	const float defocus           = CAUSTICS_DEFOCUS;
-	const float distanceThreshold = (sqrt(samples) - 1.0) / (radius * defocus);
+	const float distanceThreshold = sqrt(samples / pi) / (radius * defocus);
 	const float resultPower       = CAUSTICS_RESULT_POWER;
 
 	vec3  lightVector       = mat3(gbufferModelViewInverse) * -shadowLightVector;
