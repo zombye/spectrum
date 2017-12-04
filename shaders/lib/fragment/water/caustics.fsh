@@ -7,7 +7,7 @@ float waterCaustics(vec3 position, float waterDepth) {
 
 	vec3  lightVector       = mat3(gbufferModelViewInverse) * -shadowLightVector;
 	vec3  flatRefractVector = refract(lightVector, vec3(0.0, 1.0, 0.0), 0.75);
-	float surfDistUp        = waterDepth * lightVector.y / flatRefractVector.y;
+	float surfDistUp        = waterDepth * abs(lightVector.y);
 	float dither            = bayer4(gl_FragCoord.st) * 16.0;
 
 	position += cameraPosition;
