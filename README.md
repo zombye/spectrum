@@ -5,7 +5,7 @@ It aims to provide a "natural" look and feel.
 
 ## Requirements
 
-* Optifine 1.12.2 HD U C7 pre (or newer)
+* Optifine 1.12.2 HD U C7 (or newer)
 
 ## Installation
 

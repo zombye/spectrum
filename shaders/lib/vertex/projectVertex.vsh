@@ -5,7 +5,7 @@ vec4 projectVertex(vec3 position) {
 		position.xy *= distortCoeff;
 		position.z -= calculateAntiAcneOffset(normal, distortCoeff);
 		return vec4(position, 1.0);
-	#else // Gbuffers use the full vec4 transform for TAA
-		return projection * vec4(position.xyz, 1.0);
+	#else
+		return vec4(projection[0].x, projection[1].y, projection[2].zw) * position.xyzz + projection[3] + vec4(projection[2].xy * position.z, 0.0, 0.0);
 	#endif
 }
