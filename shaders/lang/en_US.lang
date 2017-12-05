@@ -65,6 +65,7 @@ option.HBAO_SAMPLES_DIRECTION=Samples Per Direction
 # Reflections
 screen.reflections=Reflections
 option.REFLECTION_SAMPLES=Samples
+option.REFLECTION_QUALITY=Sample Quality
 option.TOTAL_INTERNAL_REFLECTION=Total Internal Reflection
 option.FOG_REFLECTED=Include Fog
 option.VOLUMETRICCLOUDS_REFLECTED=Reflected Volumetric Clouds
