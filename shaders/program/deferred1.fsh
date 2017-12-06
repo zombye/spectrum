@@ -81,7 +81,7 @@ vec3 bilateralResample(vec3 normal, float depth) {
 	vec2 px = exp2(filterLod) / vec2(viewWidth, viewHeight);
 
 	vec3 filtered = vec3(0.0);
-	float totalWeight = 1e-9;
+	float totalWeight = 0.0;
 	for (float i = -range; i <= range; i++) {
 		for (float j = -range; j <= range; j++) {
 			vec2 offset = vec2(i, j) * px;
@@ -96,6 +96,11 @@ vec3 bilateralResample(vec3 normal, float depth) {
 			filtered += texture2DLod(gaux2, coord, filterLod).rgb * weight;
 			totalWeight += weight;
 		}
+	}
+
+	if (totalWeight == 0.0) { // fallback
+		filtered = texture2DLod(gaux2, screenCoord, filterLod).rgb;
+		totalWeight = 1.0;
 	}
 
 	filtered /= totalWeight;
