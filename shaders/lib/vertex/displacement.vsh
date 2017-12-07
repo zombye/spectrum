@@ -1,5 +1,6 @@
-vec3 calculateWavingGrass(vec3 position) {
-	if (gl_MultiTexCoord0.t > mc_midTexCoord.t) return position;
+vec3 calculateWavingGrass(vec3 position, bool isTopHalf) {
+	bool topQuadVertex = gl_MultiTexCoord0.t < mc_midTexCoord.t;
+	if (!topQuadVertex && !isTopHalf) return position;
 
 	float time = frameTimeCounter;
 	const vec4 rateIntensity = vec4(1.3, 1.7, 2.5, 0.6) * pi;
@@ -10,7 +11,7 @@ vec3 calculateWavingGrass(vec3 position) {
 	float intensity = dot(sin(time * rateIntensity + phaseIntensity), vec4(0.2, 0.4, 0.1, 0.5));
 	float direction = radians(dot(sin(time * rateDirection + phaseDirection), vec4(20.0, 15.0, 30.0, 25.0)) + 45.0);
 
-	position.xz += (intensity * vec2(sin(direction), cos(direction)) * 0.07 - 0.04) * lightmap.y;
+	position.xz += (intensity * vec2(sin(direction), cos(direction)) * 0.07 - 0.04) * lightmap.y * (topQuadVertex && isTopHalf ? 3.0 : 1.0);
 
 	return position;
 }
@@ -46,10 +47,12 @@ vec3 calculateDisplacement(vec3 position) {
 		case 59:  // Wheat
 		case 141: // Carrots
 		case 142: // Potatoes
-			position = calculateWavingGrass(position); break;
+			position = calculateWavingGrass(position, false); break;
+		case 175: // Double plants
+			position = calculateWavingGrass(position, int(mc_Entity.z) > 7); break;
 		default: break;
 	}
-	
+
 	position -= cameraPosition;
 
 	return position;
