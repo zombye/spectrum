@@ -107,6 +107,7 @@ vec3 bilateralResample(vec3 normal, float depth) {
 	return filtered;
 }
 
+#include "/lib/fragment/water/constants.fsh"
 #include "/lib/fragment/water/waves.fsh"
 #include "/lib/fragment/water/normal.fsh"
 #include "/lib/fragment/water/caustics.fsh"

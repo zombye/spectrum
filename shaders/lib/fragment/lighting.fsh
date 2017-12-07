@@ -1,14 +1,16 @@
 #define DIFFUSE_MODEL 0 // [0 1]
 
+#define SUNLIGHT_FADE_WITH_SKYLIGHT // Can make water look weird but helps when the sky lightmap is dark
+
 #define RTCS
 #define RTCS_SAMPLES 16
 #define RTCS_RANGE   0.3
 #define RTCS_SURFACE_THICKNESS 0.2
 
 #define HBAO
-#define HBAO_RADIUS            2.0 // [0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 5.5 6.0 6.5 7.0 7.5 8.0]
-#define HBAO_DIRECTIONS        5   // [2 3 4 5 6 7 8]
-#define HBAO_SAMPLES_DIRECTION 3   // [2 3 4 5 6 7 8]
+#define HBAO_RADIUS            4 // [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32]
+#define HBAO_DIRECTIONS        4 // Must be even. [2 4 6 8]
+#define HBAO_SAMPLES_DIRECTION 4 // [1 2 3 4 5 6 7 8]
 
 //--//
 
@@ -174,8 +176,15 @@ vec3 shadows(vec3 position, vec3 shadowPosition, vec3 shadowClip, vec3 shadowCoo
 	#endif
 
 	#if CAUSTICS_SAMPLES > 0
-	if (result != vec3(0.0))
-		result *= waterCaustics(position, shadowPosition, shadowCoord);
+	if (result != vec3(0.0)) {
+		float waterDepth;
+		result *= waterCaustics(position, shadowPosition, shadowCoord, waterDepth);
+		/*
+		if (waterDepth < 0.0) {
+			result *= exp(water_transmittanceCoefficient * waterDepth); // doesn't work well around edges of shadows
+		}
+		*/
+	}
 	#endif
 
 	return result;
@@ -251,12 +260,19 @@ float handLight(vec3 position, vec3 normal) {
 
 #ifdef HBAO
 float hbao_depthFetch(vec2 c) {
-	//return texture2D(depthtex2, c).r; // can result in incorrect occlusion
+	//return texture2D(depthtex2, c).r; // gives lots of incorrect occlusion, don't use
 
+	/* has much less incorrect occlusion, and what it has is much less noticable
+	float depth = texture2D(depthtex2, c).r;
+	return 0.001 * (1.0 - depth) + depth;
+	//*/
+
+	// slower but seems to have no incorrect occlusion
 	vec2 r = vec2(viewWidth, viewHeight);
 	vec4 g = textureGather(depthtex2, c);
 	vec4 w = fract(c * r + 0.5).xxyy * vec4(1,-1,1,-1) + vec4(0,1,0,1);
-	return dot(g, w.yxxy * w.zzww) + maxof(abs(g.xzxy - g.ywzw));
+	float depth = dot(g, w.yxxy * w.zzww);
+	return 0.001 * (1.0 - depth) + depth + maxof(abs(g.xzxy - g.ywzw));
 }
 
 float hbao(vec3 position, vec3 direction, vec3 normal, float dither) {
@@ -311,7 +327,11 @@ vec3 calculateLighting(mat3 position, vec3 direction, vec3 normal, vec2 lightmap
 	float cloudShadow = texture2DLod(gaux2, shadowCoord.xy, 0.0).a;
 	sunVisibility = vec3(cloudShadow);
 
+	#ifdef SUNLIGHT_FADE_WITH_SKYLIGHT
 	vec3 shadowLight = vec3(lightmap.y * lightmap.y);
+	#else
+	vec3 shadowLight = vec3(1.0);
+	#endif
 	if (shadowLight != vec3(0.0)) {
 		vec3 fakeSubsurface = (1.0 - mat.albedo) * sqrt(mat.albedo) * (max0(-dot(normal, shadowLightVector)) * 0.5 + 0.5) / pi;
 		vec3 diffuse = fakeSubsurface * mat.subsurface + diffuse(direction, normal, shadowLightVector, mat.roughness);

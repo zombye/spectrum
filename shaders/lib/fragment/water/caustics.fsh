@@ -12,6 +12,11 @@ float waterCaustics(vec3 position, float waterDepth) {
 
 	position += cameraPosition;
 
+	#ifdef CAUSTICS_DEPTH_CLAMPED
+	position.xz += flatRefractVector.xz * min(surfDistUp + CAUSTICS_MAX_DEPTH, 0.0);
+	surfDistUp = max(surfDistUp, -CAUSTICS_MAX_DEPTH);
+	#endif
+
 	vec3 surfacePosition = position - flatRefractVector * (surfDistUp / flatRefractVector.y);
 
 	float result = 0.0;
@@ -27,18 +32,23 @@ float waterCaustics(vec3 position, float waterDepth) {
 	return pow(result / (defocus * defocus), resultPower);
 }
 
-float waterCaustics(vec3 position, vec3 shadowPosition, vec3 shadowCoord) {
+float waterCaustics(vec3 position, vec3 shadowPosition, vec3 shadowCoord, out float waterDepth /* negative! */) {
 	// Checks if there's water on the shadow map at this location
 	if (texture2D(shadowcolor1, shadowCoord.st).b > 0.5) return 1.0;
 
-	float waterDepth = texture2D(shadowtex0, shadowCoord.st).r * 2.0 - 1.0;
-	      waterDepth = waterDepth * projectionShadowInverse[2].z + projectionShadowInverse[3].z;
-	      waterDepth = shadowPosition.z - waterDepth;
+	waterDepth = texture2D(shadowtex0, shadowCoord.st).r * 2.0 - 1.0;
+	waterDepth = waterDepth * projectionShadowInverse[2].z + projectionShadowInverse[3].z;
+	waterDepth = shadowPosition.z - waterDepth;
 
-	// Make sure we're not in front of the water
+	// Make sure we're not in front of the water surface
 	if (waterDepth >= 0.0) return 1.0;
 
 	return waterCaustics(position, waterDepth);
+}
+
+float waterCaustics(vec3 position, vec3 shadowPosition, vec3 shadowCoord) {
+	float waterDepth;
+	return waterCaustics(position, shadowPosition, shadowCoord, waterDepth);
 }
 
 float waterCaustics(vec3 position) {

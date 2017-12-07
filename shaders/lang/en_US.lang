@@ -59,6 +59,7 @@ option.CAUSTICS_RESULT_POWER.comment=Values above 1.0 exaggerate the difference 
 screen.hbao=Ambient Occlusion
 option.HBAO=Ambient Occlusion
 option.HBAO_RADIUS=Radius
+suffix.HBAO_RADIUS= Blocks
 option.HBAO_DIRECTIONS=Directions
 option.HBAO_SAMPLES_DIRECTION=Samples Per Direction
 

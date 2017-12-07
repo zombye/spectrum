@@ -80,6 +80,7 @@ varying vec2 screenCoord;
 #include "/lib/fragment/masks.fsh"
 #include "/lib/fragment/materials.fsh"
 
+#include "/lib/fragment/water/constants.fsh"
 #include "/lib/fragment/water/waves.fsh"
 #include "/lib/fragment/water/normal.fsh"
 #include "/lib/fragment/water/caustics.fsh"

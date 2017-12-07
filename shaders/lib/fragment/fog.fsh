@@ -96,10 +96,6 @@ vec3 fakeCrepuscularRays(vec3 viewVector, float dither) {
 #endif
 
 vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skylight, float dither) {
-	const vec3 scatterCoeff = vec3(0.3e-2, 1.8e-2, 2.0e-2) * 0.4;
-	const vec3 absorbCoeff  = vec3(0.8, 0.45, 0.11);
-	const vec3 attenCoeff   = scatterCoeff + absorbCoeff;
-
 	skylight = lightmapCurve(skylight, LIGHTMAP_FALLOFF_SKY);
 
 	#if CREPUSCULAR_RAYS == 2
@@ -108,7 +104,7 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 	vec3 increment = (endPosition - startPosition) / steps;
 
 	float stepSize = length(increment);
-	vec3 stepIntegral = transmittedScatteringIntegral(stepSize, attenCoeff);
+	vec3 stepIntegral = transmittedScatteringIntegral(stepSize, water_transmittanceCoefficient);
 
 	increment = mat3(projectionShadow) * mat3(shadowModelView) * mat3(gbufferModelViewInverse) * increment;
 	vec3 position = transformPosition(transformPosition(transformPosition(startPosition, gbufferModelViewInverse), shadowModelView), projectionShadow);
@@ -120,7 +116,7 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 
 	for (float i = 0.0; i < steps; i++, position += increment) {
 		vec3 shadowCoord = shadows_distortShadowSpace(position) * 0.5 + 0.5;
-		vec3 sunlight  = scatterCoeff * (0.25/pi) * shadowLightColor * textureShadow(shadowtex1, shadowCoord);
+		vec3 sunlight  = water_scatteringCoefficient * (0.25/pi) * shadowLightColor * textureShadow(shadowtex1, shadowCoord);
 		     sunlight *= texture2D(gaux2, shadowCoord.st).a;
 		#ifdef CREPUSCULAR_RAYS_CAUSTICS
 		#if CAUSTICS_SAMPLES > 0
@@ -130,16 +126,16 @@ vec3 waterFog(vec3 background, vec3 startPosition, vec3 endPosition, float skyli
 		}
 		#endif
 		#endif
-		vec3 skylight  = scatterCoeff * 0.5 * skyLightColor * skylight;
+		vec3 skylight  = water_scatteringCoefficient * 0.5 * skyLightColor * skylight;
 
 		scattering    += (sunlight + skylight) * stepIntegral * transmittance;
-		transmittance *= exp(-attenCoeff * stepSize);
+		transmittance *= exp(-water_transmittanceCoefficient * stepSize);
 	}
 	#else
 	float waterDepth = distance(startPosition, endPosition);
 
-	vec3 transmittance = exp(-attenCoeff * waterDepth);
-	vec3 scattering    = ((shadowLightColor * 0.25 / pi * pow3(1.0 - rainStrength)) + (skyLightColor * 0.5)) * skylight * scatterCoeff * (1.0 - transmittance) / attenCoeff;
+	vec3 transmittance = exp(-water_transmittanceCoefficient * waterDepth);
+	vec3 scattering    = ((shadowLightColor * 0.25 / pi * pow3(1.0 - rainStrength)) + (skyLightColor * 0.5)) * skylight * water_scatteringCoefficient * (1.0 - transmittance) / water_transmittanceCoefficient;
 	#endif
 
 	return background * transmittance + scattering;
