@@ -28,3 +28,10 @@ vec2 pointOnSpiral(float index, float total) {
 	index = sqrt(index * tau * 2.0);
 	return vec2(sin(index), cos(index)) * index / sqrt(total * tau * 2.0);
 }
+vec2 sunflowerFloret(float index, float total) {
+	// model for pattern of florets in the head of a sunflower proposed by H. Vogel in 1979
+	// really a fermat's spiral with a divergence angle equal to the golden angle
+	// distribution is pretty uniform, better than a standard spiral
+	float theta = index * tau / (phi * phi);
+	return vec2(sin(theta), cos(theta)) * sqrt(index / total);
+}

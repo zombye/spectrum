@@ -104,8 +104,8 @@ option.APERTURE_RADIUS=Aperture Radius
 option.APERTURE_BLADE_COUNT=Aperture Blade Count
 option.APERTURE_BLADE_ROTATION=Aperture Blade Rotation
 
-option.DOF=Depth of Field
-option.DOF.comment=Currently does not take into account aperture blades
+option.DOF_SAMPLES=Depth of Field Samples
+option.DOF_SAMPLES.comment=Currently Depth of Field does not take into account aperture blades
 option.BLOOM_AMOUNT=Bloom Amount
 option.DIFFRACTION_SPIKES=Diffraction Spikes
 
