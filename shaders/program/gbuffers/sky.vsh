@@ -31,5 +31,5 @@ void main() {
 	gl_Position = projectVertex(gl_Position.xyz);
 
 	color = gl_Color.rgb * gl_Color.a * 100.0;
-	if (abs(length(gl_Vertex.xyz) - 100.0) > 0.1) color = vec3(0.0);
+	if (abs(length(gl_Vertex.xyz) - 100.0005) > 0.0004) color = vec3(0.0);
 }
