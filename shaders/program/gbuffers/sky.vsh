@@ -2,9 +2,34 @@
 
 //----------------------------------------------------------------------------//
 
+uniform int isEyeInWater;
+
+// Time
+uniform int frameCounter;
+
+// Viewport
+uniform float viewWidth, viewHeight;
+
+//----------------------------------------------------------------------------//
+
+varying vec3 color;
+
+//----------------------------------------------------------------------------//
+
+#include "/lib/util/constants.glsl"
+
+#include "/lib/misc/temporalAA.glsl"
+
+#include "/lib/uniform/gbufferMatrices.glsl"
+
+#include "/lib/vertex/projectVertex.vsh"
+
 void main() {
-	// Hardcoded to ensure entire screen is covered.
-	     if (gl_VertexID == 1) gl_Position = vec4( 3.0,-1.0, 0.0, 1.0);
-	else if (gl_VertexID == 2) gl_Position = vec4(-1.0, 3.0, 0.0, 1.0);
-	else                       gl_Position = vec4(-1.0,-1.0, 0.0, 1.0);
+	calculateGbufferMatrices();
+
+	gl_Position.xyz = mat3(gl_ModelViewMatrix) * gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz;
+	gl_Position = projectVertex(gl_Position.xyz);
+
+	color = gl_Color.rgb * gl_Color.a * 100.0;
+	if (abs(length(gl_Vertex.xyz) - 100.0) > 0.1) color = vec3(0.0);
 }

@@ -32,6 +32,25 @@ varying vec2 screenCoord;
 
 #include "/lib/uniform/gbufferMatrices.glsl"
 
+vec2 dofOffset(float index, float total, vec2 coc) {
+	// TODO: Make these two constants part of the optical system settings so they can be properly integrated elsewhere
+	const float anamorphic = sqrt(1.0);
+	const float pincushion = 0.0;
+
+	vec2 offset = sunflowerFloret(index, total);
+
+	vec2 signedCoord = (offset * coc + screenCoord) * 2.0 - 1.0;
+
+	float dist2 = dot(signedCoord * vec2(1.0, 1.0 / aspectRatio), signedCoord * vec2(1.0, 1.0 / aspectRatio));
+
+	float sine = dot(normalize(signedCoord), vec2(0.0, 1.0 / aspectRatio));
+	float cosi = dot(normalize(signedCoord), vec2(1.0, 0.0));
+
+	float distort = dist2 * pincushion + 1.0;
+
+	return mat2(cosi * distort, sine * distort, -sine / distort, cosi / distort) * offset * vec2(anamorphic, 1.0 / anamorphic);
+}
+
 vec3 depthOfField() {
 	const float aperture = APERTURE_RADIUS;
 	      float focal    = abs(aperture * projection[0].x); // I think this might be wrong...
@@ -45,7 +64,7 @@ vec3 depthOfField() {
 
 	vec3 result = vec3(0.0);
 	for (int i = 0; i < DOF_SAMPLES; i++) {
-		result += texture2DLod(colortex4, sunflowerFloret(i, DOF_SAMPLES) * circleOfConfusion + screenCoord, lod).rgb;
+		result += texture2DLod(colortex4, dofOffset(i + 0.5, DOF_SAMPLES + 1.0, circleOfConfusion) * circleOfConfusion + screenCoord, lod).rgb;
 	}
 	return result / DOF_SAMPLES;
 }

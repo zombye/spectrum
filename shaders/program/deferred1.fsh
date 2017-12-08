@@ -23,6 +23,7 @@ uniform int heldBlockLightValue, heldBlockLightValue2;
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
 uniform sampler2D colortex2;
+uniform sampler2D colortex4;
 
 uniform sampler2D gaux2;
 
@@ -135,7 +136,7 @@ void main() {
 
 	float dither = bayer8(gl_FragCoord.st);
 
-	vec3 composite = vec3(0.0);
+	vec3 composite = texture2D(colortex4, screenCoord).rgb;
 
 	if (mask.sky) {
 		composite = sky_render(composite, direction);
