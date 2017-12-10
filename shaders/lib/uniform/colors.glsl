@@ -20,10 +20,13 @@ const vec3  moonIlluminance     = moonLuminance * (tau * (1.0 - cos(moonAngularR
 
 void calculateColors() {
 	vec3 viewPosition = upVector * PLANET_RADIUS;
-	vec2 sunOD = sky_opticalDepth(viewPosition, shadowLightVector, 50.0);
-	vec3 sunTransmittance = exp(-transmittanceCoefficients * sunOD);
+	vec2 shadowLightOD = sky_opticalDepth(viewPosition, shadowLightVector, 50.0);
+	vec3 shadowLightTransmittance = exp(-transmittanceCoefficients * shadowLightOD);
 
-	shadowLightColor = mix(moonIlluminance, sunIlluminance, smoothstep(-0.01, 0.01, dot(sunVector, upVector))) * sunTransmittance;
+	float sunMoonBlend = float(dot(sunVector, upVector) < 0.0);
+	float shadowLightHorizonFade = pow2(clamp01(dot(shadowLightVector, upVector) * 100.0));
+
+	shadowLightColor = mix(sunIlluminance, moonIlluminance, sunMoonBlend) * shadowLightTransmittance * shadowLightHorizonFade;
 	blockLightColor  = vec3(1.00, 0.70, 0.35) * 1.0e2;
 	skyLightColor    = sky_atmosphere(vec3(0.0), upVector);
 }
