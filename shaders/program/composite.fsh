@@ -174,7 +174,7 @@ void main() {
 		if (isEyeInWater != 1) {
 			composite = waterFog(composite, frontPosition[1], refractedPosition, frontSkylight, dither);
 		} else {
-			composite = fog(composite, frontPosition[1], refractedPosition, lightmap, dither);
+			composite = fog(composite, frontPosition[1], refractedPosition, lightmap, dither, mask.sky);
 			// TODO: Fake crepuscular rays here as well
 		}
 	}
@@ -185,7 +185,7 @@ void main() {
 	if (isEyeInWater == 1) {
 		composite = waterFog(composite, vec3(0.0), frontPosition[1], mask.water ? frontSkylight : lightmap.y, dither);
 	} else {
-		composite  = fog(composite, vec3(0.0), frontPosition[1], lightmap, dither);
+		composite  = fog(composite, vec3(0.0), frontPosition[1], lightmap, dither, mask.sky && !mask.water);
 		composite += fakeCrepuscularRays(direction, dither);
 	}
 

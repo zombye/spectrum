@@ -57,7 +57,7 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 		if (isEyeInWater == 1) {
 			reflectionSample = waterFog(reflectionSample, position[1], intersected ? hitPosView : rayDir * 1e3, lightmap.y, dither);
 		} else {
-			reflectionSample = fog(reflectionSample, position[1], intersected ? hitPosView : rayDir * 1e3, lightmap, dither);
+			reflectionSample = fog(reflectionSample, position[1], intersected ? hitPosView : rayDir, lightmap, dither, !intersected);
 		}
 		#endif
 

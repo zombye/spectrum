@@ -3,8 +3,10 @@
 
 //--//
 
-vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap, float dither) {
+vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap, float dither, bool sky) {
 	vec3 direction = endPosition - startPosition;
+	if (sky) { direction = normalize(direction) * 2000.0; }
+
 	float stepSize = length(direction);
 	if (stepSize == 0.0) return background; // Prevent divide by 0
 	direction /= stepSize;
@@ -37,8 +39,11 @@ vec3 fog(vec3 background, vec3 startPosition, vec3 endPosition, vec2 lightmap, f
 	vec3 scattering    = vec3(0.0);
 
 	for (float i = 0.0; i < steps; i++, worldPos += worldIncrement, shadowPos += shadowIncrement) {
-		vec3 opticalDepth = exp(-ish * (worldPos.y - 63.0)) * stepSize;
-		opticalDepth.z *= mistDensity;
+		vec3 opticalDepth    = vec3(worldPos.y - 63.0);
+		     opticalDepth.z  = max(opticalDepth.z, 0.0);
+		     opticalDepth    = exp(-ish * opticalDepth);
+		     opticalDepth   *= stepSize;
+		     opticalDepth.z *= mistDensity;
 
 		mat3 scatterCoeffs = mat3(
 			scatteringCoefficients[0] * transmittedScatteringIntegral(opticalDepth.x, transmittanceCoefficients[0]),

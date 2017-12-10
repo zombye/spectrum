@@ -4,7 +4,8 @@ float textureShadow(sampler2D sampler, vec3 coord) {
 	ivec2 resolution = textureSize2D(sampler, 0);
 	coord.st = coord.st * resolution + 0.5;
 	vec2 floored = floor(coord.st);
-	vec4 samples = step(coord.p, textureGather(sampler, floored / resolution));
+	vec4 samples = textureGather(sampler, floored / resolution);
+	     samples = step(coord.p * vec4(lessThan(samples, vec4(1.0))), samples);
 	vec4 weights = (coord.st - floored).xxyy * vec4(1,-1,1,-1) + vec4(0,1,0,1);
 	return dot(samples, weights.yxxy * weights.zzww);
 }
