@@ -33,7 +33,7 @@ vec3 sky_atmosphere(vec3 background, vec3 viewVector) {
 	float iStepSize  = dot(viewPosition, viewVector);
 	      iStepSize  = sqrt((iStepSize * iStepSize) + atmosphereRadiusSquared - dot(viewPosition, viewPosition)) - iStepSize;
 	      iStepSize /= iSteps;
-	      iStepSize *= pow(0.01 * min(dot(viewVector, upVector), 0.0) + 1.0, 700.0); // stop before getting to regions that would have little to no impact on the result
+	      iStepSize *= pow(0.01 * min(dot(viewVector, upVector), 0.0) + 1.0, 900.0); // stop before getting to regions that would have little to no impact on the result
 	vec3  iIncrement = viewVector * iStepSize;
 	vec3  iPosition  = iIncrement * dither + viewPosition;
 
@@ -42,29 +42,26 @@ vec3 sky_atmosphere(vec3 background, vec3 viewVector) {
 	vec2  sunPhase  = vec2(sky_rayleighPhase(sunVoL),  sky_miePhase(sunVoL, 0.8));
 	vec2  moonPhase = vec2(sky_rayleighPhase(moonVoL), sky_miePhase(moonVoL, 0.8));
 
-	vec2 iOpticalDepth  = vec2(0.0);
 	vec3 scatteringSun  = vec3(0.0);
 	vec3 scatteringMoon = vec3(0.0);
-
+	vec3 transmittance  = vec3(1.0);
 	for (float i = 0.0; i < iSteps; i++, iPosition += iIncrement) {
 		vec2 odIStep = exp(length(iPosition) * -inverseScaleHeights + scaledPlanetRadius) * iStepSize;
 
-		iOpticalDepth -= odIStep;
-
-		mat2x3 scatteringScale = mat2x3(
+		mat2x3 scatteringScale = mat2x3( // This is wrong, but it's more correct than not having it.
 			scatteringCoefficients[0] * transmittedScatteringIntegral(odIStep.x, transmittanceCoefficients[0]),
-		 	scatteringCoefficients[1] * transmittedScatteringIntegral(odIStep.y, transmittanceCoefficients[1])
+			scatteringCoefficients[1] * transmittedScatteringIntegral(odIStep.y, transmittanceCoefficients[1])
 		);
 
-		scatteringSun  += (scatteringScale * sunPhase)  * exp(transmittanceCoefficients * (-sky_opticalDepth(iPosition, sunVector,  jSteps) + iOpticalDepth));
-		scatteringMoon += (scatteringScale * moonPhase) * exp(transmittanceCoefficients * (-sky_opticalDepth(iPosition, moonVector, jSteps) + iOpticalDepth));
+		scatteringSun  += (scatteringScale * sunPhase)  * exp(transmittanceCoefficients * -sky_opticalDepth(iPosition, sunVector,  jSteps)) * transmittance;
+		scatteringMoon += (scatteringScale * moonPhase) * exp(transmittanceCoefficients * -sky_opticalDepth(iPosition, moonVector, jSteps)) * transmittance;
+		transmittance  *= exp(transmittanceCoefficients * -odIStep);
 	}
 
 	scatteringSun  *= sunIlluminance;
 	scatteringMoon *= moonIlluminance;
 
 	vec3 scattering = scatteringSun + scatteringMoon;
-	vec3 transmittance = exp(transmittanceCoefficients * iOpticalDepth);
 
 	return sky_atmosphereRainOverlay(background * transmittance + scattering);
 }
