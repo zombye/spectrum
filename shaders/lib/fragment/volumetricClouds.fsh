@@ -63,8 +63,6 @@ float volumetricClouds_calculateShadow(vec3 position) {
 	vec2 distances = vec2(VOLUMETRICCLOUDS_ALTITUDE_MIN, VOLUMETRICCLOUDS_ALTITUDE_MAX); // top of clouds is y by default
 	distances = (distances - worldStart.y) / direction.y;                                // get distance to the upper and lower bounds
 	if (distances.y < distances.x) distances = distances.yx;                             // y less than x? we're looking downwards, so swap them
-	distances.x = max(distances.x, 0.0);                                                 // start can never be closer than 0
-	if (distances.y < distances.x) return 1.0;                                           // y still less than x? no clouds visible then
 
 	const float samples = 5.0;
 	float stepSize = (distances.y - distances.x) / samples;
