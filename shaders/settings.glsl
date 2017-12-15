@@ -13,6 +13,8 @@
 
 //#define TOTAL_INTERNAL_REFLECTION
 
+//#define CLOUDS_LOWER_LAYER
+
 #define SKY_ATMOSPHERE_MODE 0 // [0 1]
 
 //--// Lighting

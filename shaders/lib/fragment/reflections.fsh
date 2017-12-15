@@ -1,7 +1,6 @@
 #define REFLECTION_SAMPLES 1 // [0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16]
 #define REFLECTION_QUALITY 4.0 // [4.0 5.0 6.0 7.0 8.0 9.0 10.0 11.0 12.0 13.0 14.0 15.0 16.0 17.0 18.0 19.0 20.0 21.0 22.0 23.0 24.0 25.0 26.0 27.0 28.0 29.0 30.0 31.0 32.0]
 #define REFLECTION_REFINEMENTS 6 // The max number needed depends on your resolution and reflection quality setting.
-#define VOLUMETRICCLOUDS_REFLECTED 1 // [0 1 2]
 #define FOG_REFLECTED
 
 float calculateReflectionMipGGX(vec3 view, vec3 normal, vec3 light, float zDistance, float alpha2) {
@@ -35,21 +34,11 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 			reflectionSample = texture2DLod(gaux1, hitPos.st, calculateReflectionMipGGX(-viewDirection, normal, rayDir, position[1].z - linearizeDepth(hitPos.z, projectionInverse), alpha2)).rgb / PRE_EXPOSURE_SCALE;
 		} else if (lightmap.y > 0.1 && isEyeInWater != 1) {
 			vec2 ssEndpoint = viewSpaceToScreenSpace(rayDir, projection).xy;
-			#if VOLUMETRICCLOUDS_REFLECTED != 2
+
 			if (floor(ssEndpoint) == vec2(0.0) && texture2D(depthtex1, ssEndpoint).r >= 1.0) {
 				reflectionSample = texture2D(gaux1, ssEndpoint).rgb / PRE_EXPOSURE_SCALE;
-			} else
-			#endif
-			{
+			} else {
 				reflectionSample = sky_atmosphere(vec3(0.0), rayDir);
-				#ifdef FLATCLOUDS
-				vec4 flatClouds = flatClouds_calculate(rayDir);
-				reflectionSample = reflectionSample * flatClouds.a + flatClouds.rgb;
-				#endif
-				#if VOLUMETRICCLOUDS_REFLECTED != 0
-				vec4 volumetricClouds = volumetricClouds_calculate(position[1], hitPosView, rayDir, !intersected, dither);
-				reflectionSample = reflectionSample * volumetricClouds.a + volumetricClouds.rgb;
-				#endif
 			}
 		}
 
@@ -69,16 +58,13 @@ vec3 calculateReflections(mat2x3 position, vec3 viewDirection, vec3 normal, floa
 	#else
 	vec3 rayDir = reflect(viewDirection, normal);
 	if (lightmap.y > 0.1) {
-		reflection = sky_atmosphere(vec3(0.0), rayDir);
+		vec2 ssEndpoint = viewSpaceToScreenSpace(rayDir, projection).xy;
 
-		#ifdef FLATCLOUDS
-		vec4 flatClouds = flatClouds_calculate(rayDir);
-		reflection = reflection * flatClouds.a + flatClouds.rgb;
-		#endif
-		#ifdef VOLUMETRICCLOUDS_REFLECTED
-		vec4 clouds = volumetricClouds_calculate(position[1], position[1] + rayDir, rayDir, true, dither);
-		reflection = reflection * clouds.a + clouds.rgb;
-		#endif
+		if (floor(ssEndpoint) == vec2(0.0) && texture2D(depthtex1, ssEndpoint).r >= 1.0) {
+			reflection = texture2D(gaux1, ssEndpoint).rgb / PRE_EXPOSURE_SCALE;
+		} else {
+			reflection = sky_atmosphere(vec3(0.0), rayDir);
+		}
 
 		reflection *= smoothstep(0.1, 0.9, lightmap.y);
 		reflection *= f_dielectric(clamp01(dot(normal, -viewDirection)), eta);

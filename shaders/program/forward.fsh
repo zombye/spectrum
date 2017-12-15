@@ -104,8 +104,6 @@ varying vec3 positionScene;
 #include "/lib/fragment/water/normal.fsh"
 #include "/lib/fragment/water/caustics.fsh"
 
-#include "/lib/fragment/volumetricClouds.fsh"
-
 #include "/lib/fragment/raytracer.fsh"
 
 #include "/lib/fragment/lighting.fsh"

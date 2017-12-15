@@ -95,13 +95,16 @@ vec3 calculateReflectiveShadowMaps(vec3 position, vec3 normal, float dither) {
 }
 #endif
 
-#include "/lib/fragment/volumetricClouds.fsh"
+#include "/lib/fragment/clouds/layerParameters.fsh"
+#include "/lib/fragment/clouds/density.fsh"
+#include "/lib/fragment/clouds/shadow.fsh"
+
 float calculateCloudShadowMap() {
 	vec3 shadowPos = vec3(screenCoord, 0.0) * 2.0 - 1.0;
 	shadowPos.st /= 1.0 - length(shadowPos.st);
 	shadowPos = transformPosition(transformPosition(shadowPos, projectionShadowInverse), shadowModelViewInverse);
 
-	return volumetricClouds_calculateShadow(shadowPos);
+	return clouds_shadow(shadowPos, shadowLightVector);
 }
 
 void main() {

@@ -26,9 +26,9 @@ option.SKY_ATMOSPHERE_MODE.comment=The Fancy setting significantly improves qual
 value.SKY_ATMOSPHERE_MODE.0=Fast
 value.SKY_ATMOSPHERE_MODE.1=Fancy
 
-# Volumetric Clouds
-option.VOLUMETRICCLOUDS_SAMPLES=Volumetric Clouds Quality
-value.VOLUMETRICCLOUDS_SAMPLES.0=Off
+# Clouds
+option.CLOUDS_LOWER_LAYER=Lower Cloud Layer
+option.CLOUDS_LOWER_LAYER.comment=The lower cloud layer is very demanding, and not needed.
 
 # Crepuscular rays / Volumetrically lit fog
 option.CREPUSCULAR_RAYS=Crepuscular Rays
@@ -69,11 +69,6 @@ option.REFLECTION_SAMPLES=Samples
 option.REFLECTION_QUALITY=Sample Quality
 option.TOTAL_INTERNAL_REFLECTION=Total Internal Reflection
 option.FOG_REFLECTED=Include Fog
-option.VOLUMETRICCLOUDS_REFLECTED=Reflected Volumetric Clouds
-option.VOLUMETRICCLOUDS_REFLECTED.comment="Partial" only reflects clouds that are on-screen. "Full" reflects clouds that are on-screen the same way "Partial" does, but falls back to re-rendering clouds when they are off-screen. "Exact" always re-renders clouds, which gives complete accuracy but is also very slow.
-value.VOLUMETRICCLOUDS_REFLECTED.0=Partial
-value.VOLUMETRICCLOUDS_REFLECTED.1=Full
-value.VOLUMETRICCLOUDS_REFLECTED.2=Exact
 
 # Shadows
 screen.shadows=Shadows

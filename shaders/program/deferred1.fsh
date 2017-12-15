@@ -113,8 +113,9 @@ vec3 bilateralResample(vec3 normal, float depth) {
 #include "/lib/fragment/water/normal.fsh"
 #include "/lib/fragment/water/caustics.fsh"
 
-#include "/lib/fragment/flatClouds.fsh"
-#include "/lib/fragment/volumetricClouds.fsh"
+#include "/lib/fragment/clouds/layerParameters.fsh"
+#include "/lib/fragment/clouds/density.fsh"
+#include "/lib/fragment/clouds/main.fsh"
 
 #include "/lib/fragment/lighting.fsh"
 
@@ -140,12 +141,7 @@ void main() {
 
 	if (mask.sky) {
 		composite = sky_render(composite, direction);
-		#ifdef FLATCLOUDS
-		vec4 flatClouds = flatClouds_calculate(direction);
-		composite = composite * flatClouds.a + flatClouds.rgb;
-		#endif
-		vec4 volumetricClouds = volumetricClouds_calculate(vec3(0.0), backPosition[1], direction, true, dither);
-		composite = composite * volumetricClouds.a + volumetricClouds.rgb;
+		composite = clouds_main(composite, vec3(0.0), direction, dither);
 	} else {
 		vec4 tex2 = texture2D(colortex2, screenCoord);
 		vec3 normal   = unpackNormal(tex2.rg);
