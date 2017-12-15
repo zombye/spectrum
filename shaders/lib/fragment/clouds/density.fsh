@@ -30,7 +30,7 @@ float clouds_density(vec3 position, cloudLayerParameters params) {
 	vec3 point = position / PLANET_RADIUS;
 	     point = normalize(vec3(point.xz, 1.0)) * (point.y + 1.0);
 
-	point = point * params.frequency + frameTimeCounter * 1e-5;
+	point = point * params.frequency + frameTimeCounter / 3600.0;
 
 	// Distortion to make it look more like it's flowing
 	point = point * params.frequency2;

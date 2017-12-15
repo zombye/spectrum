@@ -6,7 +6,7 @@ float clouds_phase(float cosTheta, vec2 g, float b) {
 
 	vec2 res = p1 * (cosTheta * cosTheta + 1.0) * pow(gmn2 * cosTheta + gga1, vec2(-1.5));
 
-	return mix(res.x, res.y, b);
+	return mix(res.x, res.y, b) * 0.7 + 0.075/pi;
 }
 
 float clouds_odDirection(vec3 position, vec3 direction, float startDensity, const float range, const float samples, cloudLayerParameters params) {
@@ -48,7 +48,7 @@ mat2x3 clouds_layer(vec3 startPosition, vec3 direction, vec3 shadowDirection, fl
 
 	const vec3 bouncedLightColor = vec3(0.31, 0.34, 0.31); // wish I had an average sunlit color for 1-2 km around the player, a grey with subtle green tint looks natural enough so that will have to do
 
-	vec3 illuminanceShadow  = shadowLightColor * clouds_phase(dot(direction, shadowDirection), vec2(0.25, -0.15), 0.3);
+	vec3 illuminanceShadow  = shadowLightColor * clouds_phase(dot(direction, shadowDirection), vec2(0.6, -0.15), 0.5);
 	vec3 illuminanceSky     = skyLightColor * 0.5;
 	vec3 illuminanceBounced = dot(shadowLightVector, upVector) * bouncedLightColor * shadowLightColor * 0.5 / pi;
 
