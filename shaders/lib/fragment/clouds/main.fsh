@@ -22,7 +22,7 @@ float clouds_odDirection(vec3 position, vec3 direction, float startDensity, cons
 	return stepSize * od;
 }
 
-mat2x3 clouds_layer(vec3 startPosition, vec3 direction, vec3 shadowDirection, float dither, out float layerDistance, cloudLayerParameters params) {
+mat2x3 clouds_layer(vec3 startPosition, vec3 direction, vec3 directionShadow, float dither, out float layerDistance, cloudLayerParameters params) {
 	layerDistance = 0.0;
 	mat2x3 layer = mat2x3(vec3(0.0), vec3(1.0));
 
@@ -39,16 +39,15 @@ mat2x3 clouds_layer(vec3 startPosition, vec3 direction, vec3 shadowDirection, fl
 
 	// set increment and initialize position
 	vec3 increment = direction * stepSize;
-	vec3 position = increment * dither + (direction * distances.x + startPosition);
+	vec3 position  = increment * dither + (direction * distances.x + startPosition);
 
 	// light source directions and illuminances
-	      vec3 directionShadow  = mat3(gbufferModelViewInverse) * shadowLightVector;
 	const vec3 directionSky     = vec3(0.0, 1.0, 0.0);
 	const vec3 directionBounced = vec3(0.0,-1.0, 0.0);
 
 	const vec3 bouncedLightColor = vec3(0.31, 0.34, 0.31); // wish I had an average sunlit color for 1-2 km around the player, a grey with subtle green tint looks natural enough so that will have to do
 
-	vec3 illuminanceShadow  = shadowLightColor * clouds_phase(dot(direction, shadowDirection), vec2(0.6, -0.15), 0.5);
+	vec3 illuminanceShadow  = shadowLightColor * clouds_phase(dot(direction, directionShadow), vec2(0.6, -0.15), 0.5);
 	vec3 illuminanceSky     = skyLightColor * 0.5;
 	vec3 illuminanceBounced = dot(shadowLightVector, upVector) * bouncedLightColor * shadowLightColor * 0.5 / pi;
 

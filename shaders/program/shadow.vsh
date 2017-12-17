@@ -34,7 +34,7 @@ varying vec4 metadata;
 
 float calculateAntiAcneOffset(vec3 normal, float distortFactor) {
 	#if SHADOW_FILTER_TYPE == 1
-	const float sampleDiameter = 2.0;
+	const float sampleDiameter = 1.5;
 	#else
 	const float sampleDiameter = 1.0;
 	#endif
@@ -47,7 +47,7 @@ float calculateAntiAcneOffset(vec3 normal, float distortFactor) {
 	float baseOffset = sampleDiameter * projectionScale / (shadowMapResolution * distortFactor * distortFactor);
 	float normalScaling = (normal.x + normal.y) * tanacos(normal.z);
 
-	return baseOffset * min(normalScaling, 9.0) - 0.0001 * distortFactor;
+	return baseOffset * min(normalScaling, 9.0) - 0.00004 * distortFactor;
 }
 
 #include "/lib/vertex/displacement.vsh"

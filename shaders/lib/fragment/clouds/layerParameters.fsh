@@ -56,7 +56,7 @@ cloudLayerParameters[2] clouds_layers = cloudLayerParameters[2]( // Must be in o
 		0.618,
 		0.5,
 
-		4,
+		3,
 		1.0,
 		0,
 		0,
