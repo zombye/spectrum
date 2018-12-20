@@ -1,13 +1,17 @@
 # Spectrum
 
-Spectrum is a Minecraft: Java Edition shaderpack, and is currently in alpha.  
+Spectrum is a Minecraft: Java Edition shaderpack, and it is currently in alpha.
 It aims to provide a "natural" look and feel.
+
+[I have a Discord for Spectrum and my other projects.](https://discord.gg/Pj7aXg3)
+[Spectrum is also on the shaderLABS Discord.](https://discord.gg/RpzWN9S)
+[My Twitter that I will probably rarely, if ever, use.](https://twitter.com/ZombyeTweets)
 
 ## Requirements
 
-* Optifine 1.12.2 HD U C7 (or newer)
+* Hardware and drivers that support OpenGL 4.0
+* OptiFine 1.13.2 HD U E5 (or newer)
 
-## Installation
-
-Installing Spectrum is like installing any other current shaderpack.
-If you're new to getting shaderpacks from a GitHub repository, keep in mind that if you download the repository as a .zip you will need to extract the folder within in order for the shaderpack to be detected.
+Note: I currently only have access to Nvidia GPUs for testing.
+Because of this, I cannot ensure that Spectrum will work properly for AMD and Intel GPUs.
+That said, I will still try to fix any issues that occur for AMD and Intel users.

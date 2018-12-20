@@ -1,7 +1,6 @@
-#version 120
-#include "/lib/header.glsl"
-#define STAGE   STAGE_VERTEX
-#define PROGRAM PROGRAM_COMPOSITE1
+#version 400 compatibility
+#include "/lib/shared/header.glsl"
 #define WORLD   WORLD_OVERWORLD
-#include "/lib/postHeader.glsl"
-#include "/program/composite1.vsh"
+#define PROGRAM PROGRAM_COMPOSITE1
+#define STAGE   STAGE_VERTEX
+#include "/program/composite.glsl"

@@ -1,38 +1,127 @@
-bool raytraceIntersection(vec3 start, vec3 direction, out vec3 position, float dither, const float quality, const float refinements, const float surfaceThickness) {
-	position   = start;
-	start      = screenSpaceToViewSpace(start, projectionInverse);
-	direction *= -start.z;
-	direction  = viewSpaceToScreenSpace(direction + start, projection) - position;
-	direction *= minof((step(0.0, direction) - position) / direction) / quality;
+#if !defined INCLUDE_FRAGMENT_RAYTRACER
+#define INCLUDE_FRAGMENT_RAYTRACER
 
-	float difference;
-	bool  intersected = false;
+//#define RAYTRACER_HQ
 
-	// raytrace for intersection
-	position   += direction * dither;
-	difference  = texture2D(depthtex1, position.st).r - position.p;
-	intersected = min(-2.0 * direction.z, position.p - delinearizeDepth(linearizeDepth(position.p, projectionInverse) - surfaceThickness, projection)) < difference && difference < 0.0;
+bool RaytraceIntersection(inout vec3 position, vec3 startVS, vec3 direction, int steps, int refinements) {
+	bool doRefinements = refinements > 0;
+	int refinement = 0;
 
-	for (float i = 1.0; i <= quality && !intersected && position.p < 1.0; i++) {
-		position   += direction;
-		if (floor(position.st) != vec2(0.0)) break; // makes sure we don't improperly intersect anything off-screen
-		difference  = texture2D(depthtex1, position.st).r - position.p;
-		intersected = min(-2.0 * direction.z, position.p - delinearizeDepth(linearizeDepth(position.p, projectionInverse) - surfaceThickness, projection)) < difference && difference < 0.0;
-	}
+	#ifdef RAYTRACER_HQ
+		int refinementIteration = 0;
+	#endif
 
-	// validate intersection
-	intersected = intersected && (difference + position.p) < 1.0 && position.p > 0.0;
+	vec3 increment  = direction * abs(startVS.z) + startVS;
+	     increment  = ViewSpaceToScreenSpace(increment, gbufferProjection) - position;
+	     increment *= MinOf((step(0.0, increment) - position) / increment) / steps;
+	float stepSize = length(increment);
 
-	if (intersected && refinements > 0.0) {
-		// refine intersection position
-		direction *= 0.5;
-		position  += difference < 0.0 ? -direction : direction;
+	position += increment;
 
-		for (float i = 1.0; i < refinements; i++) {
-			direction *= 0.5;
-			position  += texture2D(depthtex1, position.st).r - position.p < 0.0 ? -direction : direction;
+	for (int i = 0; i < steps; ++i) {
+		// Not interpolating seems to give better results
+		float depth = texelFetch(depthtex1, ivec2(floor(position.xy * viewResolution)), 0).r;
+
+		if (depth < position.z) {
+			if (position.z - depth <= stepSize) {
+				if (doRefinements) {
+					if (++refinement > refinements) {
+						position.z = depth;
+						return position.z < 1.0;
+					}
+
+					increment /= 2.0;
+					stepSize  /= 2.0;
+					position  -= increment;
+					#ifdef RAYTRACER_HQ
+						steps *= 2; i = i * 2 - 1;
+						refinementIteration = i;
+					#else
+						i -= 2;
+					#endif
+
+					continue;
+				} else {
+					position.z = depth;
+					return position.z < 1.0;
+				}
+			}
 		}
+
+		#ifdef RAYTRACER_HQ
+			if (refinement > 0 && (i - refinementIteration) == 2) {
+				increment *= 2.0;
+				stepSize  *= 2.0;
+				steps /= 2; i /= 2;
+				--refinement;
+			}
+		#endif
+
+		position += increment;
 	}
 
-	return intersected;
+	return false;
 }
+
+bool RaytraceIntersection(inout vec3 position, vec3 startVS, vec3 direction, float dither, float range, int steps, int refinements) {
+	bool doRefinements = refinements > 0;
+	int refinement = 0;
+
+	#ifdef RAYTRACER_HQ
+		int refinementIteration = 0;
+	#endif
+
+	vec3 increment = direction * (direction.z > 0.0 ? min(-0.5 * startVS.z / direction.z, range) : range) + startVS;
+	     increment = (ViewSpaceToScreenSpace(increment, gbufferProjection) - position) / steps;
+	float stepSize = length(increment);
+
+	position += increment * dither;
+
+	for (int i = 0; i < steps; ++i) {
+		if (Clamp01(position.xy) != position.xy) { break; }
+
+		// Not interpolating seems to give better results
+		float depth = texelFetch(depthtex1, ivec2(floor(position.xy * viewResolution)), 0).r;
+
+		if (depth < position.z) {
+			if (position.z - depth <= stepSize) {
+				if (doRefinements) {
+					if (++refinement > refinements) {
+						position.z = depth;
+						return position.z < 1.0;
+					}
+
+					increment /= 2.0;
+					stepSize  /= 2.0;
+					position  -= increment;
+					#ifdef RAYTRACER_HQ
+						steps *= 2; i = i * 2 - 1;
+						refinementIteration = i;
+					#else
+						i -= 2;
+					#endif
+
+					continue;
+				} else {
+					position.z = depth;
+					return position.z < 1.0;
+				}
+			}
+		}
+
+		#ifdef RAYTRACER_HQ
+			if (refinement > 0 && (i - refinementIteration) == 2) {
+				increment *= 2.0;
+				stepSize  *= 2.0;
+				steps /= 2; i /= 2;
+				--refinement;
+			}
+		#endif
+
+		position += increment;
+	}
+
+	return false;
+}
+
+#endif

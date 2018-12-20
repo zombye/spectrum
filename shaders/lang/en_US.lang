@@ -1,137 +1,271 @@
-##--## Profiles
+option.HAND_FOV=Hand FOV
+option.HAND_FOV.comment=Sets the field of view used when rendering the hand and held items.
+value.HAND_FOV.70=Normal
+value.HAND_FOV.110=Quake Pro
 
-profile.reduced=Reduced
-profile.default=Default
+option.LIGHTING_ONLY=Lighting Only
 
-##--## Miscellaneous
+option.sunPathRotation=Sun Path Rotation
+suffix.sunPathRotation=°
 
-screen.miscellaneous=Miscellaneous
-screen.miscellaneous.comment=Various options that do not fit in other categories.
+option.REFRACTION_MODE=Refractions
+value.REFRACTION_MODE.REFRACTION_OFF=Off
+value.REFRACTION_MODE.REFRACTION_WATER_ONLY=On (Only Water)
+value.REFRACTION_MODE.REFRACTION_FULL=On
+option.REFRACTION_RAYTRACED=Raytraced Refractions
 
-screen.unassigned=Unassigned
-screen.unassigned.comment=Options that have not been assigned to any screens. These may not work properly or at all.
-screen.developer=Developer
-screen.developer.comment=Options intended for use when developing the shaderpack.
-option.sunPathRotation=Sun Angle
-option.TEMPORAL_AA=Temporal Anti-Aliasing
-option.TEMPORAL_AA.comment=Can cause small amounts of ghosting and/or blurring when in motion.
+option.WATER_WAVES_SPEED=Water Waves Speed
+value.WATER_WAVES_SPEED.0=Static
 
-##--## Atmospherics
+##--## Ambient Occlusion ##---------------------------------------------------##
 
-screen.atmospherics=Atmospherics
-screen.atmospherics.comment=Options for effects related to rendering the atmosphere, such as clouds and crepuscular rays.
+screen.ambientOcclusion=Ambient Occlusion
+option.AO_METHOD=Method
+value.AO_METHOD.AO_VERTEX=Vertex
+value.AO_METHOD.AO_HBAO=Horizon-Based
+option.AO_RADIUS=Radius
+suffix.AO_RADIUS=m
 
-option.SKY_ATMOSPHERE_MODE=Atmosphere
-option.SKY_ATMOSPHERE_MODE.comment=The Fancy setting significantly improves quality around sunrise and sunset, but is extremely demanding.
-value.SKY_ATMOSPHERE_MODE.0=Fast
-value.SKY_ATMOSPHERE_MODE.1=Fancy
+option.HBAO_DIRECTIONS=HBAO Directions
+option.HBAO_ANGLE_SAMPLES=HBAO Angle Samples
 
-# Clouds
-option.CLOUDS_LOWER_LAYER=Lower Cloud Layer
-option.CLOUDS_LOWER_LAYER.comment=The lower cloud layer is very demanding, and not needed.
+##--## Artificial Lighting ##-------------------------------------------------##
 
-# Crepuscular rays / Volumetrically lit fog
-option.CREPUSCULAR_RAYS=Crepuscular Rays
-value.CREPUSCULAR_RAYS.0=Off
-value.CREPUSCULAR_RAYS.1=Fast
-value.CREPUSCULAR_RAYS.2=Fancy
+screen.artificialLight=Artificial Lighting
+option.ARTIFICIAL_LIGHT_LUMINANCE=Intensity
+suffix.ARTIFICIAL_LIGHT_LUMINANCE=lx
+option.ARTIFICIAL_LIGHT_SIZE=Size
+suffix.ARTIFICIAL_LIGHT_SIZE=m
+option.ARTIFICIAL_LIGHT_TEMPERATURE=Temperature
+suffix.ARTIFICIAL_LIGHT_TEMPERATURE=k
+option.ARTIFICIAL_LIGHT_USE_AO=Use AO
 
-option.CREPUSCULAR_RAYS_CAUSTICS=Crepuscular Rays Caustics
-option.CREPUSCULAR_RAYS_CAUSTICS.comment=Water caustics in water fog when crepuscular rays is set to fancy. Just uses brute force, so it is extremely slow!
+##--## Camera Properties ##---------------------------------------------------##
 
-##--## Lighting
+screen.camera=Camera & Lens Properties
 
-screen.lighting=Lighting
-screen.lighting.comment=Options for surface lighting effects, such as shadows and reflections.
-
-# Caustics
-screen.caustics=Water Caustics
-option.CAUSTICS_SAMPLES=Samples
-option.CAUSTICS_SAMPLES.comment=Using more samples give more accurate and detailed caustics, but are more demanding.
-option.CAUSTICS_RADIUS=Radius
-option.CAUSTICS_RADIUS.comment=A larger radius takes into account more of the water surface, but gives a less detailed result.
-option.CAUSTICS_DEFOCUS=Defocus
-option.CAUSTICS_DEFOCUS.comment=Essentially adjusts the "focus" of caustics. Higher values result in less detail but also less noise.
-option.CAUSTICS_RESULT_POWER=Contrast
-option.CAUSTICS_RESULT_POWER.comment=Values above 1.0 exaggerate the difference between the bright and dark portions.
-
-# Horizon Based Ambient Occlusion
-screen.hbao=Ambient Occlusion
-option.HBAO=Ambient Occlusion
-option.HBAO_RADIUS=Radius
-suffix.HBAO_RADIUS= Blocks
-option.HBAO_DIRECTIONS=Directions
-option.HBAO_SAMPLES_DIRECTION=Samples Per Direction
-
-# Reflections
-screen.reflections=Reflections
-option.REFLECTION_SAMPLES=Samples
-option.REFLECTION_QUALITY=Sample Quality
-option.TOTAL_INTERNAL_REFLECTION=Total Internal Reflection
-option.FOG_REFLECTED=Include Fog
-
-# Shadows
-screen.shadows=Shadows
-option.shadowMapResolution=Resolution
-option.SHADOW_FILTER_TYPE=Filter Type
-value.SHADOW_FILTER_TYPE.0=PCF (LQ)
-value.SHADOW_FILTER_TYPE.1=PCF (HQ)
-value.SHADOW_FILTER_TYPE.2=PCSS
-value.SHADOW_FILTER_TYPE.3=LPCSS
-option.SHADOW_FILTER_TYPE.comment=PCF filters have fixed penumbra. PCSS filters have variable penumbra dependent on distance from the shadow caster, improving realism. LPCSS is an extension to PCSS that allows opaque and transparent objects to have separate penumbra, further improving realism.
-option.SHADOW_COLORED=Colored Shadows
-option.RTCS=Contact Shadows
-
-# Reflective Shadow Maps
-screen.rsm=Bounced Sunlight
-option.RSM_SAMPLES=Samples
-value.RSM_SAMPLES.0=Off
-option.RSM_RADIUS=Radius
-suffix.RSM_RADIUS= Blocks
-option.RSM_BRIGHTNESS=Brightness
-
-##--## Optics
-
-screen.optics=Optics
-screen.optics.comment=Options for effects simulating artifacts of an optical system, such as Depth of Field.
-
-option.APERTURE_RADIUS=Aperture Radius
-option.APERTURE_BLADE_COUNT=Aperture Blade Count
-option.APERTURE_BLADE_ROTATION=Aperture Blade Rotation
-
+option.DOF=Depth of Field
+value.DOF.DOF_OFF=Off
+value.DOF.DOF_SIMPLE=Simple
+value.DOF.DOF_STANDARD=Standard
+value.DOF.DOF_COMPLEX=Complex
 option.DOF_SAMPLES=Depth of Field Samples
-option.DOF_SAMPLES.comment=Currently Depth of Field does not take into account aperture blades
-option.BLOOM_AMOUNT=Bloom Amount
-option.DIFFRACTION_SPIKES=Diffraction Spikes
-
-##--## Post-Processing
-
-screen.post=Post-Processing
-screen.post.comment=Options for effects that would occur after light has hit the sensor.
-
+option.DOF_SAMPLES.comment=Does not affect "Simple" DoF.
 option.MOTION_BLUR=Motion Blur
-option.TONEMAP=Tonemap
-value.TONEMAP.1=Natural
-value.TONEMAP.2=Filmic
-value.TONEMAP.3=Legacy
-value.TONEMAP.4=Legacy (Reduced toe)
+option.MOTION_BLUR_SAMPLES=Motion Blur Samples
+option.MOTION_BLUR_INTENSITY=Motion Blur Intensity
 
-##--## Surfaces
+option.CAMERA_AUTOEXPOSURE=Autoexposure
+option.CAMERA_EXPOSURE_BIAS=Exposure Bias
+option.CAMERA_AUTOFOCUS=Autofocus
+option.CAMERA_FOCUS_DISTANCE=Focus Distance
+suffix.CAMERA_FOCUS_DISTANCE=m
 
-screen.surface=Surfaces
-screen.surface.comment=Options for effects related to the rendering of surfaces.
+option.CAMERA_FSTOP=F-Stop
+prefix.CAMERA_FSTOP=ƒ/
+option.CAMERA_ISO=ISO
+option.CAMERA_SHUTTER_SPEED=Shutter Speed
+prefix.CAMERA_SHUTTER_SPEED=1/
+suffix.CAMERA_SHUTTER_SPEED=s
 
-option.REFRACTIONS=Refractions
-option.REFRACTIONS.comment=Does not work well if there are multiple layers of transparency.
-value.REFRACTIONS.0=Off
-value.REFRACTIONS.1=Water Only
-value.REFRACTIONS.2=Full
+screen.iris=Iris Shape
+option.CAMERA_IRIS_BLADE_COUNT=Blades
+option.CAMERA_IRIS_BLADE_ROTATION=Blade Rotation
+suffix.CAMERA_IRIS_BLADE_ROTATION=°
+option.CAMERA_IRIS_BLADE_ROUNDING=Blade Rounding
 
-option.TERRAIN_PARALLAX=Terrain Parallax
-option.TERRAIN_PARALLAX.comment=Will not work properly if Texture Resolution has not been set correctly.
-option.TERRAIN_PARALLAX_DEPTH=Terrain Parallax Depth
+##--## Fog ##-----------------------------------------------------------------##
+
+screen.fog=Fog
+option.VL_AIR=Volumetric Lighting (Air)
+option.DISTANT_VL=Distant VL
+option.VL_WATER=Volumetric Lighting (Water)
+option.VL_WATER_CAUSTICS=Volumetric Underwater Caustics
+option.VL_WATER_CAUSTICS.comment=Slow!
+option.UNDERWATER_ADAPTATION=Underwater Adaptation
+
+##--## Materials ##-----------------------------------------------------------##
+
+screen.material=Materials
+option.RESOURCE_FORMAT=Resource Pack Format
+value.RESOURCE_FORMAT.RESOURCE_FORMAT_GREYSCALE=Grayscale
+value.RESOURCE_FORMAT.RESOURCE_FORMAT_OPBR=Old "PBR"
+value.RESOURCE_FORMAT.RESOURCE_FORMAT_NPBR=New PBR
+value.RESOURCE_FORMAT.RESOURCE_FORMAT_WIP=WIP format
+
+option.SMOOTH_ALBEDO=Smooth Albedo
+option.SMOOTH_NORMALS=Smooth Normals
+option.SMOOTH_SPECULAR=Smooth Specular
+option.USE_WATER_TEXTURE=Use Water Texture
+option.WATER_FOG_R=Water Fog Color R
+option.WATER_FOG_G=Water Fog Color G
+option.WATER_FOG_B=Water Fog Color B
+
+##--## Parallax Mapping
+
+screen.parallax=Parallax Mapping
+option.PARALLAX=Parallax Mapping
+option.PARALLAX_SHADOWS=Self-Shadowing
+option.PARALLAX_DEPTH=Depth
+option.SMOOTH_PARALLAX=Smooth Parallax
 
 option.WATER_PARALLAX=Water Parallax
-option.WATER_TEXTURE=Use Water Texture
+option.WATER_PARALLAX_DEPTH_MULTIPLIER=Water Parallax Depth
+option.WATER_PARALLAX_STEPS=Water Parallax Steps
 
-option.TEXTURE_RESOLUTION=Texture Resolution
+##--## Post-Processing ##-----------------------------------------------------##
+
+screen.postProcess=Post-Processing
+option.GAMMA_LUMINANCE=Luminance Gamma
+option.GAMMA_CHROMINANCE=Chrominance Gamma
+option.LIFT=Lift
+
+option.BLOOM=Bloom
+
+option.LOWLIGHT_NOISE=Lowlight Noise
+option.LOWLIGHT_DESATURATION=Lowlight Desaturation
+option.CONE_OVERLAP_SIMULATION=Cone Overlap Simulation
+option.CONE_OVERLAP_SIMULATION.comment=Simulates the effects that the overlapping response ranges of cone cells has on highlights. This significantly improves the appearance of highlights.
+
+##--## Tonemapping
+
+screen.tonemapping=Tonemapping
+option.TONEMAP_TOE_STRENGTH=Toe Strength
+option.TONEMAP_TOE_STRENGTH.comment=Determines how sharp the toe is.
+option.TONEMAP_TOE_LENGTH=Toe Length
+option.TONEMAP_TOE_LENGTH.comment=Determines how quickly the toe transitions to the linear section.
+option.TONEMAP_SHOULDER_STRENGTH=Shoulder Strength
+option.TONEMAP_SHOULDER_STRENGTH.comment=Determines how soon the shoulder starts after the toe has ended.
+option.TONEMAP_SHOULDER_LENGTH=Shoulder Length
+option.TONEMAP_SHOULDER_LENGTH.comment=Determines the white point in stops above what the white point would be if the shoulder didn't exist.
+option.TONEMAP_SHOULDER_ANGLE=Shoulder Angle
+option.TONEMAP_SHOULDER_ANGLE.comment=Determines the angle that the white point is hit. Too large values can cause the image to be significantly darker, depending on how long the shoulder is.
+
+##--## Temporal Anti-Aliasing
+
+screen.taa=Temporal Anti-Aliasing
+option.TAA=Temporal Anti-Aliasing
+option.TAA_CLIP=Enable Clipping
+option.TAA_CLIP.comment=Prevents a lot of ghosting. Should only be disabled for screenshots!
+option.TAA_YCoCg=Use YCoCg
+option.TAA_YCoCg.comment=Perform TAA in YCoCg space. May or may not be better.
+option.TAA_MOTION_REJECTION=Motion Rejection Amount
+option.TAA_MOTION_REJECTION.comment=Lower values have more blurring in motion. Higher values have more aliasing in motion.
+
+##--## Reflective Shadow Maps ##----------------------------------------------##
+
+screen.rsm=Reflective Shadow Maps
+option.RSM=Reflective Shadow Maps
+option.RSM_BRIGHTNESS=Brightness
+suffix.RSM_BRIGHTNESS=x
+option.RSM_RADIUS=Radius
+suffix.RSM_RADIUS=m
+option.RSM_SAMPLES=Samples
+
+##--## Shadow Maps ##---------------------------------------------------------##
+
+screen.shadowMaps=Shadow Maps
+screen.shadowMaps.comment=Shadow Maps are used by various different effects to figure out what is visible to the sun during the day and the moon during the night. These effects include shadows, volumetric lighting, and some forms of global illumination.
+
+option.shadowMapResolution=Resolution
+option.shadowMapResolution.comment=Can have a very large impact on performance!
+
+# Needs a better name tbh
+option.SHADOW_DISTANCE_EFFECTIVE=Effective Shadow Distance
+suffix.SHADOW_DISTANCE_EFFECTIVE=m
+option.SHADOW_DISTANCE_EFFECTIVE.comment=Set lower if you prefer nicer nearby shadows. Set higher if you prefer nicer distant shadows.
+
+option.SHADOW_INFINITE_RENDER_DISTANCE=Infinte Shadow Distance
+option.SHADOW_INFINITE_RENDER_DISTANCE.comment=Allows objects to cast shadows at any distance, regardles of what Shadow Distance is set to.
+
+option.shadowDistance=Shadow Distance
+suffix.shadowDistance=m
+option.shadowDistance.comment=Render distance for shadows.
+
+option.SHADOW_BACKFACE_CULLING=Backface Culling
+option.SHADOW_BACKFACE_CULLING.comment=Improves performance a lot, but causes light to pass through terrain in certain situations.
+
+# Needs a description
+option.BEACON_BEAM_SHADOWS=Include Beacon Beams
+
+##--## Shadows ##-------------------------------------------------------------##
+
+screen.shadows=Shadows
+
+option.SHADOW_FILTER=Shadow Filter
+value.SHADOW_FILTER.SHADOW_FILTER_NONE=None
+value.SHADOW_FILTER.SHADOW_FILTER_BILINEAR=Bilinear
+value.SHADOW_FILTER.SHADOW_FILTER_PCF=PCF
+value.SHADOW_FILTER.SHADOW_FILTER_PCSS=PCSS
+value.SHADOW_FILTER.SHADOW_FILTER_DUAL_PCSS=Dual PCSS
+option.SHADOW_COLORED=Colored Shadows
+option.SHADOW_COLORED.comment=Allows things like stained glass to cast colored shadows.
+option.SHADOW_FILTER_SAMPLES=Filter Samples
+option.SHADOW_FILTER_SAMPLES.comment=Affects the amount of noise in the penumbra of shadows.
+option.SHADOW_SEARCH_SAMPLES=Blocker Search Samples
+option.SHADOW_SEARCH_SAMPLES.comment=Only used for PCSS & Dual PCSS. Primarily affects the accuracy of the penumbra size, especially for shadows cast by small objects and blocks like leaves.
+
+##--## Screen-Space Shadows
+
+# All of these options need better names
+screen.sscs=Contact Shadows
+option.SSCS=Contact Shadows
+option.SSCS_MODE=Mode
+option.SSCS_SAMPLES=Samples
+option.SSCS_STRIDE=Stride
+
+##--## Caustics
+
+screen.caustics=Underwater Caustics
+option.CAUSTICS=Underwater Caustics
+option.CAUSTICS_DITHERED=Use Dithering
+option.CAUSTICS_DITHERED.comment=Dithering should usually be used unless focus is set to 0.5 or less.
+
+option.CAUSTICS_SAMPLES=Samples
+option.CAUSITCS_SAMPLES.comment=Determines the overall quality of caustics. More samples give sharper caustics, or if combined with a lower value for focus, less noise when dithering is enabled.
+option.CAUSTICS_FOCUS=Focus
+option.CAUSTICS_FOCUS.comment=Determine the overall amount of noise, if dithering is enabled. If dithering is not used, this should usually be set to 0.5 or less to prevent certain artifacts.
+option.CAUSTICS_POWER=Contrast
+
+option.CAUSTICS_DISPERSION=Chromatic Dispersion
+option.CAUSTICS_DISPERSION.comment=Adds (greatly exaggerated) chromatic dispersion. Without exaggeration it'd be nearly unnoticable.
+
+##--## Sky ##-----------------------------------------------------------------##
+
+screen.sky=Sky
+option.SKY_RENDER_LOD=Rendering LOD
+option.SKY_RENDER_LOD.comment=Higher values are less detailed.
+option.SKY_IMAGE_LOD=Cubemap LOD
+option.SKY_IMAGE_LOG.comment=Primarily affects reflections. Higher values are less detailed.
+
+##--## Clouds
+
+screen.clouds2D=2D Clouds
+option.CLOUDS2D=2D Clouds
+option.CLOUDS2D_SELFSHADOW_QUALITY=Self-Shadowing Quality
+
+option.CLOUDS2D_COVERAGE=Coverage
+option.CLOUDS2D_USE_WORLD_TIME=Use World Time
+
+screen.clouds3D=3D Clouds
+option.CLOUDS3D=3D Clouds
+option.CLOUDS3D_STEPS=Steps
+option.CLOUDS3D_SIMPLE_SKYLIGHT_SHADING=Simple Skylight Shading
+
+option.CLOUDS3D_DYNAMIC_COVERAGE=Dynamic Coverage
+option.CLOUDS3D_AVERAGE_COVERAGE=Average Coverage
+option.CLOUDS3D_USE_WORLD_TIME=Use World Time
+option.CLOUDS3D_SPEED=Speed
+value.CLOUDS3D_SPEED.0=Static
+
+##--## Screen-Space Reflections ##--------------------------------------------##
+
+screen.ssr=Screen-Space Reflections
+option.SSR_RAY_COUNT=Ray Count
+option.SSR_RAY_STEPS=Ray Steps
+option.SSR_RAY_REFINEMENTS=Ray Refinements
+option.SSR_TAIL_CLAMP=Tail Clamp
+value.SSR_TAIL_CLAMP.0=Off
+
+option.RAYTRACER_HQ=High-Quality Raytracer
+option.RAYTRACER_HQ.comment=Minimizes certain issues.
