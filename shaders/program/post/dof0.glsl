@@ -135,7 +135,7 @@ uniform vec2 taaOffset;
 			float angle = mod(atan(position.y, position.x) + bladeRotation, bladeAngle);
 
 			float dist = cos(halfBladeAngle) / cos(halfBladeAngle - angle);
-			      dist = mix(dist, 1.0, CAMERA_IRIS_BLADE_ROUNDING);
+			      dist = mix(dist, 1.0, float(CAMERA_IRIS_BLADE_ROUNDING));
 
 			// Determine if pixel is within iris
 			float iris = step(dot(position, position), dist * dist);
