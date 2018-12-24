@@ -17,6 +17,9 @@ option.REFRACTION_RAYTRACED=Raytraced Refractions
 option.WATER_WAVES_SPEED=Water Waves Speed
 value.WATER_WAVES_SPEED.0=Static
 
+option.GLOBAL_LIGHT_USE_AO=Use AO on Sunlight
+option.GLOBAL_LIGHT_FADE_WITH_SKYLIGHT=Fade Sunlight with Skylight
+
 ##--## Ambient Occlusion ##---------------------------------------------------##
 
 screen.ambientOcclusion=Ambient Occlusion

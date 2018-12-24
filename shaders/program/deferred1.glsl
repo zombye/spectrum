@@ -592,7 +592,6 @@ uniform vec3 shadowLightVector;
 			float VoH = LoV * rcpLen_LV + rcpLen_LV;
 
 			// Lighting
-			//*
 			#if AO_METHOD == AO_SSAO
 				vec4 ssao = CalculateSSAO(position[1], -normalize(position[1]), mat3(gbufferModelView) * normal, dither, ditherSize);
 				vec3 skyConeVector = ssao.xyz;
@@ -608,34 +607,37 @@ uniform vec3 shadowLightVector;
 				vec3 skyConeVector = normal;
 				float ao = unpack.x;
 			#endif
-			//*/
-			/* For comparing WIP HBAO with RTAO reference
-			vec3 skyConeVector = normal;
-			float ao = 1.0;
-			if (screenCoord.x < 0.5) {
-				vec4 hbao = CalculateHBAO(position[1], -normalize(position[1]), mat3(gbufferModelView) * normal, dither, ditherSize);
-				skyConeVector = mat3(gbufferModelViewInverse) * hbao.xyz;
-				ao = hbao.a;
-			} else {
-				ao = RTAO(position, normal, dither, skyConeVector);
-			}
-			//skyConeVector = vec3(0,1,0);
-			//*/
 
 			vec3 skylight = vec3(0.0);
-			vec3 shadows = vec3(0.0);
-			vec3 bounce = vec3(0.0);
 			if (lightmap.y > 0.0) {
-				#if AO_METHOD == AO_HBAO || AO_METHOD == AO_RTAO
-					vec3 octahedronPoint = skyConeVector / (abs(skyConeVector.x) + abs(skyConeVector.y) + abs(skyConeVector.z));
-				#else
-					vec3 octahedronPoint = normal / (abs(normal.x) + abs(normal.y) + abs(normal.z));
-				#endif
+				vec3 octahedronPoint = skyConeVector / (abs(skyConeVector.x) + abs(skyConeVector.y) + abs(skyConeVector.z));
 				vec3 wPos = Clamp01( octahedronPoint);
 				vec3 wNeg = Clamp01(-octahedronPoint);
+
 				skylight = skylightPosX * wPos.x + skylightPosY * wPos.y + skylightPosZ * wPos.z
 				         + skylightNegX * wNeg.x + skylightNegY * wNeg.y + skylightNegZ * wNeg.z;
+			}
 
+			vec3 shadows = vec3(0.0), bounce = vec3(0.0);
+			#ifdef GLOBAL_LIGHT_FADE_WITH_SKYLIGHT
+				if (lightmap.y > 0.0) {
+					float cloudShadow = Calculate3DCloudShadows(position[2] + cameraPosition);
+					bool translucent = material.translucency.r + material.translucency.g + material.translucency.b > 0.0;
+					shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
+					if (shadows.r > 0.0 && (NoL > 0.0 || translucent)) {
+						shadows *= CalculateShadows(position, normalFlat, translucent, dither, ditherSize);
+					}
+
+					#ifdef RSM
+						bounce = FilterRSM(normalFlat, position[1].z) * RSM_BRIGHTNESS;
+					#else
+						bounce  = CalculateFakeBouncedLight(skyConeVector, shadowLightVector);
+						bounce *= lightmap.y * lightmap.y * lightmap.y;
+					#endif
+
+					bounce *= cloudShadow * ao;
+				}
+			#else
 				float cloudShadow = Calculate3DCloudShadows(position[2] + cameraPosition);
 				bool translucent = material.translucency.r + material.translucency.g + material.translucency.b > 0.0;
 				shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
@@ -646,11 +648,12 @@ uniform vec3 shadowLightVector;
 				#ifdef RSM
 					bounce = FilterRSM(normalFlat, position[1].z) * RSM_BRIGHTNESS;
 				#else
-					bounce = CalculateFakeBouncedLight(skyConeVector, shadowLightVector);
+					bounce  = CalculateFakeBouncedLight(skyConeVector, shadowLightVector);
+					bounce *= lightmap.y * lightmap.y * lightmap.y;
 				#endif
+
 				bounce *= cloudShadow * ao;
-				bounce *= lightmap.y * lightmap.y * lightmap.y;
-			}
+			#endif
 
 			float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
 

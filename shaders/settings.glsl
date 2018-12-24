@@ -6,6 +6,9 @@
 
 #define WATER_WAVES_SPEED 1 // [0 0.5 1 2]
 
+//#define GLOBAL_LIGHT_USE_AO
+//#define GLOBAL_LIGHT_FADE_WITH_SKYLIGHT
+
 //--// Ambient Occlusion //---------------------------------------------------//
 
 #define AO_VERTEX 0

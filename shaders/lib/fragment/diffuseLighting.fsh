@@ -80,18 +80,40 @@ vec3 CalculateDiffuseLighting(
 
 	vec3 hemisphereDiffuse = DiffuseHammonAmbient(NoV, material.albedo, material.roughness);
 
-	// Natural light
-	if (lightmap.y > 0.0) {
-		float falloff = lightmap.y * exp(6.0 * (lightmap.y - 1.0));
+	#ifdef GLOBAL_LIGHT_FADE_WITH_SKYLIGHT
+		if (lightmap.y > 0.0) {
+			float falloff = lightmap.y * exp(6.0 * (lightmap.y - 1.0));
 
+			vec3 diffuse    = DiffuseHammon(NoL, NoH, NoV, LoV, material.albedo, material.roughness);
+			vec3 subsurface = SubsurfaceApprox(NoL, -LoV, material.albedo, material.translucency);
+
+			diffuseLighting += ((diffuse + subsurface) * shadows + bounced) * illuminanceShadowlight * falloff;
+
+			#ifdef GLOBAL_LIGHT_USE_AO
+				diffuseLighting += falloff * hemisphereDiffuse * skylight;
+				diffuseLighting *= ao;
+			#else
+				diffuseLighting += skylight * hemisphereDiffuse * ao * falloff;
+			#endif
+		}
+	#else
+		// Sunlight
 		vec3 diffuse    = DiffuseHammon(NoL, NoH, NoV, LoV, material.albedo, material.roughness);
 		vec3 subsurface = SubsurfaceApprox(NoL, -LoV, material.albedo, material.translucency);
 
-		diffuseLighting += ((diffuse + subsurface) * shadows + bounced) * illuminanceShadowlight * falloff;
+		#ifdef GLOBAL_LIGHT_USE_AO
+			diffuseLighting += illuminanceShadowlight * ((diffuse * ao + subsurface) * shadows + bounced);
+		#else
+			diffuseLighting += illuminanceShadowlight * ((diffuse + subsurface) * shadows + bounced);
+		#endif
 
 		// Skylight
-		diffuseLighting += falloff * ao * hemisphereDiffuse * skylight;
-	}
+		if (lightmap.y > 0.0) {
+			float falloff = lightmap.y * exp(6.0 * (lightmap.y - 1.0));
+
+			diffuseLighting += skylight * hemisphereDiffuse * ao * falloff;
+		}
+	#endif
 
 	// Artificial light
 	if (lightmap.x > 0.0) {

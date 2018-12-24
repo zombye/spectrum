@@ -296,6 +296,16 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Functions
 
+	vec3 CalculateFakeBouncedLight(vec3 normal, vec3 lightVector) {
+		const vec3 groundAlbedo = vec3(0.1, 0.1, 0.1);
+		const vec3 weight = vec3(0.2, 0.6, 0.2); // Fraction of light bounced off the x, y, and z planes. Should sum to 1.0 or less.
+
+		// Divide by pi^2 for energy conservation.
+		float bounceIntensity = dot(abs(lightVector) * (-sign(lightVector) * normal * 0.5 + 0.5), weight / (pi * pi));
+
+		return groundAlbedo * bounceIntensity;
+	}
+
 	void main() {
 		mat3 position;
 		position[0] = vec3(gl_FragCoord.st * viewPixelSize, gl_FragCoord.z);
@@ -374,26 +384,44 @@ uniform vec3 shadowLightVector;
 		#endif
 
 		vec3 skylight = vec3(0.0);
-		vec3 shadows = vec3(0.0);
 		if (lightmapCoordinates.y > 0.0) {
 			vec3 octahedronPoint = normal / (abs(normal.x) + abs(normal.y) + abs(normal.z));
 			vec3 wPos = Clamp01( octahedronPoint);
 			vec3 wNeg = Clamp01(-octahedronPoint);
 			skylight = skylightPosX * wPos.x + skylightPosY * wPos.y + skylightPosZ * wPos.z
 			         + skylightNegX * wNeg.x + skylightNegY * wNeg.y + skylightNegZ * wNeg.z;
+		}
 
+		#ifdef GLOBAL_LIGHT_FADE_WITH_SKYLIGHT
+			vec3 shadows = vec3(0.0), vec3 bounce = vec3(0.0);
+			if (lightmapCoordinates.y > 0.0) {
+				float cloudShadow = Calculate3DCloudShadows(position[2] + cameraPosition);
+				shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
+				if (shadows.r > 0.0 && (NoL > 0.0 || translucent)) {
+					shadows *= CalculateShadows(position, tbn[2], translucent, dither, ditherSize);
+				}
+
+				bounce  = CalculateFakeBouncedLight(normal, shadowLightVector);
+				bounce *= lightmapCoordinates.y * lightmapCoordinates.y * lightmapCoordinates.y;
+				bounce *= cloudShadow * vertexAo;
+			}
+		#else
 			float cloudShadow = Calculate3DCloudShadows(position[2] + cameraPosition);
-			shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
+			vec3 shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
 			if (shadows.r > 0.0 && (NoL > 0.0 || translucent)) {
 				shadows *= CalculateShadows(position, tbn[2], translucent, dither, ditherSize);
 			}
-		}
+
+			vec3 bounce  = CalculateFakeBouncedLight(normal, shadowLightVector);
+			     bounce *= lightmapCoordinates.y * lightmapCoordinates.y * lightmapCoordinates.y;
+			     bounce *= cloudShadow * vertexAo;
+		#endif
 		colortex2Write = vec4(LinearToSrgb(shadows), 1.0);
 
 		float blocklightShading = 1.0; // TODO
 
 		material.albedo *= baseTex.a;
-		colortex3Write.rgb  = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, vec3(0.0), skylight, lightmapCoordinates, blocklightShading, vertexAo);
+		colortex3Write.rgb  = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, bounce, skylight, lightmapCoordinates, blocklightShading, vertexAo);
 		colortex3Write.rgb += material.emission;
 		colortex3Write.a    = totalOpacity;
 		#if defined MOTION_BLUR || defined TAA
