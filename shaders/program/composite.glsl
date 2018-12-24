@@ -297,7 +297,7 @@ uniform vec3 shadowLightVector;
 		#endif
 
 		#ifdef VL_WATER
-			const int steps = 60;
+			const int steps = 6;
 
 			float stepSize = distance(startPosition, endPosition) / steps;
 

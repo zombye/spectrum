@@ -1,6 +1,8 @@
 #if !defined INCLUDE_FRAGMENT_WATERNORMAL
 #define INCLUDE_FRAGMENT_WATERNORMAL
 
+#define NEW_WATER
+
 float GetSmoothNoise(vec2 coord) {
 	vec2 floored = floor(coord);
 
@@ -17,6 +19,50 @@ float GetSmoothNoise(vec2 coord) {
 	return dot(samples, weights.yxxy * weights.zzww);
 }
 
+#if defined NEW_WATER
+float CalculateWaterWave(vec2 position, vec2 direction, float phaseOffset, float amplitude, float wavelength, float sharpness, float time) {
+	const float g = 9.81;
+
+	float k = tau / wavelength; // angular wavenumber (radians per metre)
+	float w = sqrt(g * k); // angular frequency (radians per second)
+
+	float c = 1.0 / sharpness;
+	float phase = w * time + k * (dot(direction, position) + phaseOffset);
+	return amplitude * (log2(cos(phase) + c) - log2(1.0 + c)) / (log2(-1.0 + c) - log2(1.0 + c));
+}
+
+float CalculateWaterWaves(vec3 position) {
+	position += cameraPosition;
+
+	float waveTime = frameTimeCounter * WATER_WAVES_SPEED;
+
+	const float g = 9.81;
+
+	const int   iterations = 11;
+	      float wavelength = 10.0;
+	      float amplitude  = 0.12;
+	const float gain       = 0.6;
+	const float wlGain     = 0.7;
+
+	const float angle = tau / (1.0 + sqrt(2.0));
+	const mat2 rotation = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+
+	float waves = 0.0;
+	vec2 dir = vec2(0, 1);
+	for (int i = 0; i < iterations; ++i) {
+		float noiseOffset = GetSmoothNoise(position.xz / wavelength) * wavelength * 0.8;
+		float wave = CalculateWaterWave(position.xz, dir, noiseOffset, amplitude, wavelength, 0.65 / ((1.0 / wavelength) + 1.0), waveTime);
+
+		waves += wave - amplitude;
+
+		wavelength *= wlGain;
+		amplitude  *= gain;
+		dir        *= rotation;
+	}
+
+	return waves;
+}
+#else
 struct waveParams {
 	vec2 inverseScale;
 	vec2 scaledTranslation;
@@ -38,8 +84,6 @@ float CalculateWaterWave(vec2 pos, float waveTime, const waveParams params) {
 }
 
 float CalculateWaterWaves(vec3 position) {
-	//return 0.0;
-
 	float waveTime = frameTimeCounter * WATER_WAVES_SPEED;
 
 	const waveParams[4] params = waveParams[4](
@@ -58,6 +102,7 @@ float CalculateWaterWaves(vec3 position) {
 
 	return waves;
 }
+#endif
 
 vec3 CalculateWaterNormal(vec3 position) {
 	const float dist = 0.001;
