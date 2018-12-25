@@ -20,15 +20,19 @@ float GetSmoothNoise(vec2 coord) {
 }
 
 #if defined NEW_WATER
-float CalculateWaterWave(vec2 position, vec2 direction, float phaseOffset, float amplitude, float wavelength, float sharpness, float time) {
+float CalculateWaterWave(float phase, float height, float sharpness) {
+	// Trochoidal wave approximation
+	float power = 1.0 - 0.72 * pow(sharpness, 0.75);
+	return height * (1.0 - pow(cos(phase) * 0.5 + 0.5, power));
+}
+float CalculateWaterWave(vec2 position, vec2 direction, float phaseOffset, float height, float wavelength, float sharpness, float time) {
 	const float g = 9.81;
 
 	float k = tau / wavelength; // angular wavenumber (radians per metre)
 	float w = sqrt(g * k); // angular frequency (radians per second)
 
-	float c = 1.0 / sharpness;
 	float phase = w * time + k * (dot(direction, position) + phaseOffset);
-	return amplitude * (log2(cos(phase) + c) - log2(1.0 + c)) / (log2(-1.0 + c) - log2(1.0 + c));
+	return CalculateWaterWave(phase, height, sharpness);
 }
 
 float CalculateWaterWaves(vec3 position) {
@@ -36,28 +40,35 @@ float CalculateWaterWaves(vec3 position) {
 
 	float waveTime = frameTimeCounter * WATER_WAVES_SPEED;
 
-	const float g = 9.81;
+	const float g = 6.0;
 
-	const int   iterations = 11;
-	      float wavelength = 10.0;
-	      float amplitude  = 0.12;
+	const int   iterations = 8;
+	      float wavelength = 6.0;
+	      float height     = 0.07;
 	const float gain       = 0.6;
 	const float wlGain     = 0.7;
 
 	const float angle = tau / (1.0 + sqrt(2.0));
 	const mat2 rotation = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
 
-	float waves = 0.0;
-	vec2 dir = vec2(0, 1);
-	for (int i = 0; i < iterations; ++i) {
-		float noiseOffset = GetSmoothNoise(position.xz / wavelength) * wavelength * 0.8;
-		float wave = CalculateWaterWave(position.xz, dir, noiseOffset, amplitude, wavelength, 0.65 / ((1.0 / wavelength) + 1.0), waveTime);
+	vec2 noisePosition = position.xz;
 
-		waves += wave - amplitude;
+	float waves = 0.0;
+	for (int i = 0; i < iterations; ++i) {
+		float k = tau / wavelength; // angular wavenumber (radians per metre)
+		float w = sqrt(g * k);      // angular frequency  (radians per second)
+
+		float phaseNoise = GetSmoothNoise(vec2(position.x, position.z + w * waveTime * 0.7) / wavelength) * wavelength * 0.8;
+		float phase = w * waveTime + k * (position.z + phaseNoise);
+
+		float sharpness = pow(pi * height / wavelength, 1.0 / 3.0);
+		float wave = CalculateWaterWave(phase, height, sharpness);
+
+		waves += wave - height;
 
 		wavelength *= wlGain;
-		amplitude  *= gain;
-		dir        *= rotation;
+		height     *= gain;
+		position.xz = rotation * position.xz;
 	}
 
 	return waves;
