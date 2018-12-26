@@ -158,6 +158,9 @@ vec3 Tonemap(vec3 color) {
 
 	//--// Apply curve
 
+	// This messes with the white point, but it fixes the brightness.
+	color /= invScale;
+
 	color.r = EvaluateFullCurve(color.r, curve);
 	color.g = EvaluateFullCurve(color.g, curve);
 	color.b = EvaluateFullCurve(color.b, curve);
@@ -201,6 +204,8 @@ vec3 TonemapInv(vec3 color) {
 	color.r = EvaluateFullCurveInv(color.r, curve);
 	color.g = EvaluateFullCurveInv(color.g, curve);
 	color.b = EvaluateFullCurveInv(color.b, curve);
+
+	color *= invScale;
 
 	return color;
 }
