@@ -14,9 +14,6 @@ value.REFRACTION_MODE.REFRACTION_WATER_ONLY=On (Only Water)
 value.REFRACTION_MODE.REFRACTION_FULL=On
 option.REFRACTION_RAYTRACED=Raytraced Refractions
 
-option.WATER_WAVES_SPEED=Water Waves Speed
-value.WATER_WAVES_SPEED.0=Static
-
 option.GLOBAL_LIGHT_USE_AO=Use AO on Sunlight
 option.GLOBAL_LIGHT_FADE_WITH_SKYLIGHT=Fade Sunlight with Skylight
 
@@ -90,16 +87,18 @@ option.UNDERWATER_ADAPTATION=Underwater Adaptation
 ##--## Materials ##-----------------------------------------------------------##
 
 screen.material=Materials
+
 option.RESOURCE_FORMAT=Resource Pack Format
 value.RESOURCE_FORMAT.RESOURCE_FORMAT_GREYSCALE=Grayscale
 value.RESOURCE_FORMAT.RESOURCE_FORMAT_OPBR=Old "PBR"
 value.RESOURCE_FORMAT.RESOURCE_FORMAT_NPBR=New PBR
 value.RESOURCE_FORMAT.RESOURCE_FORMAT_WIP=WIP format
+option.USE_WATER_TEXTURE=Use Water Texture
 
 option.SMOOTH_ALBEDO=Smooth Albedo
 option.SMOOTH_NORMALS=Smooth Normals
 option.SMOOTH_SPECULAR=Smooth Specular
-option.USE_WATER_TEXTURE=Use Water Texture
+
 option.WATER_FOG_R=Water Fog Color R
 option.WATER_FOG_G=Water Fog Color G
 option.WATER_FOG_B=Water Fog Color B
@@ -110,11 +109,28 @@ screen.parallax=Parallax Mapping
 option.PARALLAX=Parallax Mapping
 option.PARALLAX_SHADOWS=Self-Shadowing
 option.PARALLAX_DEPTH=Depth
+suffix.PARALLAX_DEPTH=m
 option.SMOOTH_PARALLAX=Smooth Parallax
 
 option.WATER_PARALLAX=Water Parallax
 option.WATER_PARALLAX_DEPTH_MULTIPLIER=Water Parallax Depth
+suffix.WATER_PARALLAX_DEPTH_MULTIPLIER=x
 option.WATER_PARALLAX_STEPS=Water Parallax Steps
+
+##--## Procedural Waves
+
+screen.waves=Procedural Waves
+
+option.WATER_WAVES_COUNT=Waves
+option.WATER_WAVES_SPEED=Speed
+value.WATER_WAVES_SPEED.0=Static
+
+option.WATER_WAVES_WAVELENGTH=Wavelength
+suffix.WATER_WAVES_WAVELENGTH=m
+option.WATER_WAVES_WAVE_HEIGHT=Wave Height
+suffix.WATER_WAVES_WAVE_HEIGHT=m
+option.WATER_WAVES_WAVELENGTH_GAIN=Wavelength Gain
+option.WATER_WAVES_WAVE_HEIGHT_GAIN=Wave Height Gain
 
 ##--## Post-Processing ##-----------------------------------------------------##
 

@@ -1,8 +1,6 @@
 #if !defined INCLUDE_FRAGMENT_WATERNORMAL
 #define INCLUDE_FRAGMENT_WATERNORMAL
 
-#define NEW_WATER
-
 float GetSmoothNoise(vec2 coord) {
 	vec2 floored = floor(coord);
 
@@ -19,7 +17,6 @@ float GetSmoothNoise(vec2 coord) {
 	return dot(samples, weights.yxxy * weights.zzww);
 }
 
-#if defined NEW_WATER
 float CalculateWaterWave(float phase, float height, float sharpness) {
 	// Trochoidal wave approximation
 	float power = 1.0 - 0.72 * pow(sharpness, 0.75);
@@ -31,7 +28,7 @@ float CalculateWaterWave(vec2 position, vec2 direction, float phaseOffset, float
 	float k = tau / wavelength; // angular wavenumber (radians per metre)
 	float w = sqrt(g * k); // angular frequency (radians per second)
 
-	float phase = w * time + k * (dot(direction, position) + phaseOffset);
+	float phase = k * (dot(direction, position) + phaseOffset) - w * time;
 	return CalculateWaterWave(phase, height, sharpness);
 }
 
@@ -40,26 +37,24 @@ float CalculateWaterWaves(vec3 position) {
 
 	float waveTime = frameTimeCounter * WATER_WAVES_SPEED;
 
-	const float g = 6.0;
 
-	const int   iterations = 8;
-	      float wavelength = 6.0;
-	      float height     = 0.07;
-	const float gain       = 0.6;
-	const float wlGain     = 0.7;
+	const int   iterations = WATER_WAVES_COUNT;
+	const float g          = WATER_WAVES_G;
+	      float wavelength = WATER_WAVES_WAVELENGTH;
+	const float wlGain     = WATER_WAVES_WAVELENGTH_GAIN;
+	      float height     = WATER_WAVES_WAVE_HEIGHT;
+	const float gain       = WATER_WAVES_WAVE_HEIGHT_GAIN * WATER_WAVES_WAVELENGTH_GAIN;
 
-	const float angle = tau / (1.0 + sqrt(2.0));
+	const float angle = 2.6;
 	const mat2 rotation = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
-
-	vec2 noisePosition = position.xz;
 
 	float waves = 0.0;
 	for (int i = 0; i < iterations; ++i) {
 		float k = tau / wavelength; // angular wavenumber (radians per metre)
 		float w = sqrt(g * k);      // angular frequency  (radians per second)
 
-		float phaseNoise = GetSmoothNoise(vec2(position.x, position.z + w * waveTime * 0.7) / wavelength) * wavelength * 0.8;
-		float phase = w * waveTime + k * (position.z + phaseNoise);
+		float phaseNoise = GetSmoothNoise(vec2(position.x, position.z - w * waveTime * 0.7) / wavelength) * wavelength * 0.8;
+		float phase = k * (position.z + phaseNoise) - w * waveTime;
 
 		float sharpness = pow(pi * height / wavelength, 1.0 / 3.0);
 		float wave = CalculateWaterWave(phase, height, sharpness);
@@ -73,47 +68,6 @@ float CalculateWaterWaves(vec3 position) {
 
 	return waves;
 }
-#else
-struct waveParams {
-	vec2 inverseScale;
-	vec2 scaledTranslation;
-	vec2 skew;
-	float height;
-	bool sharpen;
-	float sharpenThreshold;
-	float sharpenMin;
-};
-
-float CalculateWaterWave(vec2 pos, float waveTime, const waveParams params) {
-	pos = params.inverseScale * pos + params.scaledTranslation * waveTime;
-	pos = pos.yx * params.skew + pos;
-	float wave = GetSmoothNoise(pos);
-	if (params.sharpen) {
-		wave = 1.0 - AlmostIdentity(abs(wave * 2.0 - 1.0), params.sharpenThreshold, params.sharpenMin);
-	}
-	return wave * params.height;
-}
-
-float CalculateWaterWaves(vec3 position) {
-	float waveTime = frameTimeCounter * WATER_WAVES_SPEED;
-
-	const waveParams[4] params = waveParams[4](
-		waveParams(1.0 / vec2(2.50, 3.33), vec2(2.40, 0.43) / vec2(2.50, 3.33), vec2(0.2, 1.3), 0.070,  true, 0.16, 0.08),
-		waveParams(1.0 / vec2(0.71, 1.11), vec2(0.91,-0.71) / vec2(0.71, 1.11), vec2(0.0,-1.2), 0.030, false, 0.16, 0.08),
-		waveParams(1.0 / vec2(0.26, 0.40), vec2(0.62, 0.26) / vec2(0.26, 0.40), vec2(0.0, 1.0), 0.010, false, 0.16, 0.08),
-		waveParams(1.0 / vec2(0.09, 0.20), vec2(0.22, 0.16) / vec2(0.09, 0.20), vec2(0.0, 0.3), 0.003, false, 0.16, 0.08)
-	);
-
-	position += cameraPosition;
-
-	float waves = 0.0;
-	for (int i = 0; i < params.length(); i++) {
-		waves += CalculateWaterWave(position.xz, waveTime, params[i]) - params[i].height;
-	}
-
-	return waves;
-}
-#endif
 
 vec3 CalculateWaterNormal(vec3 position) {
 	const float dist = 0.001;
