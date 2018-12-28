@@ -127,6 +127,9 @@ vec3 CalculateDiffuseLighting(
 		diffuseLighting += ARTIFICIAL_LIGHT_LUMINANCE * falloff * hemisphereDiffuse * blocklightShading * color;
 	}
 
+	// Ambient light (so you can see anything at all in unlit caves caves)
+	diffuseLighting += hemisphereDiffuse * ao * mix(0.002, 0.005, screenBrightness);
+
 	// Done outside all the functions, common and small optimization (and makes a "lighting-only" view easy)
 	#ifndef LIGHTING_ONLY
 		diffuseLighting *= material.albedo;

@@ -21,6 +21,8 @@ uniform vec3 cameraPosition;
 
 uniform float fogDensity = 0.1;
 
+uniform float screenBrightness;
+
 // Time
 uniform int   frameCounter;
 uniform float frameTimeCounter;
