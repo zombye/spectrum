@@ -48,7 +48,9 @@ uniform vec3 shadowLightVector;
 
 	// Interpolated
 	out vec3 normal;
-	out vec3 scenePosition;
+	#ifdef CAUSTICS
+		out vec3 scenePosition;
+	#endif
 	out vec2 textureCoordinates;
 	out vec2 lightmapCoordinates;
 
@@ -88,7 +90,11 @@ uniform vec3 shadowLightVector;
 		blockId             = int(mc_Entity.x);
 
 		gl_Position.xyz = mat3(gl_ModelViewMatrix) * gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz;
-		scenePosition = mat3(shadowModelViewInverse) * gl_Position.xyz + shadowModelViewInverse[3].xyz;
+		#ifdef CAUSTICS
+			scenePosition = mat3(shadowModelViewInverse) * gl_Position.xyz + shadowModelViewInverse[3].xyz;
+		#elif defined VERTEX_ANIMATION
+			vec3 scenePosition = mat3(shadowModelViewInverse) * gl_Position.xyz + shadowModelViewInverse[3].xyz;
+		#endif
 		#if defined VERTEX_ANIMATION
 			scenePosition += AnimateVertex(scenePosition, scenePosition + cameraPosition, int(mc_Entity.x), frameTimeCounter);
 			gl_Position.xyz = mat3(shadowModelView) * scenePosition + shadowModelView[3].xyz;
@@ -103,7 +109,9 @@ uniform vec3 shadowLightVector;
 
 	// Interpolated
 	in vec3 normal;
-	in vec3 scenePosition;
+	#ifdef CAUSTICS
+		in vec3 scenePosition;
+	#endif
 	in vec2 textureCoordinates;
 	in vec2 lightmapCoordinates;
 
@@ -127,19 +135,26 @@ uniform vec3 shadowLightVector;
 	//--// Fragment Functions
 
 	void main() {
+		#ifndef CAUSTICS
+			shadowcolor1Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
+		#endif
 		shadowcolor1Write.z = lightmapCoordinates.y;
 
 		if (blockId == 8 || blockId == 9) {
 			shadowcolor0Write.rgb = vec3(1.0);
 			shadowcolor0Write.a   = 0.2;
 
-			shadowcolor1Write.xy = EncodeNormal(CalculateWaterNormal(scenePosition)) * 0.5 + 0.5;
+			#ifdef CAUSTICS
+				shadowcolor1Write.xy = EncodeNormal(CalculateWaterNormal(scenePosition)) * 0.5 + 0.5;
+			#endif
 			shadowcolor1Write.w  = 1.0;
 		} else {
 			shadowcolor0Write      = texture(tex, textureCoordinates);
 			shadowcolor0Write.rgb *= tint;
 
-			shadowcolor1Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
+			#ifdef CAUSTICS
+				shadowcolor1Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
+			#endif
 			shadowcolor1Write.w  = 0.0;
 		}
 	}

@@ -86,14 +86,16 @@ float Get3DCloudDensity(vec3 position, float coreDistance, float coverage) {
 
 	//--// Noise
 
+	position = position * 1e-3 + cloudsTime;
+
 	const int octaves = 5;
 
-	position = position * 1e-3 + cloudsTime;
 	float density = Get3DNoise(position);
 	for (int i = 1; i < octaves; ++i) {
 		position.xz *= rotateGoldenAngle;
-		density += Get3DNoise(position = position * pi + cloudsTime) * exp2(-i);
-	} density /= 2.0 - exp2(-octaves);
+		position = position * pi + cloudsTime;
+		density += Get3DNoise(position) * exp2(-i);
+	} density = density * 0.5 + (0.5 * exp2(-octaves));
 
 	//--// Apply coverage
 

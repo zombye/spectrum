@@ -19,14 +19,15 @@ float GetSmoothNoise(vec2 coord) {
 
 float CalculateWaterWave(float phase, float height, float sharpness) {
 	// Trochoidal wave approximation
+	// Has peaks at 0 and throughs at height.
 	float power = 1.0 - 0.72 * pow(sharpness, 0.75);
-	return height * (1.0 - pow(cos(phase) * 0.5 + 0.5, power));
+	return height * pow(cos(phase) * 0.5 + 0.5, power);
 }
 float CalculateWaterWave(vec2 position, vec2 direction, float phaseOffset, float height, float wavelength, float sharpness, float time) {
 	const float g = 9.81;
 
 	float k = tau / wavelength; // angular wavenumber (radians per metre)
-	float w = sqrt(g * k); // angular frequency (radians per second)
+	float w = sqrt(g * k);      // angular frequency (radians per second)
 
 	float phase = k * (dot(direction, position) + phaseOffset) - w * time;
 	return CalculateWaterWave(phase, height, sharpness);
@@ -36,7 +37,6 @@ float CalculateWaterWaves(vec3 position) {
 	position += cameraPosition;
 
 	float waveTime = frameTimeCounter * WATER_WAVES_SPEED;
-
 
 	const int   iterations = WATER_WAVES_COUNT;
 	const float g          = WATER_WAVES_G;
@@ -59,7 +59,7 @@ float CalculateWaterWaves(vec3 position) {
 		float sharpness = pow(pi * height / wavelength, 1.0 / 3.0);
 		float wave = CalculateWaterWave(phase, height, sharpness);
 
-		waves += wave - height;
+		waves -= wave;
 
 		wavelength *= wlGain;
 		height     *= gain;

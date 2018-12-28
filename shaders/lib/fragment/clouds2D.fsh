@@ -25,14 +25,16 @@ float Get2DNoise(vec2 position) {
 float Get2DCloudsDensity(vec2 position, float cloudsTime) {
 	//--// Main Noise
 
+	vec2 mainPosition = position * 4e-5 + cloudsTime;
+
 	const int mainOctaves = 6;
 
-	vec2 mainPosition = position;
-	float mainNoise = Get2DNoise(mainPosition = mainPosition * 4e-5 + cloudsTime);
+	float mainNoise = Get2DNoise(mainPosition);
 	for (int i = 1; i < mainOctaves; ++i) {
 		mainPosition *= rotateGoldenAngle;
-		mainNoise += Get2DNoise(mainPosition = mainPosition * pi + cloudsTime) * exp2(-i);
-	} mainNoise /= 2.0 - exp2(-mainOctaves);
+		mainPosition = mainPosition * pi + cloudsTime;
+		mainNoise += Get2DNoise(mainPosition) * exp2(-i);
+	} mainNoise = mainNoise * 0.5 + (0.5 * exp2(-mainOctaves));
 
 	//--// Apply Coverage
 
