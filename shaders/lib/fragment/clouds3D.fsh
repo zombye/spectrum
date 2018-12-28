@@ -13,15 +13,8 @@
 
 //#define CLOUDS3D_SIMPLE_SKYLIGHT_SHADING // Simpler and much faster skylight shading on clouds.
 
-#define CLOUDS3D_USE_MFS_VIEW // Clouds with this turned off are a WIP
-
-#if defined CLOUDS3D_USE_MFS_VIEW
-	#define CLOUDS3D_ATTENUATION_COEFFICIENT 0.05
-	#define CLOUDS3D_SCATTERING_ALBEDO 0.7
-#else
-	#define CLOUDS3D_ATTENUATION_COEFFICIENT 0.05
-	#define CLOUDS3D_SCATTERING_ALBEDO 0.8
-#endif
+#define CLOUDS3D_ATTENUATION_COEFFICIENT 0.15
+#define CLOUDS3D_SCATTERING_ALBEDO 0.7
 
 #define CLOUDS3D_ALTITUDE_MAX 900
 #define CLOUDS3D_ALTITUDE_MIN 600
@@ -195,6 +188,8 @@ float Calculate3DCloudsOpticalDepthUp(vec3 position, float coverage) { // Simple
 			float opticalDepth = Calculate3DCloudsOpticalDepthUp(position, coverage, CLOUDS3D_SELFSHADOW_STEPS_SKY);
 		#endif
 
+		opticalDepth *= 0.2; // Really inaccurate, but needed to get skylight to look right-ish.
+
 		return phase * exp((CLOUDS3D_SCATTERING_ALBEDO - 1.0) * opticalDepth);
 	}
 
@@ -239,27 +234,15 @@ float Calculate3DCloudsOpticalDepthUp(vec3 position, float coverage) { // Simple
 
 			//--// Attenuation and unlit scattering
 
-			#if defined CLOUDS3D_USE_MFS_VIEW
-				/* Unoptimized version
-				float stepTransmittedFraction = Clamp01((exp((CLOUDS3D_SCATTERING_ALBEDO - 1.0) * stepOpticalDepth) - 1.0) / ((CLOUDS3D_SCATTERING_ALBEDO - 1.0) * stepOpticalDepth)); // Fraction of light scattered in the step towards the viewer that leaves the step
-				float stepVisibleFraction     = exp((CLOUDS3D_SCATTERING_ALBEDO - 1.0) * opticalDepth) * stepTransmittedFraction;                                                      // Fraction of light scattered in the step towards the viewer that reaches the viewer
+			/* Unoptimized version
+			float stepTransmittedFraction = Clamp01((exp((CLOUDS3D_SCATTERING_ALBEDO - 1.0) * stepOpticalDepth) - 1.0) / ((CLOUDS3D_SCATTERING_ALBEDO - 1.0) * stepOpticalDepth)); // Fraction of light scattered in the step towards the viewer that leaves the step
+			float stepVisibleFraction     = exp((CLOUDS3D_SCATTERING_ALBEDO - 1.0) * opticalDepth) * stepTransmittedFraction;                                                      // Fraction of light scattered in the step towards the viewer that reaches the viewer
 
-				float stepScatteringUnlit = CLOUDS3D_SCATTERING_ALBEDO * stepOpticalDepth * stepVisibleFraction;
-				//*/
+			float stepScatteringUnlit = CLOUDS3D_SCATTERING_ALBEDO * stepOpticalDepth * stepVisibleFraction;
+			//*/
 
-				const float c1 = CLOUDS3D_SCATTERING_ALBEDO - 1.0, c2 = 1.0 / (1.0 - CLOUDS3D_SCATTERING_ALBEDO);
-				float stepScatteringUnlit = CLOUDS3D_SCATTERING_ALBEDO * exp(c1 * opticalDepth) * (c2 - c2 * exp(c1 * stepOpticalDepth));
-			#else
-				float powderEffect = 1.0 - exp(-6.0 * stepDensity);
-
-				/* Unoptimized version
-				float stepTransmittedFraction = Clamp01((exp(-stepOpticalDepth) - 1.0) / -stepOpticalDepth); // Fraction of light scattered in the step towards the viewer that leaves the step
-				float stepVisibleFraction     = exp(-opticalDepth) * stepTransmittedFraction;                // Fraction of light scattered in the step towards the viewer that reaches the viewer
-
-				// Multiply by 2 to somewhat match MFS version
-				float stepScatteringUnlit = 4.0 * CLOUDS3D_SCATTERING_ALBEDO * powderEffect * stepOpticalDepth * stepVisibleFraction;
-				//*/ float stepScatteringUnlit = 3.0 * CLOUDS3D_SCATTERING_ALBEDO * powderEffect * exp(-opticalDepth) * (1.0 - exp(-stepOpticalDepth));
-			#endif
+			const float c1 = CLOUDS3D_SCATTERING_ALBEDO - 1.0, c2 = 1.0 / (1.0 - CLOUDS3D_SCATTERING_ALBEDO);
+			float stepScatteringUnlit = CLOUDS3D_SCATTERING_ALBEDO * exp(c1 * opticalDepth) * (c2 - c2 * exp(c1 * stepOpticalDepth));
 
 			//--// Light and ccumulate
 
