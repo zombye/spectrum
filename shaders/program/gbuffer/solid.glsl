@@ -296,24 +296,26 @@ uniform vec3 shadowLightVector;
 		}
 	#endif
 
-	vec3 CalculateBLocklightVector(vec3 flatNormal) {
-		#define blocklight lightmapCoordinates.x
+	#ifdef ARTIFICIAL_LIGHT_DIRECTIONAL
+		vec3 CalculateBlocklightVector(vec3 flatNormal) {
+			#define blocklight lightmapCoordinates.x
 
-		vec2   lightmapDerivatives = vec2(dFdx(lightmapCoordinates.x), dFdy(lightmapCoordinates.x));
-		mat2x3 positionDerivatives = mat2x3(mat3(gbufferModelViewInverse) * dFdx(viewPosition), mat3(gbufferModelViewInverse) * dFdy(viewPosition));
+			vec2   lightmapDerivatives = vec2(dFdx(lightmapCoordinates.x), dFdy(lightmapCoordinates.x));
+			mat2x3 positionDerivatives = mat2x3(mat3(gbufferModelViewInverse) * dFdx(viewPosition), mat3(gbufferModelViewInverse) * dFdy(viewPosition));
 
-		// cross() to rotate 90 degrees
-		vec3 lightmapVector  = positionDerivatives * vec2(-lightmapDerivatives.y, lightmapDerivatives.x);
-		     lightmapVector  = cross(lightmapVector, flatNormal);
-		     lightmapVector += flatNormal * dot(positionDerivatives[0] + positionDerivatives[1], positionDerivatives[0] + positionDerivatives[1]) * 0.5 / 16.0;
+			// cross() to rotate 90 degrees
+			vec3 lightmapVector  = positionDerivatives * vec2(-lightmapDerivatives.y, lightmapDerivatives.x);
+			     lightmapVector  = cross(lightmapVector, flatNormal);
+			     lightmapVector += flatNormal * dot(positionDerivatives[0] + positionDerivatives[1], positionDerivatives[0] + positionDerivatives[1]) * 0.5 / 16.0;
 
-		float len = length(lightmapVector);
-		return len > 0.0 ? normalize(mix(lightmapVector, flatNormal * len, Pow8(blocklight))) : flatNormal;
-	}
-	float CalculateBlocklightShading(vec3 normal, vec3 lv) {
-		float NoL = dot(lv, normal);
-		return Clamp01(Clamp01(NoL * 0.7) + 0.2);
-	}
+			float len = length(lightmapVector);
+			return len > 0.0 ? normalize(mix(lightmapVector, flatNormal * len, Pow8(blocklight))) : flatNormal;
+		}
+		float CalculateBlocklightShading(vec3 normal, vec3 lv) {
+			float NoL = dot(lv, normal);
+			return Clamp01(Clamp01(NoL * 0.7) + 0.2);
+		}
+	#endif
 
 	void main() {
 		#ifdef PARALLAX
@@ -371,8 +373,8 @@ uniform vec3 shadowLightVector;
 			#define parallaxShadow 1.0
 		#endif
 
-		#if PROGRAM == PROGRAM_TERRAIN
-			vec3 blocklightVector = CalculateBLocklightVector(tbn[2]);
+		#if PROGRAM == PROGRAM_TERRAIN && defined ARTIFICIAL_LIGHT_DIRECTIONAL
+			vec3 blocklightVector = CalculateBlocklightVector(tbn[2]);
 			float blocklightShading = CalculateBlocklightShading(normal, blocklightVector);
 		#else
 			#define blocklightShading 1.0

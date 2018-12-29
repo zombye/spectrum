@@ -38,6 +38,8 @@ option.ARTIFICIAL_LIGHT_SIZE=Size
 suffix.ARTIFICIAL_LIGHT_SIZE=m
 option.ARTIFICIAL_LIGHT_TEMPERATURE=Temperature
 suffix.ARTIFICIAL_LIGHT_TEMPERATURE=k
+
+option.ARTIFICIAL_LIGHT_DIRECTIONAL=Directional Shading
 option.ARTIFICIAL_LIGHT_USE_AO=Use AO
 
 ##--## Camera Properties ##---------------------------------------------------##
