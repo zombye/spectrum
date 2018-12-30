@@ -55,18 +55,115 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 
 	//--// Vertex Functions
 
+	const float K = 14.0;
+	const float calibration = exp2(CAMERA_EXPOSURE_BIAS) * K / 100.0;
+
+	// 18% albedo is common as reference
+	const float minExposure = calibration / (dot(lumacoeff_rec709, sunIlluminance ) * (0.18 / pi));
+	const float maxExposure = calibration / (dot(lumacoeff_rec709, moonIlluminance) * (0.18 / pi));
+
+	#define HISTOGRAM_BINS           64
+	#define HISTOGRAM_PERCENT_DIM    75
+	#define HISTOGRAM_PERCENT_BRIGHT  2
+
+	float CalculateHistogramExposure() {
+		float maxLod = MaxOf(ceil(log2(viewResolution)));
+		vec3 averageColor = ReadColorLod(vec2(0.5), maxLod);
+		float averageLuminance = dot(averageColor, lumacoeff_rec709);
+
+		return clamp(1.0 / averageLuminance, minExposure, maxExposure);
+	}
+	float HistogramLuminanceFromBin(float bin) {
+		return exp2((bin - (HISTOGRAM_BINS / 2 - 1)) / 4.0);
+	}
+	float HistogramBinFromLuminance(float luminance) {
+		luminance = clamp(luminance, HistogramLuminanceFromBin(0), HistogramLuminanceFromBin(HISTOGRAM_BINS - 1));
+		return log2(luminance) * 4.0 + (HISTOGRAM_BINS / 2 - 1);
+	}
+	float[HISTOGRAM_BINS] CalculateHistogram(float histogramExposure) {
+		// create empty histogram
+		float[HISTOGRAM_BINS] histogram;
+		for (int i = 0; i < HISTOGRAM_BINS; ++i) { histogram[i] = 0.0; }
+
+		const ivec2 samples = ivec2(16, 9) * 4;
+		float sampleLod = MaxOf(viewResolution / samples);
+		      sampleLod = ceil(log2(sampleLod));
+
+		// sample into histogram
+		for (int x = 0; x < samples.x; ++x) {
+			for (int y = 0; y < samples.y; ++y) {
+				vec2 samplePos = (vec2(x, y) + 0.5) / samples;
+				vec3 colorSample = ReadColorLod(samplePos, sampleLod);
+				float luminanceSample = dot(colorSample, lumacoeff_rec709) * histogramExposure;
+
+				float bin = HistogramBinFromLuminance(luminanceSample);
+				      bin = clamp(bin, 0, HISTOGRAM_BINS - 1);
+
+				int bin0 = int(bin);
+				int bin1 = bin0 + 1;
+
+				float weight1 = fract(bin);
+				float weight0 = 1.0 - weight1;
+
+				if (bin0 >= 0) histogram[bin0] += weight0;
+				if (bin1 <= HISTOGRAM_BINS - 1) histogram[bin1] += weight1;
+			}
+		}
+
+		return histogram;
+	}
+
+	float CalculateTargetExposure(float[HISTOGRAM_BINS] histogram, float histogramExposure) {
+		const float brightFraction = 0.01 * HISTOGRAM_PERCENT_BRIGHT;
+		const float dimFraction    = 0.01 * HISTOGRAM_PERCENT_DIM;
+
+		float sum = 0.0;
+		for (int i = 0; i < HISTOGRAM_BINS; ++i) { sum += histogram[i]; }
+
+		float dimSum = sum * dimFraction;
+		float brightSum = sum * (1.0 - brightFraction);
+
+		float l = 0.0, n = 0.0;
+		for (int bin = 0; bin < HISTOGRAM_BINS; ++bin) {
+			float binValue = histogram[bin];
+
+			// remove dim range
+			float sub = min(binValue, dimSum);
+			binValue  -= sub;
+			dimSum    -= sub;
+			brightSum -= sub;
+
+			// remove bright range
+			binValue = min(binValue, brightSum);
+			brightSum -= binValue;
+
+			float binLuminance = HistogramLuminanceFromBin(bin);
+			l += binValue * binLuminance / histogramExposure;
+			n += binValue;
+		}
+
+		l /= n > 0.0 ? n : 1.0;
+
+		return clamp(calibration / l, minExposure, maxExposure);
+	}
+
+	float CalculateTargetExposureSimple() {
+		float maxLod = MaxOf(ceil(log2(viewResolution)));
+		vec3 averageColor = ReadColorLod(vec2(0.5), maxLod);
+		float averageLuminance = dot(averageColor, lumacoeff_rec709);
+
+		return clamp(calibration / averageLuminance, minExposure, maxExposure);
+	}
+
 	void CalculateExposure(out float exposure, out float previousExposure) {
-		const float K = 14.0;
-		const float calibration = exp2(CAMERA_EXPOSURE_BIAS) * K / 100.0;
-
-		// 18% albedo is common as reference
-		const float minExposure = calibration / (dot(lumacoeff_rec709, sunIlluminance ) * (0.18 / pi));
-		const float maxExposure = calibration / (dot(lumacoeff_rec709, moonIlluminance) * (0.18 / pi));
-
-		#ifdef CAMERA_AUTOEXPOSURE
-			// Figure out the target exposure
-			float averageLuminance = dot(ReadColorLod(vec2(0.5), 10.0), lumacoeff_rec709);
-			float targetExposure   = clamp(calibration / averageLuminance, minExposure, maxExposure);
+		#if CAMERA_AUTOEXPOSURE != CAMERA_AUTOEXPOSURE_OFF
+			#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_HISTOGRAM
+				float histogramExposure = CalculateHistogramExposure();
+				float[HISTOGRAM_BINS] histogram = CalculateHistogram(histogramExposure);
+				float targetExposure = CalculateTargetExposure(histogram, histogramExposure);
+			#else
+				float targetExposure = CalculateTargetExposureSimple();
+			#endif
 
 			// Get previous exposure
 			previousExposure = texture(colortex3, vec2(0.5)).a;
