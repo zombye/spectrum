@@ -2,6 +2,14 @@
 
 #include "/settings.glsl"
 
+#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_HISTOGRAM
+	#define HISTOGRAM_BINS           64
+	#define HISTOGRAM_PERCENT_DIM    60
+	#define HISTOGRAM_PERCENT_BRIGHT  2
+
+	//#define DEBUG_HISTOGRAM
+#endif
+
 const bool colortex6MipmapEnabled = true;
 
 //--// Uniforms
@@ -49,6 +57,10 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 	out vec2 screenCoord;
 	out float exposure, previousExposure;
 
+	#ifdef DEBUG_HISTOGRAM
+		out vec4[16] histogram;
+	#endif
+
 	//--// Vertex Libraries
 
 	#include "/lib/shared/celestialConstants.glsl"
@@ -61,10 +73,6 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 	// 18% albedo is common as reference
 	const float minExposure = calibration / (dot(lumacoeff_rec709, sunIlluminance ) * (0.18 / pi));
 	const float maxExposure = calibration / (dot(lumacoeff_rec709, moonIlluminance) * (0.18 / pi));
-
-	#define HISTOGRAM_BINS           64
-	#define HISTOGRAM_PERCENT_DIM    75
-	#define HISTOGRAM_PERCENT_BRIGHT  2
 
 	float CalculateHistogramExposure() {
 		float maxLod = MaxOf(ceil(log2(viewResolution)));
@@ -85,7 +93,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 		float[HISTOGRAM_BINS] histogram;
 		for (int i = 0; i < HISTOGRAM_BINS; ++i) { histogram[i] = 0.0; }
 
-		const ivec2 samples = ivec2(16, 9) * 4;
+		const ivec2 samples = ivec2(64, 36);
 		float sampleLod = MaxOf(viewResolution / samples);
 		      sampleLod = ceil(log2(sampleLod));
 
@@ -105,8 +113,13 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 				float weight1 = fract(bin);
 				float weight0 = 1.0 - weight1;
 
-				if (bin0 >= 0) histogram[bin0] += weight0;
-				if (bin1 <= HISTOGRAM_BINS - 1) histogram[bin1] += weight1;
+				// Pixels around the center of the screen are more important, so give them a higher weight in the histogram.
+				samplePos = samplePos * 2.0 - 1.0;
+				float sampleWeight  = (1.0 - samplePos.x * samplePos.x) * (1.0 - samplePos.y * samplePos.y);
+				      sampleWeight *= sampleWeight;
+
+				if (bin0 >= 0) histogram[bin0] += sampleWeight * weight0;
+				if (bin1 <= HISTOGRAM_BINS - 1) histogram[bin1] += sampleWeight * weight1;
 			}
 		}
 
@@ -128,10 +141,10 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 			float binValue = histogram[bin];
 
 			// remove dim range
-			float sub = min(binValue, dimSum);
-			binValue  -= sub;
-			dimSum    -= sub;
-			brightSum -= sub;
+			float dimSub = min(binValue, dimSum);
+			binValue  -= dimSub;
+			dimSum    -= dimSub;
+			brightSum -= dimSub;
 
 			// remove bright range
 			binValue = min(binValue, brightSum);
@@ -161,6 +174,22 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 				float histogramExposure = CalculateHistogramExposure();
 				float[HISTOGRAM_BINS] histogram = CalculateHistogram(histogramExposure);
 				float targetExposure = CalculateTargetExposure(histogram, histogramExposure);
+
+				#ifdef DEBUG_HISTOGRAM
+					float histogramMax = 0.0;
+					for (int i = 0; i < 64; ++i) {
+						histogramMax = max(histogramMax, histogram[i]);
+					}
+
+					for (int i = 0; i < 16; ++i) {
+						::histogram[i] = vec4(
+							histogram[4*i],
+							histogram[4*i+1],
+							histogram[4*i+2],
+							histogram[4*i+3]
+						) / histogramMax;
+					}
+				#endif
 			#else
 				float targetExposure = CalculateTargetExposureSimple();
 			#endif
@@ -193,6 +222,10 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 
 	in vec2 screenCoord;
 	in float exposure, previousExposure;
+
+	#ifdef DEBUG_HISTOGRAM
+		in vec4[16] histogram;
+	#endif
 
 	//--// Fragment Outputs
 
@@ -443,5 +476,22 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 		#endif
 
 		temporal = vec4(color * exposure, exposure);
+
+		#ifdef DEBUG_HISTOGRAM
+			{
+				const ivec2 pos  = ivec2(4, 3);
+				const ivec2 size = ivec2(512, 128);
+
+				vec2 coord = gl_FragCoord.xy - pos;
+
+				if (clamp(coord, vec2(0.0), size) == coord) {
+					int idx = int(coord.x / 8.0);
+					float barMask = 129.0 * histogram[idx/4][idx%4];
+					      barMask = LinearStep(coord.y, coord.y + 1.0, barMask);
+
+					temporal.rgb = mix(temporal.rgb * 0.2, vec3(1.0), barMask);
+				}
+			}
+		#endif
 	}
 #endif

@@ -1,3 +1,6 @@
+screen.miscellaneous=Miscellaneous/Uncategorized
+screen.debug=Debug
+
 option.HAND_FOV=Hand FOV
 option.HAND_FOV.comment=Sets the field of view used when rendering the hand and held items.
 value.HAND_FOV.70=Normal
