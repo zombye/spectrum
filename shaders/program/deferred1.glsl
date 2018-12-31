@@ -560,10 +560,12 @@ uniform vec3 shadowLightVector;
 			float dither = Bayer8(gl_FragCoord.st);
 		#endif
 
+		vec4 colortex0Sample = texture(colortex0, screenCoord);
+		int id = int(floor(Unpack2x8Y(colortex0Sample.g) * 255.0 + 0.5));
+
 		vec3 color = vec3(0.0);
-		if (position[0].z < 1.0) {
+		if (position[0].z < 1.0 || id != 0) {
 			// Gbuffer data
-			vec4 colortex0Sample = texture(colortex0, screenCoord);
 			vec4 colortex1Sample = texture(colortex1, screenCoord);
 
 			vec3 baseTex;
@@ -572,8 +574,6 @@ uniform vec3 shadowLightVector;
 			vec4 specTex;
 			specTex.rg = Unpack2x8(colortex1Sample.r);
 			specTex.ba = Unpack2x8(colortex1Sample.g);
-
-			int id = int(floor(Unpack2x8Y(colortex0Sample.g) * 255.0 + 0.5));
 
 			Material material = MaterialFromTex(baseTex, specTex, id);
 

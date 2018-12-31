@@ -8,6 +8,9 @@ const float ambientOcclusionLevel = 1.0;
 const float shadowDistance          = 160;  // Default if not set: 160 [40 60 80 120 160 240 320 480 640 960 1280]
 const float shadowDistanceRenderMul = 1.0;  // Treated as infinite if negative, default is infinite
 #endif
+#if SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
+const bool generateShadowMipmap = true;
+#endif
 
 const int colortex0Format = RGBA16;     // Gbuffer 0
 const int colortex1Format = RGBA16;     // Gbuffer 1
@@ -24,4 +27,7 @@ const bool colortex4Clear = false;
 const bool colortex5Clear = false;
 const bool colortex6Clear = false;
 const bool colortex7Clear = false;
+
+const vec4 colortex0ClearColor = vec4(0.0, 0.0, 0.0, 1.0);
+const vec4 colortex1ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
 */

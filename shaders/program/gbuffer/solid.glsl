@@ -131,7 +131,7 @@ uniform vec3 shadowLightVector;
 		tint = gl_Color.rgb;
 		textureCoordinates = gl_MultiTexCoord0.xy;
 		lightmapCoordinates = GetLightmapCoordinates();
-		blockId = int(mc_Entity.x);
+		blockId = max(int(mc_Entity.x), 1);
 		vertexAo = gl_Color.a;
 
 		tbn = CalculateTBNMatrix();
