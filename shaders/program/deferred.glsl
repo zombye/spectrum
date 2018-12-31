@@ -45,6 +45,7 @@ uniform sampler2D shadowcolor0;
 uniform sampler2D shadowcolor1;
 
 // Misc samplers
+uniform sampler2D colortex0;
 uniform sampler2D colortex1;
 uniform sampler2D colortex5; // Sky Scattering LUT
 uniform sampler2D colortex7; // Sky Transmittance LUT
@@ -169,7 +170,7 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Functions
 
-	vec3 ReflectiveShadowMaps(vec3 position, vec3 normal, float dither, const float ditherSize) {
+	vec3 ReflectiveShadowMaps(vec3 position, vec3 normal, float skylight, float dither, const float ditherSize) {
 		dither = dither * ditherSize + 0.5;
 		float dither2 = dither / ditherSize;
 
@@ -206,7 +207,8 @@ uniform vec3 shadowLightVector;
 
 			sampleVector *= inversesqrt(sampleDistanceSquared);
 
-			vec3 sampleNormal = DecodeNormal(textureLod(shadowcolor1, sampleCoord, 0.0).rg * 2.0 - 1.0);
+			vec3 shadowcolor1Sample = textureLod(shadowcolor1, sampleCoord, 0.0).rgb;
+			vec3 sampleNormal = DecodeNormal(shadowcolor1Sample.rg * 2.0 - 1.0);
 
 			// Calculate BRDF (lambertian)
 			//float sampleIn  = 1.0; // We're sampling the lights projected area so this is just 1.
@@ -215,6 +217,11 @@ uniform vec3 shadowLightVector;
 			float bounceOut = 1.0 / pi; // Divide by pi for energy conservation.
 
 			float brdf = sampleOut * bounceIn * bounceOut;
+
+			#ifdef RSM_LEAK_FIX
+				float sampleSkylight = shadowcolor1Sample.b;
+				brdf *= Clamp01(1.0 - 5.0 * abs(sampleSkylight - skylight));
+			#endif
 
 			vec4 sampleAlbedo = textureLod(shadowcolor0, sampleCoord, 0.0);
 			rsm += SrgbToLinear(sampleAlbedo.rgb) * sampleAlbedo.a * brdf / (sampleDistanceSquared + sampleDistanceAdd);
@@ -285,11 +292,12 @@ uniform vec3 shadowLightVector;
 				position[2] = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
 
 				vec3 normal = DecodeNormal(Unpack2x8(texelFetch(colortex1, ivec2(gl_FragCoord.st * 2.0), 0).a) * 2.0 - 1.0);
+				float skylight = Unpack2x8Y(texelFetch(colortex0, ivec2(gl_FragCoord.st * 2.0), 0).b);
 
 				const float ditherSize = 8.0 * 8.0;
 				float dither = Bayer8(gl_FragCoord.st);
 
-				vec3 rsm = ReflectiveShadowMaps(position[2], normal, dither, ditherSize);
+				vec3 rsm = ReflectiveShadowMaps(position[2], normal, skylight, dither, ditherSize);
 				rsmEncode = EncodeRGBE8(rsm);
 			} else {
 				rsmEncode = vec4(0.0);

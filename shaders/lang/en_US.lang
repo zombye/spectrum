@@ -189,6 +189,8 @@ option.RSM_RADIUS=Radius
 suffix.RSM_RADIUS=m
 option.RSM_SAMPLES=Samples
 
+option.RSM_LEAK_FIX=Light Leaking Fix
+
 ##--## Shadow Maps ##---------------------------------------------------------##
 
 screen.shadowMaps=Shadow Maps
