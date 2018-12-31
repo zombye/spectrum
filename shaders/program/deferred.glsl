@@ -142,11 +142,17 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Outputs
 
-	/* DRAWBUFFERS:346 */
+	#ifdef RSM
+		/* DRAWBUFFERS:3462 */
 
-	layout (location = 0) out vec4 rsm_cloudTransmittance;
-	layout (location = 1) out vec4 scatteringEncode;
-	layout (location = 2) out vec3 skyImage;
+		layout (location = 3) out vec4 rsmEncode;
+	#else
+		/* DRAWBUFFERS:3462 */
+	#endif
+
+	layout (location = 0) out float cloudTransmittance;
+	layout (location = 1) out vec4  scatteringEncode;
+	layout (location = 2) out vec3  skyImage;
 
 	//--// Fragment Libraries
 
@@ -283,12 +289,11 @@ uniform vec3 shadowLightVector;
 				const float ditherSize = 8.0 * 8.0;
 				float dither = Bayer8(gl_FragCoord.st);
 
-				rsm_cloudTransmittance.rgb = ReflectiveShadowMaps(position[2], normal, dither, ditherSize);
+				vec3 rsm = ReflectiveShadowMaps(position[2], normal, dither, ditherSize);
+				rsmEncode = EncodeRGBE8(rsm);
 			} else {
-				rsm_cloudTransmittance.rgb = vec3(0.0);
+				rsmEncode = vec4(0.0);
 			}
-		#else
-			rsm_cloudTransmittance.rgb = vec3(0.0);
 		#endif
 
 		//--// Sky //---------------------------------------------------------//
@@ -304,9 +309,9 @@ uniform vec3 shadowLightVector;
 			position[2] = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
 			vec3 viewVector = normalize(position[2] - gbufferModelViewInverse[3].xyz);
 
+			cloudTransmittance = 1.0;
 			#ifdef CLOUDS3D
 				vec3 scattering = vec3(0.0);
-				float cloudTransmittance = 1.0;
 
 				float lowerLimitDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_lowerLimitRadius).x;
 				if (lowerLimitDistance < 0.0) {
@@ -380,13 +385,11 @@ uniform vec3 shadowLightVector;
 				// Atmosphere
 				vec3 scattering  = AtmosphereScattering(colortex5, viewPosition, viewVector, sunVector ) * sunIlluminance;
 				     scattering += AtmosphereScattering(colortex5, viewPosition, viewVector, moonVector) * moonIlluminance;
-				float cloudTransmittance = 1.0;
 			#endif
 
-			rsm_cloudTransmittance.a = cloudTransmittance;
 			scatteringEncode = EncodeRGBE8(scattering);
 		} else {
-			rsm_cloudTransmittance.a = 1.0;
+			cloudTransmittance = 1.0;
 			scatteringEncode = vec4(0.0);
 		}
 

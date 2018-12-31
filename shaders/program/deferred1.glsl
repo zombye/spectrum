@@ -54,7 +54,8 @@ uniform sampler2D shadowcolor1;
 // Misc samplers
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
-uniform sampler2D colortex3; // RSM, Clouds Transmittance
+uniform sampler2D colortex2; // RSM Encode
+uniform sampler2D colortex3; // Clouds Transmittance
 uniform sampler2D colortex4; // Sky Encode
 uniform sampler2D colortex5; // Sky Scattering LUT
 uniform sampler2D colortex6; // Sky Scattering Image
@@ -430,7 +431,7 @@ uniform vec3 shadowLightVector;
 		ivec2 fragCoord = ivec2(gl_FragCoord.st) / 2;
 		ivec2 shift     = ivec2(gl_FragCoord.st) % 2;
 
-		vec3 result = texelFetch(colortex3, fragCoord, 0).rgb;
+		vec3 result = DecodeRGBE8(texelFetch(colortex2, fragCoord, 0));
 		float weightAccum = 1.0;
 
 		for (int x = -4; x < 4; ++x) {
@@ -439,9 +440,11 @@ uniform vec3 shadowLightVector;
 				if (offset.x == 0 && offset.y == 0) { continue; }
 
 				vec3 sampleNormal = DecodeNormal(Unpack2x8(texelFetch(colortex1, (fragCoord + offset) * 2, 0).a) * 2.0 - 1.0);
+				float sampleDepth = ScreenSpaceToViewSpace(texelFetch(depthtex1, (fragCoord + offset) * 2, 0).r, gbufferProjectionInverse);
 				float weight = pow(Clamp01(dot(sampleNormal, normalFlat)), 4.0);
+				      weight *= Clamp01(1.0 - abs(sampleDepth - linearDepth));
 
-				result += weight * texelFetch(colortex3, fragCoord + offset, 0).rgb;
+				result += weight * DecodeRGBE8(texelFetch(colortex2, fragCoord + offset, 0));
 				weightAccum += weight;
 			}
 		}
@@ -668,7 +671,7 @@ uniform vec3 shadowLightVector;
 
 			vec4 sky;
 			sky.rgb = DecodeRGBE8(texelFetch(colortex4, ivec2(screenCoord * exp2(-SKY_RENDER_LOD) * viewResolution), 0));
-			sky.a   = texelFetch(colortex3, ivec2(screenCoord * exp2(-SKY_RENDER_LOD) * viewResolution), 0).a;
+			sky.a   = texelFetch(colortex3, ivec2(screenCoord * exp2(-SKY_RENDER_LOD) * viewResolution), 0).r;
 			color = color * sky.a + sky.rgb;
 
 			#ifdef CLOUDS2D
