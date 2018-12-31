@@ -427,30 +427,26 @@ uniform vec3 shadowLightVector;
 	}
 
 	vec3 FilterRSM(vec3 normalFlat, float linearDepth) {
-		/*
-		const int radius = 0;
-
-		ivec2 fragCoord = ivec2(gl_FragCoord.st);
+		ivec2 fragCoord = ivec2(gl_FragCoord.st) / 2;
+		ivec2 shift     = ivec2(gl_FragCoord.st) % 2;
 
 		vec3 result = texelFetch(colortex3, fragCoord, 0).rgb;
 		float weightAccum = 1.0;
 
-		for (int x = -radius; x <= radius; ++x) {
-			for (int y = -radius; y <= radius; ++y) {
-				if (x == 0 && y == 0) { continue; }
+		for (int x = -4; x < 4; ++x) {
+			for (int y = -4; y < 4; ++y) {
+				ivec2 offset = ivec2(x, y) + shift;
+				if (offset.x == 0 && offset.y == 0) { continue; }
 
-				ivec2 offset = ivec2(x, y);
-
-				vec3 sampleNormal = DecodeNormal(Unpack2x8(texelFetch(colortex1, fragCoord + offset, 0).a) * 2.0 - 1.0);
+				vec3 sampleNormal = DecodeNormal(Unpack2x8(texelFetch(colortex1, (fragCoord + offset) * 2, 0).a) * 2.0 - 1.0);
 				float weight = pow(Clamp01(dot(sampleNormal, normalFlat)), 4.0);
 
-				result += texelFetch(colortex3, fragCoord + offset, 0).rgb * weight;
+				result += weight * texelFetch(colortex3, fragCoord + offset, 0).rgb;
 				weightAccum += weight;
 			}
 		}
 
 		return result / weightAccum;
-		//*/ return texture(colortex3, screenCoord).rgb;
 	}
 
 	// --

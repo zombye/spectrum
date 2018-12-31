@@ -272,14 +272,21 @@ uniform vec3 shadowLightVector;
 		//--// RSM //---------------------------------------------------------//
 
 		#ifdef RSM
-			mat3 position;
-			position[0] = vec3(screenCoord, texture(depthtex1, screenCoord).r);
-			position[1] = ScreenSpaceToViewSpace(position[0], gbufferProjectionInverse);
-			position[2] = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
+			if (screenCoord.x < 0.5 && screenCoord.y < 0.5) {
+				mat3 position;
+				position[0] = vec3(screenCoord * 2.0, texture(depthtex1, screenCoord * 2.0).r);
+				position[1] = ScreenSpaceToViewSpace(position[0], gbufferProjectionInverse);
+				position[2] = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
 
-			vec3 normal = DecodeNormal(Unpack2x8(texture(colortex1, screenCoord).a) * 2.0 - 1.0);
+				vec3 normal = DecodeNormal(Unpack2x8(texelFetch(colortex1, ivec2(gl_FragCoord.st * 2.0), 0).a) * 2.0 - 1.0);
 
-			rsm_cloudTransmittance.rgb = ReflectiveShadowMaps(position[2], normal, dither, ditherSize);
+				const float ditherSize = 8.0 * 8.0;
+				float dither = Bayer8(gl_FragCoord.st);
+
+				rsm_cloudTransmittance.rgb = ReflectiveShadowMaps(position[2], normal, dither, ditherSize);
+			} else {
+				rsm_cloudTransmittance.rgb = vec3(0.0);
+			}
 		#else
 			rsm_cloudTransmittance.rgb = vec3(0.0);
 		#endif

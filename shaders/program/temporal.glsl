@@ -79,7 +79,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 		vec3 averageColor = ReadColorLod(vec2(0.5), maxLod);
 		float averageLuminance = dot(averageColor, lumacoeff_rec709);
 
-		return clamp(1.0 / averageLuminance, minExposure, maxExposure);
+		return clamp(1.0 / averageLuminance, minExposure / calibration, maxExposure / calibration);
 	}
 	float HistogramLuminanceFromBin(float bin) {
 		return exp2((bin - (HISTOGRAM_BINS / 2 - 1)) / 4.0);
