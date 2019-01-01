@@ -54,7 +54,6 @@ uniform vec3 shadowLightVector;
 	//--// Vertex Outputs
 
 	// Interpolated
-	out mat3 tbn;
 	#if defined MOTION_BLUR || defined TAA
 		out vec4 previousScreenPosition;
 	#endif
@@ -65,7 +64,6 @@ uniform vec3 shadowLightVector;
 
 	// Flat
 	flat out vec3 tint;
-	flat out int blockId;
 
 	//--// Vertex Libraries
 
@@ -101,22 +99,11 @@ uniform vec3 shadowLightVector;
 		#endif
 	}
 
-	mat3 CalculateTBNMatrix() {
-		mat3 tbn;
-		tbn[0] = mat3(gbufferModelViewInverse) * normalize(gl_NormalMatrix * at_tangent.xyz);
-		tbn[2] = mat3(gbufferModelViewInverse) * normalize(gl_NormalMatrix * gl_Normal);
-		tbn[1] = cross(tbn[0], tbn[2]) * (at_tangent.w < 0.0 ? -1.0 : 1.0);
-		return tbn;
-	}
-
 	void main() {
 		tint = gl_Color.rgb;
 		textureCoordinates = gl_MultiTexCoord0.xy;
 		lightmapCoordinates = GetLightmapCoordinates();
-		blockId = max(int(mc_Entity.x), 1);
 		vertexAo = gl_Color.a;
-
-		tbn = CalculateTBNMatrix();
 
 		viewPosition = mat3(gl_ModelViewMatrix) * gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz;
 
@@ -127,19 +114,10 @@ uniform vec3 shadowLightVector;
 		#if defined MOTION_BLUR || defined TAA // Previous frame position
 			vec3 previousScenePosition = scenePosition + cameraPosition - previousCameraPosition;
 
-			#if defined VERTEX_ANIMATION
-				previousScenePosition += AnimateVertex(previousScenePosition, previousScenePosition + previousCameraPosition, blockId, frameTimeCounter - frameTime);
-			#endif
-
 			vec3 previousViewPosition = mat3(gbufferPreviousModelView) * previousScenePosition + gbufferPreviousModelView[3].xyz;
 
 			previousScreenPosition = vec4(gbufferPreviousProjection[0].x, gbufferPreviousProjection[1].y, gbufferPreviousProjection[2].zw) * previousViewPosition.xyzz + gbufferPreviousProjection[3];
 			previousScreenPosition.xy += taaOffset * previousScreenPosition.w;
-		#endif
-
-		#if defined VERTEX_ANIMATION
-			scenePosition += AnimateVertex(scenePosition, scenePosition + cameraPosition, blockId, frameTimeCounter);
-			viewPosition = mat3(gbufferModelView) * scenePosition + gbufferModelView[3].xyz;
 		#endif
 
 		gl_Position = vec4(gl_ProjectionMatrix[0].x, gl_ProjectionMatrix[1].y, gl_ProjectionMatrix[2].zw) * viewPosition.xyzz + gl_ProjectionMatrix[3];
@@ -152,7 +130,6 @@ uniform vec3 shadowLightVector;
 	//--// Fragment Inputs
 
 	// Interpolated
-	in mat3 tbn;
 	#if defined MOTION_BLUR || defined TAA
 		in vec4 previousScreenPosition;
 	#endif
@@ -163,7 +140,6 @@ uniform vec3 shadowLightVector;
 
 	// Flat
 	flat in vec3 tint; // Interestingly, the tint color seems to always be the same for the entire quad.
-	flat in int blockId;
 
 	//--// Fragment Outputs
 
@@ -200,16 +176,15 @@ uniform vec3 shadowLightVector;
 		//vec4 specTex = ReadTexture(specular);
 		vec4 specTex = vec4(0.0);
 
-		vec3 flatNormal = mat3(gbufferModelViewInverse) * normalize(cross(dFdx(viewPosition), dFdy(viewPosition)));
+		vec3 normal = mat3(gbufferModelViewInverse) * normalize(cross(dFdx(viewPosition), dFdy(viewPosition)));
 
 		#define parallaxShadow 1.0
 		#define blocklightShading 1.0
 
 		float dither = Bayer4(gl_FragCoord.xy);
 
-		colortex0Write = vec4(Pack2x8(baseTex.rg), Pack2x8(baseTex.b, Clamp01(blockId / 255.0)), Pack2x8Dithered(lightmapCoordinates, dither), float(PackUnormArbitrary(vec4(vertexAo + dither / 255.0, parallaxShadow, blocklightShading + dither / 127.0, 0.0), uvec4(8, 1, 7, 0))) / 65535.0);
-		//colortex1Write = vec4(Pack2x8(specTex.rg), Pack2x8(specTex.ba), Pack2x8(EncodeNormal(tbn[2]) * 0.5 + 0.5), Pack2x8(EncodeNormal(tbn[2]) * 0.5 + 0.5));
-		colortex1Write = vec4(Pack2x8(specTex.rg), Pack2x8(specTex.ba), Pack2x8(EncodeNormal(flatNormal) * 0.5 + 0.5), Pack2x8(EncodeNormal(flatNormal) * 0.5 + 0.5));
+		colortex0Write = vec4(Pack2x8(baseTex.rg), Pack2x8(baseTex.b, Clamp01(78.0 / 255.0)), Pack2x8Dithered(lightmapCoordinates, dither), float(PackUnormArbitrary(vec4(vertexAo + dither / 255.0, parallaxShadow, blocklightShading + dither / 127.0, 0.0), uvec4(8, 1, 7, 0))) / 65535.0);
+		colortex1Write = vec4(Pack2x8(specTex.rg), Pack2x8(specTex.ba), Pack2x8(EncodeNormal(normal) * 0.5 + 0.5), Pack2x8(EncodeNormal(normal) * 0.5 + 0.5));
 
 		#if defined MOTION_BLUR || defined TAA
 			velocity = vec3(gl_FragCoord.xy * viewPixelSize, gl_FragCoord.z) - ((previousScreenPosition.xyz / previousScreenPosition.w) * 0.5 + 0.5);
