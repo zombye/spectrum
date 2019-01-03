@@ -74,99 +74,103 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 	const float minExposure = calibration / (dot(lumacoeff_rec709, sunIlluminance ) * (0.18 / pi));
 	const float maxExposure = calibration / (dot(lumacoeff_rec709, moonIlluminance) * (0.18 / pi));
 
-	float CalculateHistogramExposure() {
-		float maxLod = MaxOf(ceil(log2(viewResolution)));
-		vec3 averageColor = ReadColorLod(vec2(0.5), maxLod);
-		float averageLuminance = dot(averageColor, lumacoeff_rec709);
+	#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_HISTOGRAM
+		float CalculateHistogramExposure() {
+			float maxLod = MaxOf(ceil(log2(viewResolution)));
+			vec3 averageColor = ReadColorLod(vec2(0.5), maxLod);
+			float averageLuminance = dot(averageColor, lumacoeff_rec709);
 
-		return clamp(1.0 / averageLuminance, minExposure / calibration, maxExposure / calibration);
-	}
-	float HistogramLuminanceFromBin(float bin) {
-		return exp2((bin - (HISTOGRAM_BINS / 2 - 1)) / 4.0);
-	}
-	float HistogramBinFromLuminance(float luminance) {
-		luminance = clamp(luminance, HistogramLuminanceFromBin(0), HistogramLuminanceFromBin(HISTOGRAM_BINS - 1));
-		return log2(luminance) * 4.0 + (HISTOGRAM_BINS / 2 - 1);
-	}
-	float[HISTOGRAM_BINS] CalculateHistogram(float histogramExposure) {
-		// create empty histogram
-		float[HISTOGRAM_BINS] histogram;
-		for (int i = 0; i < HISTOGRAM_BINS; ++i) { histogram[i] = 0.0; }
+			return clamp(1.0 / averageLuminance, minExposure / calibration, maxExposure / calibration);
+		}
+		float HistogramLuminanceFromBin(float bin) {
+			return exp2((bin - (HISTOGRAM_BINS / 2 - 1)) / 4.0);
+		}
+		float HistogramBinFromLuminance(float luminance) {
+			luminance = clamp(luminance, HistogramLuminanceFromBin(0), HistogramLuminanceFromBin(HISTOGRAM_BINS - 1));
+			return log2(luminance) * 4.0 + (HISTOGRAM_BINS / 2 - 1);
+		}
+		float[HISTOGRAM_BINS] CalculateHistogram(float histogramExposure) {
+			// create empty histogram
+			float[HISTOGRAM_BINS] histogram;
+			for (int i = 0; i < HISTOGRAM_BINS; ++i) { histogram[i] = 0.0; }
 
-		const ivec2 samples = ivec2(64, 36);
-		float sampleLod = MaxOf(viewResolution / samples);
-		      sampleLod = ceil(log2(sampleLod));
+			const ivec2 samples = ivec2(64, 36);
+			float sampleLod = MaxOf(viewResolution / samples);
+			      sampleLod = ceil(log2(sampleLod));
 
-		// sample into histogram
-		for (int x = 0; x < samples.x; ++x) {
-			for (int y = 0; y < samples.y; ++y) {
-				vec2 samplePos = (vec2(x, y) + 0.5) / samples;
-				vec3 colorSample = ReadColorLod(samplePos, sampleLod);
-				float luminanceSample = dot(colorSample, lumacoeff_rec709) * histogramExposure;
+			// sample into histogram
+			for (int x = 0; x < samples.x; ++x) {
+				for (int y = 0; y < samples.y; ++y) {
+					vec2 samplePos = (vec2(x, y) + 0.5) / samples;
+					vec3 colorSample = ReadColorLod(samplePos, sampleLod);
+					float luminanceSample = dot(colorSample, lumacoeff_rec709) * histogramExposure;
 
-				float bin = HistogramBinFromLuminance(luminanceSample);
-				      bin = clamp(bin, 0, HISTOGRAM_BINS - 1);
+					float bin = HistogramBinFromLuminance(luminanceSample);
+					      bin = clamp(bin, 0, HISTOGRAM_BINS - 1);
 
-				int bin0 = int(bin);
-				int bin1 = bin0 + 1;
+					int bin0 = int(bin);
+					int bin1 = bin0 + 1;
 
-				float weight1 = fract(bin);
-				float weight0 = 1.0 - weight1;
+					float weight1 = fract(bin);
+					float weight0 = 1.0 - weight1;
 
-				// Pixels around the center of the screen are more important, so give them a higher weight in the histogram.
-				samplePos = samplePos * 2.0 - 1.0;
-				float sampleWeight  = (1.0 - samplePos.x * samplePos.x) * (1.0 - samplePos.y * samplePos.y);
-				      sampleWeight *= sampleWeight;
+					// Pixels around the center of the screen are more important, so give them a higher weight in the histogram.
+					samplePos = samplePos * 2.0 - 1.0;
+					float sampleWeight  = (1.0 - samplePos.x * samplePos.x) * (1.0 - samplePos.y * samplePos.y);
+					      sampleWeight *= sampleWeight;
 
-				if (bin0 >= 0) histogram[bin0] += sampleWeight * weight0;
-				if (bin1 <= HISTOGRAM_BINS - 1) histogram[bin1] += sampleWeight * weight1;
+					if (bin0 >= 0) histogram[bin0] += sampleWeight * weight0;
+					if (bin1 <= HISTOGRAM_BINS - 1) histogram[bin1] += sampleWeight * weight1;
+				}
 			}
+
+			return histogram;
 		}
 
-		return histogram;
-	}
+		float CalculateTargetExposure(float[HISTOGRAM_BINS] histogram, float histogramExposure) {
+			const float brightFraction = 0.01 * HISTOGRAM_PERCENT_BRIGHT;
+			const float dimFraction    = 0.01 * HISTOGRAM_PERCENT_DIM;
 
-	float CalculateTargetExposure(float[HISTOGRAM_BINS] histogram, float histogramExposure) {
-		const float brightFraction = 0.01 * HISTOGRAM_PERCENT_BRIGHT;
-		const float dimFraction    = 0.01 * HISTOGRAM_PERCENT_DIM;
+			float sum = 0.0;
+			for (int i = 0; i < HISTOGRAM_BINS; ++i) { sum += histogram[i]; }
 
-		float sum = 0.0;
-		for (int i = 0; i < HISTOGRAM_BINS; ++i) { sum += histogram[i]; }
+			float dimSum = sum * dimFraction;
+			float brightSum = sum * (1.0 - brightFraction);
 
-		float dimSum = sum * dimFraction;
-		float brightSum = sum * (1.0 - brightFraction);
+			float l = 0.0, n = 0.0;
+			for (int bin = 0; bin < HISTOGRAM_BINS; ++bin) {
+				float binValue = histogram[bin];
 
-		float l = 0.0, n = 0.0;
-		for (int bin = 0; bin < HISTOGRAM_BINS; ++bin) {
-			float binValue = histogram[bin];
+				// remove dim range
+				float dimSub = min(binValue, dimSum);
+				binValue  -= dimSub;
+				dimSum    -= dimSub;
+				brightSum -= dimSub;
 
-			// remove dim range
-			float dimSub = min(binValue, dimSum);
-			binValue  -= dimSub;
-			dimSum    -= dimSub;
-			brightSum -= dimSub;
+				// remove bright range
+				binValue = min(binValue, brightSum);
+				brightSum -= binValue;
 
-			// remove bright range
-			binValue = min(binValue, brightSum);
-			brightSum -= binValue;
+				float binLuminance = HistogramLuminanceFromBin(bin);
+				l += binValue * binLuminance / histogramExposure;
+				n += binValue;
+			}
 
-			float binLuminance = HistogramLuminanceFromBin(bin);
-			l += binValue * binLuminance / histogramExposure;
-			n += binValue;
+			l /= n > 0.0 ? n : 1.0;
+
+			return clamp(calibration / l, minExposure, maxExposure);
 		}
+	#endif
 
-		l /= n > 0.0 ? n : 1.0;
+	#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_SIMPLE
+		float CalculateTargetExposureSimple() {
+			float maxLod = MaxOf(ceil(log2(viewResolution)));
+			vec3 averageColor = ReadColorLod(vec2(0.5), maxLod);
+			float averageLuminance = dot(averageColor, lumacoeff_rec709);
 
-		return clamp(calibration / l, minExposure, maxExposure);
-	}
-
-	float CalculateTargetExposureSimple() {
-		float maxLod = MaxOf(ceil(log2(viewResolution)));
-		vec3 averageColor = ReadColorLod(vec2(0.5), maxLod);
-		float averageLuminance = dot(averageColor, lumacoeff_rec709);
-
-		return clamp(calibration / averageLuminance, minExposure, maxExposure);
-	}
+			return clamp(calibration / averageLuminance, minExposure, maxExposure);
+		}
+	#endif
 
 	void CalculateExposure(out float exposure, out float previousExposure) {
 		#if CAMERA_AUTOEXPOSURE != CAMERA_AUTOEXPOSURE_OFF
