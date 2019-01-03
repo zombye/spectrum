@@ -5,7 +5,7 @@ vec3 GetWaterNormal(vec3 position) {
 	position    = mat3(shadowModelView) * position + shadowModelView[3].xyz;
 	position.xy = vec2(shadowProjection[0].x, shadowProjection[1].y) * position.xy + shadowProjection[3].xy;
 
-	vec4 normalSample = texture(shadowcolor1, DistortShadowSpace(position.xy) * 0.5 + 0.5);
+	vec4 normalSample = texture(shadowcolor0, DistortShadowSpace(position.xy) * 0.5 + 0.5);
 	normalSample.xyz = DecodeNormal(normalSample.xy * 2.0 - 1.0);
 
 	return normalSample.a < 1.0 ? vec3(0.0, 1.0, 0.0) : normalSample.xyz;

@@ -336,7 +336,7 @@ float CalculateAverageCloudTransmittance(float coverage) {
 		for (int y = 0; y < samples.y; ++y) {
 			vec2 xy = (vec2(x, y) + 0.5) / samples;
 			xy.y = xy.y * 0.5 + 0.5;
-			vec3 dir = GenUnitVector(xy).xzy;
+			vec3 dir = GenerateUnitVector(xy).xzy;
 
 			float transmittanceSample = exp(-Calculate3DCloudsOpticalDepth(viewPosition, dir, coverage, 25));
 			transmittance += transmittanceSample;

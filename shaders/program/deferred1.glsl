@@ -46,10 +46,10 @@ uniform mat4 shadowProjectionInverse;
 
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
+uniform sampler2D shadowcolor0;
 #ifdef SHADOW_COLORED
-	uniform sampler2D shadowcolor0;
+	uniform sampler2D shadowcolor1;
 #endif
-uniform sampler2D shadowcolor1;
 
 // Misc samplers
 uniform sampler2D colortex0;
@@ -125,7 +125,7 @@ uniform vec3 shadowLightVector;
 
 		for (int x = 0; x < samples.x; ++x) {
 			for (int y = 0; y < samples.y; ++y) {
-				vec3 dir = GenUnitVector((vec2(x, y) + 0.5) / samples);
+				vec3 dir = GenerateUnitVector((vec2(x, y) + 0.5) / samples);
 
 				vec3 skySample = texture(colortex6, ProjectSky(dir)).rgb;
 
@@ -395,7 +395,7 @@ uniform vec3 shadowLightVector;
 		lightdir = vec3(0.0);
 		float ao = 0.0;
 		for (int i = 0; i < rays; ++i) {
-			vec3 dir = GenUnitVector(Hash2(vec2(dither, i / float(rays))));
+			vec3 dir = GenerateUnitVector(Hash2(vec2(dither, i / float(rays))));
 			float NoL = dot(dir, normal);
 			if (NoL < 0.0) {
 				dir = -dir;

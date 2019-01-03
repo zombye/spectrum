@@ -104,6 +104,9 @@ vec2 LinearStep(vec2 e0, vec2 e1, float x) {
 vec2 LinearStep(vec2 e0, vec2 e1, vec2 x) {
 	return Clamp01((x - e0) / (e1 - e0));
 }
+vec3 LinearStep(float e0, float e1, vec3 x) {
+	return Clamp01((x - e0) / (e1 - e0));
+}
 
 // This is just Jodie's blackbody() function that you can find on the shaderlabs discord
 vec3 Blackbody(float t) {

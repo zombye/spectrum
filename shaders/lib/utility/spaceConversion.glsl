@@ -24,6 +24,13 @@ vec3 ScreenSpaceToViewSpace(vec3 screenPosition, mat4 projectionInverse) {
 	return viewPosition;
 }
 
+vec3 GetViewDirection(vec2 uv, mat4 projectionInverse) {
+	uv = uv * 2.0 - 1.0;
+	uv = vec2(projectionInverse[0].x, projectionInverse[1].y) * uv + projectionInverse[3].xy;
+
+	return normalize(vec3(uv, projectionInverse[3].z));
+}
+
 float ViewSpaceToScreenSpace(float depth, mat4 projection) {
 	return ((projection[2].z * depth + projection[3].z) / -depth) * 0.5 + 0.5;
 }

@@ -39,10 +39,12 @@ uniform mat4 shadowModelViewInverse;
 uniform mat4 shadowProjection;
 uniform mat4 shadowProjectionInverse;
 
-uniform sampler2D shadowtex0;
-uniform sampler2D shadowtex1;
-uniform sampler2D shadowcolor0;
-uniform sampler2D shadowcolor1;
+#ifdef RSM
+	uniform sampler2D shadowtex0;
+	uniform sampler2D shadowtex1;
+	uniform sampler2D shadowcolor0;
+	uniform sampler2D shadowcolor1;
+#endif
 
 // Misc samplers
 uniform sampler2D colortex0;
@@ -111,7 +113,7 @@ uniform vec3 shadowLightVector;
 		skyAmbientUp = vec3(0.0);
 		for (int x = 0; x < samples.x; ++x) {
 			for (int y = 0; y < samples.y; ++y) {
-				vec3 dir = GenUnitVector((vec2(x, y) + 0.5) / samples);
+				vec3 dir = GenerateUnitVector((vec2(x, y) + 0.5) / samples);
 
 				vec3 skySample  = AtmosphereScattering(colortex5, vec3(0.0, atmosphere_planetRadius, 0.0), dir, sunVector ) * sunIlluminance;
 				     skySample += AtmosphereScattering(colortex5, vec3(0.0, atmosphere_planetRadius, 0.0), dir, moonVector) * moonIlluminance;
@@ -170,108 +172,112 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Functions
 
-	vec3 ReflectiveShadowMaps(vec3 position, vec3 normal, float skylight, float dither, const float ditherSize) {
-		dither = dither * ditherSize + 0.5;
-		float dither2 = dither / ditherSize;
+	#ifdef RSM
+		vec3 ReflectiveShadowMaps(vec3 position, vec3 normal, float skylight, float dither, const float ditherSize) {
+			dither = dither * ditherSize + 0.5;
+			float dither2 = dither / ditherSize;
 
-		const float radiusSquared     = RSM_RADIUS * RSM_RADIUS;
-		const float perSampleArea     = pi * radiusSquared / RSM_SAMPLES;
-		const float sampleDistanceAdd = sqrt(perSampleArea / pi); // Added to sampleDistanceSquared to prevent fireflies
+			const float radiusSquared     = RSM_RADIUS * RSM_RADIUS;
+			const float perSampleArea     = pi * radiusSquared / RSM_SAMPLES;
+			const float sampleDistanceAdd = sqrt(perSampleArea / pi); // Added to sampleDistanceSquared to prevent fireflies
 
-		vec3 projectionScale        = vec3(shadowProjection[0].x, shadowProjection[1].y, shadowProjection[2].z / SHADOW_DEPTH_SCALE);
-		vec3 projectionInverseScale = vec3(shadowProjectionInverse[0].x, shadowProjectionInverse[1].y, shadowProjectionInverse[2].z * SHADOW_DEPTH_SCALE);
-		vec2 offsetScale            = RSM_RADIUS * projectionScale.xy;
+			vec3 projectionScale        = vec3(shadowProjection[0].x, shadowProjection[1].y, shadowProjection[2].z / SHADOW_DEPTH_SCALE);
+			vec3 projectionInverseScale = vec3(shadowProjectionInverse[0].x, shadowProjectionInverse[1].y, shadowProjectionInverse[2].z * SHADOW_DEPTH_SCALE);
+			vec2 offsetScale            = RSM_RADIUS * projectionScale.xy;
 
-		vec3 shadowPosition = mat3(shadowModelView) * position + shadowModelView[3].xyz;
-		vec3 shadowClip     = projectionScale * shadowPosition + shadowProjection[3].xyz;
-		vec3 shadowNormal   = mat3(shadowModelView) * normal;
+			vec3 shadowPosition = mat3(shadowModelView) * position + shadowModelView[3].xyz;
+			vec3 shadowClip     = projectionScale * shadowPosition + shadowProjection[3].xyz;
+			vec3 shadowNormal   = mat3(shadowModelView) * normal;
 
-		vec3 rsm = vec3(0.0);
-		vec2 dir = SinCos(dither * goldenAngle);
-		for (int i = 0; i < RSM_SAMPLES; ++i) {
-			vec2 sampleOffset = dir * offsetScale * sqrt((i + dither2) / RSM_SAMPLES);
-			dir *= rotateGoldenAngle;
+			vec3 rsm = vec3(0.0);
+			vec2 dir = SinCos(dither * goldenAngle);
+			for (int i = 0; i < RSM_SAMPLES; ++i) {
+				vec2 sampleOffset = dir * offsetScale * sqrt((i + dither2) / RSM_SAMPLES);
+				dir *= rotateGoldenAngle;
 
-			vec3 sampleClip     = shadowClip;
-			     sampleClip.xy += sampleOffset;
+				vec3 sampleClip     = shadowClip;
+				     sampleClip.xy += sampleOffset;
 
-			float distortionFactor = CalculateDistortionFactor(sampleClip.xy);
-			vec2 sampleCoord    = (sampleClip.xy * distortionFactor) * 0.5 + 0.5;
-			     sampleClip.z   = textureLod(shadowtex0, sampleCoord, 0.0).r * 2.0 - 1.0;
-			vec3 samplePosition = projectionInverseScale * sampleClip + shadowProjectionInverse[3].xyz;
+				float distortionFactor = CalculateDistortionFactor(sampleClip.xy);
+				vec2 sampleCoord    = (sampleClip.xy * distortionFactor) * 0.5 + 0.5;
+				     sampleClip.z   = textureLod(shadowtex0, sampleCoord, 0.0).r * 2.0 - 1.0;
+				vec3 samplePosition = projectionInverseScale * sampleClip + shadowProjectionInverse[3].xyz;
 
-			vec3  sampleVector          = samplePosition - shadowPosition;
-			float sampleDistanceSquared = dot(sampleVector, sampleVector);
+				vec3  sampleVector          = samplePosition - shadowPosition;
+				float sampleDistanceSquared = dot(sampleVector, sampleVector);
 
-			if (sampleDistanceSquared > radiusSquared) { continue; } // Discard samples that are too far away
+				if (sampleDistanceSquared > radiusSquared) { continue; } // Discard samples that are too far away
 
-			sampleVector *= inversesqrt(sampleDistanceSquared);
+				sampleVector *= inversesqrt(sampleDistanceSquared);
 
-			vec3 shadowcolor1Sample = textureLod(shadowcolor1, sampleCoord, 0.0).rgb;
-			vec3 sampleNormal = DecodeNormal(shadowcolor1Sample.rg * 2.0 - 1.0);
+				vec3 shadowcolor0Sample = textureLod(shadowcolor0, sampleCoord, 0.0).rgb;
+				vec3 sampleNormal = DecodeNormal(shadowcolor0Sample.rg * 2.0 - 1.0);
 
-			// Calculate BRDF (lambertian)
-			//float sampleIn  = 1.0; // We're sampling the lights projected area so this is just 1.
-			float sampleOut = Clamp01(dot(sampleNormal, -sampleVector)) / pi; // Divide by pi for energy conservation.
-			float bounceIn  = Clamp01(dot(shadowNormal,  sampleVector));
-			float bounceOut = 1.0 / pi; // Divide by pi for energy conservation.
+				// Calculate BRDF (lambertian)
+				//float sampleIn  = 1.0; // We're sampling the lights projected area so this is just 1.
+				float sampleOut = Clamp01(dot(sampleNormal, -sampleVector)) / pi; // Divide by pi for energy conservation.
+				float bounceIn  = Clamp01(dot(shadowNormal,  sampleVector));
+				float bounceOut = 1.0 / pi; // Divide by pi for energy conservation.
 
-			float brdf = sampleOut * bounceIn * bounceOut;
+				float brdf = sampleOut * bounceIn * bounceOut;
 
-			#ifdef RSM_LEAK_FIX
-				float sampleSkylight = shadowcolor1Sample.b;
-				brdf *= Clamp01(1.0 - 5.0 * abs(sampleSkylight - skylight));
-			#endif
+				#ifdef RSM_LEAK_FIX
+					float sampleSkylight = shadowcolor0Sample.b;
+					brdf *= Clamp01(1.0 - 5.0 * abs(sampleSkylight - skylight));
+				#endif
 
-			vec4 sampleAlbedo = textureLod(shadowcolor0, sampleCoord, 0.0);
-			rsm += SrgbToLinear(sampleAlbedo.rgb) * sampleAlbedo.a * brdf / (sampleDistanceSquared + sampleDistanceAdd);
-		}
-
-		return rsm * perSampleArea;
-	}
-
-	mat2x3 CloudShadowedAtmosphere(vec3 startPosition, vec3 viewVector, float endDistance, float cloudCoverage, float dither) {
-		const int steps = 15;
-		//int steps = int(ceil(endDistance / 1000.0));
-
-		float stepSize = abs(endDistance / steps);
-		vec3 increment = viewVector * stepSize;
-		vec3 position  = startPosition + increment * dither;
-
-		vec3 scattering = vec3(0.0);
-		vec3 transmittance = vec3(1.0);
-
-		vec3 sun  = AtmosphereScattering(colortex5, position, viewVector, sunVector ) * sunIlluminance;
-		vec3 moon = AtmosphereScattering(colortex5, position, viewVector, moonVector) * moonIlluminance;
-		for (int i = 0; i < steps; ++i) {
-			float cloudShadow = Calculate3DCloudShadows(position + vec3(cameraPosition.x, -atmosphere_planetRadius, cameraPosition.z), cloudCoverage, 3);
-			if (sunAngle < 0.5) {
-				sun *= cloudShadow;
-			} else {
-				moon *= cloudShadow;
+				vec4 sampleAlbedo = textureLod(shadowcolor1, sampleCoord, 0.0);
+				rsm += SrgbToLinear(sampleAlbedo.rgb) * sampleAlbedo.a * brdf / (sampleDistanceSquared + sampleDistanceAdd);
 			}
 
-			scattering += (sun + moon) * transmittance;
-
-			vec3 density = AtmosphereDensity(length(position));
-			if (density.y > 1e15) { break; }
-			vec3 airmass = stepSize * density;
-			vec3 opticalDepth = atmosphere_coefficientsAttenuation * airmass;
-			transmittance *= exp(-opticalDepth);
-
-			position += increment;
-
-			sun  = Max0(AtmosphereScattering(colortex5, position, viewVector, sunVector )) * sunIlluminance;
-			moon = Max0(AtmosphereScattering(colortex5, position, viewVector, moonVector)) * moonIlluminance;
-			if (sunAngle < 0.5) {
-				scattering -= (sun * cloudShadow + moon) * transmittance;
-			} else {
-				scattering -= (sun + moon * cloudShadow) * transmittance;
-			}
+			return rsm * perSampleArea;
 		}
+	#endif
 
-		return mat2x3(scattering, transmittance);
-	}
+	#ifdef DISTANT_VL
+		mat2x3 CloudShadowedAtmosphere(vec3 startPosition, vec3 viewVector, float endDistance, float cloudCoverage, float dither) {
+			const int steps = DISTANT_VL_STEPS;
+			//int steps = int(ceil(endDistance / 1000.0));
+
+			float stepSize = abs(endDistance / steps);
+			vec3 increment = viewVector * stepSize;
+			vec3 position  = startPosition + increment * dither;
+
+			vec3 scattering = vec3(0.0);
+			vec3 transmittance = vec3(1.0);
+
+			vec3 sun  = AtmosphereScattering(colortex5, position, viewVector, sunVector ) * sunIlluminance;
+			vec3 moon = AtmosphereScattering(colortex5, position, viewVector, moonVector) * moonIlluminance;
+			for (int i = 0; i < steps; ++i) {
+				float cloudShadow = Calculate3DCloudShadows(position + vec3(cameraPosition.x, -atmosphere_planetRadius, cameraPosition.z), cloudCoverage, 3);
+				if (sunAngle < 0.5) {
+					sun *= cloudShadow;
+				} else {
+					moon *= cloudShadow;
+				}
+
+				scattering += (sun + moon) * transmittance;
+
+				vec3 density = AtmosphereDensity(length(position));
+				if (density.y > 1e15) { break; }
+				vec3 airmass = stepSize * density;
+				vec3 opticalDepth = atmosphere_coefficientsAttenuation * airmass;
+				transmittance *= exp(-opticalDepth);
+
+				position += increment;
+
+				sun  = Max0(AtmosphereScattering(colortex5, position, viewVector, sunVector )) * sunIlluminance;
+				moon = Max0(AtmosphereScattering(colortex5, position, viewVector, moonVector)) * moonIlluminance;
+				if (sunAngle < 0.5) {
+					scattering -= (sun * cloudShadow + moon) * transmittance;
+				} else {
+					scattering -= (sun + moon * cloudShadow) * transmittance;
+				}
+			}
+
+			return mat2x3(scattering, transmittance);
+		}
+	#endif
 
 	void main() {
 		#ifdef TAA

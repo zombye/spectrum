@@ -13,7 +13,7 @@
 	vec3 ReadShadowMaps(vec3 shadowCoord) {
 		float shadow0 = step(shadowCoord.z, textureLod(shadowtex0, shadowCoord.st, 0.0).r);
 		float shadow1 = step(shadowCoord.z, textureLod(shadowtex1, shadowCoord.st, 0.0).r);
-		vec4  shadowC = textureLod(shadowcolor0, shadowCoord.st, 0.0);
+		vec4  shadowC = textureLod(shadowcolor1, shadowCoord.st, 0.0);
 
 		return BlendColoredShadow(shadow0, shadow1, shadowC);
 	}
@@ -26,10 +26,10 @@
 		vec4 samples0 = step(shadowCoord.z, textureGather(shadowtex0, vec2(i) / SHADOW_RESOLUTION + (1.0 / SHADOW_RESOLUTION)));
 		vec4 samples1 = step(shadowCoord.z, textureGather(shadowtex1, vec2(i) / SHADOW_RESOLUTION + (1.0 / SHADOW_RESOLUTION)));
 
-		vec3 c0 = BlendColoredShadow(samples0.x, samples1.x, texelFetch(shadowcolor0, i + ivec2(0, 1), 0));
-		vec3 c1 = BlendColoredShadow(samples0.y, samples1.y, texelFetch(shadowcolor0, i + ivec2(1, 1), 0));
-		vec3 c2 = BlendColoredShadow(samples0.z, samples1.z, texelFetch(shadowcolor0, i + ivec2(1, 0), 0));
-		vec3 c3 = BlendColoredShadow(samples0.w, samples1.w, texelFetch(shadowcolor0, i + ivec2(0, 0), 0));
+		vec3 c0 = BlendColoredShadow(samples0.x, samples1.x, texelFetch(shadowcolor1, i + ivec2(0, 1), 0));
+		vec3 c1 = BlendColoredShadow(samples0.y, samples1.y, texelFetch(shadowcolor1, i + ivec2(1, 1), 0));
+		vec3 c2 = BlendColoredShadow(samples0.z, samples1.z, texelFetch(shadowcolor1, i + ivec2(1, 0), 0));
+		vec3 c3 = BlendColoredShadow(samples0.w, samples1.w, texelFetch(shadowcolor1, i + ivec2(0, 0), 0));
 
 		return mix(mix(c3, c2, f.x), mix(c0, c1, f.x), f.y);
 	}
@@ -133,15 +133,24 @@
 		float spread = tan(lightAngularRadius) * SHADOW_DEPTH_RADIUS * shadowProjection[0].x; // this could be moved to be part of the filter section
 
 		float pixelRadiusBase = 1.0 / SHADOW_RESOLUTION;
+		/*
 		#if defined SHADOW_COLORED && SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
-			vec2 filterRadius = averageBlockerDepth;
+			vec2 penumbraSize = averageBlockerDepth * spread * 2.0;
+			vec2 filterRadius = penumbraSize;
 		#else
-			float filterRadius = averageBlockerDepth;
+			float penumbraSize = averageBlockerDepth * spread * 2.0;
+			float filterRadius = penumbraSize;
+		#endif
+		*/
+		#if defined SHADOW_COLORED && SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
+			vec2 filterRadius = averageBlockerDepth * spread * 2.0;
+		#else
+			float filterRadius = averageBlockerDepth * spread * 2.0;
 		#endif
 		#if defined SHADOW_FILTER_MIN_RADIUS_LIMITED
-			filterRadius = clamp(filterRadius * spread * 2.0, 4.0 * pixelRadiusBase * SHADOW_DISTORTION_AMOUNT_INVERSE, 0.5 * searchRadius);
+			filterRadius = clamp(filterRadius, 4.0 * pixelRadiusBase * SHADOW_DISTORTION_AMOUNT_INVERSE, 0.5 * searchRadius);
 		#else
-			filterRadius = min(filterRadius * spread * 2.0, 0.5 * searchRadius);
+			filterRadius = min(filterRadius, 0.5 * searchRadius);
 		#endif
 
 		refZ += biasAdd;
@@ -166,7 +175,7 @@
 
 				float shadow0 = step(biasMul * biasTransp + refZ, textureLod(shadowtex0, sampleCoordTransp, 0.0).r);
 				float shadow1 = step(biasMul * biasOpaque + refZ, textureLod(shadowtex1, sampleCoordOpaque, 0.0).r);
-				vec4  shadowC = textureLod(shadowcolor0, sampleCoordTransp, 0.0);
+				vec4  shadowC = textureLod(shadowcolor1, sampleCoordTransp, 0.0);
 				      shadowC.rgb = SrgbToLinear(shadowC.rgb);
 
 				result += (shadowC.rgb * shadowC.a - shadowC.a) * (-shadow1 * shadow0 + shadow1) + shadow1;
@@ -181,6 +190,8 @@
 				result += ReadShadowMapsBilinear(vec3(sampleCoord, biasMul * bias + refZ));
 			#endif
 		} result /= filterSamples;
+
+		//result = LinearStep(mix(0.5, 0.0, Clamp01(penumbraSize / filterRadius)), mix(0.5, 1.0, Clamp01(penumbraSize / filterRadius)), result);
 
 		return result;
 	}
@@ -397,7 +408,7 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 	#endif
 
 	float waterDepth = SHADOW_DEPTH_RADIUS * Max0(shadowCoord.z - texture(shadowtex0, shadowCoord.xy).r);
-	if (texture(shadowcolor1, shadowCoord.xy).a > 0.5 && waterDepth > 0.01) {
+	if (texture(shadowcolor0, shadowCoord.xy).a > 0.5 && waterDepth > 0.01) {
 		#ifdef UNDERWATER_ADAPTATION
 			float fogDensity = isEyeInWater == 1 ? fogDensity : 0.1;
 		#else

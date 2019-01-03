@@ -73,6 +73,7 @@
 //#define VL_AIR
 #ifdef VL_AIR
 	//#define DISTANT_VL
+	#define DISTANT_VL_STEPS 15
 	#define DISTANT_VL_RANGE 15
 #endif
 

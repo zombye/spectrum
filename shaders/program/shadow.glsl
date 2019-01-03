@@ -136,26 +136,27 @@ uniform vec3 shadowLightVector;
 
 	void main() {
 		#ifndef CAUSTICS
-			shadowcolor1Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
+			shadowcolor0Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
 		#endif
-		shadowcolor1Write.z = lightmapCoordinates.y;
+		shadowcolor0Write.z = lightmapCoordinates.y;
 
 		if (blockId == 8 || blockId == 9) {
-			shadowcolor0Write.rgb = vec3(1.0);
-			shadowcolor0Write.a   = 0.2;
+			shadowcolor1Write.rgb = vec3(1.0);
+			shadowcolor1Write.a   = 0.0;
 
 			#ifdef CAUSTICS
-				shadowcolor1Write.xy = EncodeNormal(CalculateWaterNormal(scenePosition)) * 0.5 + 0.5;
+				shadowcolor0Write.xy = EncodeNormal(CalculateWaterNormal(scenePosition)) * 0.5 + 0.5;
 			#endif
-			shadowcolor1Write.w  = 1.0;
+			shadowcolor0Write.w = 1.0;
 		} else {
-			shadowcolor0Write      = texture(tex, textureCoordinates);
-			shadowcolor0Write.rgb *= tint;
+			shadowcolor1Write = texture(tex, textureCoordinates);
+			if (shadowcolor1Write.a < 0.102) { discard; }
+			shadowcolor1Write.rgb *= tint;
 
 			#ifdef CAUSTICS
-				shadowcolor1Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
+				shadowcolor0Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
 			#endif
-			shadowcolor1Write.w  = 0.0;
+			shadowcolor0Write.w = 0.0;
 		}
 	}
 #endif

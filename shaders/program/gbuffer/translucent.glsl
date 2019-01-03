@@ -59,10 +59,10 @@ uniform mat4 shadowProjectionInverse;
 
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
+uniform sampler2D shadowcolor0;
 #ifdef SHADOW_COLORED
-	uniform sampler2D shadowcolor0;
+	uniform sampler2D shadowcolor1;
 #endif
-uniform sampler2D shadowcolor1;
 
 // Custom Uniforms
 uniform vec2 viewResolution;

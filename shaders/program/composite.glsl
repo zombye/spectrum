@@ -52,10 +52,10 @@ uniform sampler2D depthtex1;
 
 	uniform sampler2D shadowtex0;
 	uniform sampler2D shadowtex1;
+	uniform sampler2D shadowcolor0;
 	#ifdef SHADOW_COLORED
-		uniform sampler2D shadowcolor0;
+		uniform sampler2D shadowcolor1;
 	#endif
-	uniform sampler2D shadowcolor1;
 #endif
 
 //
@@ -117,7 +117,7 @@ uniform vec3 shadowLightVector;
 		illuminanceSky = vec3(0.0);
 		for (int x = 0; x < samples.x; ++x) {
 			for (int y = 0; y < samples.y; ++y) {
-				vec3 dir = GenUnitVector((vec2(x, y) + 0.5) / samples);
+				vec3 dir = GenerateUnitVector((vec2(x, y) + 0.5) / samples);
 
 				vec3 skySample = texture(colortex6, ProjectSky(dir, SKY_IMAGE_LOD)).rgb;
 				illuminanceSky += skySample * step(0.0, dir.y);
@@ -168,7 +168,7 @@ uniform vec3 shadowLightVector;
 				      shadow0 = shadow0 < 1.0 ? step(shadowCoord.z, shadow0) : 1.0;
 				float shadow1 = textureLod(shadowtex1, shadowCoord.st, 0.0).r;
 				      shadow1 = shadow1 < 1.0 ? step(shadowCoord.z, shadow1) : 1.0;
-				vec4  shadowC = textureLod(shadowcolor0, shadowCoord.st, 0.0);
+				vec4  shadowC = textureLod(shadowcolor1, shadowCoord.st, 0.0);
 				      shadowC.rgb = SrgbToLinear(shadowC.rgb);
 
 				// Best looking method I've found so far.
@@ -335,7 +335,7 @@ uniform vec3 shadowLightVector;
 				     stepScatteringShadowlight *= ReadShadowMaps(shadowCoord);
 				     stepScatteringShadowlight *= Calculate3DCloudShadows(worldPosition);
 
-				if (texture(shadowcolor1, shadowCoord.xy).a > 0.5) {
+				if (texture(shadowcolor0, shadowCoord.xy).a > 0.5) {
 					float waterDepth = SHADOW_DEPTH_RADIUS * Max0(shadowCoord.z - texture(shadowtex0, shadowCoord.xy).r);
 
 					if (waterDepth > 0.0) {
