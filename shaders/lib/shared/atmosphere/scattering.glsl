@@ -1,21 +1,6 @@
 #if !defined INCLUDE_SHARED_ATMOSPHERE_SCATTERING
 #define INCLUDE_SHARED_ATMOSPHERE_SCATTERING
 
-vec2 LookupUv4DTo2D(vec4 coord, const ivec4 resolution) {
-	vec2 xy = coord.xy;
-	ivec2 zw = ivec2(floor(coord.zw)) * resolution.xy;
-	return xy + zw;
-}
-ivec2 LookupUv4DTo2D(ivec4 coord, const ivec4 resolution) {
-	return coord.xy + coord.zw * resolution.xy;
-}
-vec4 Lookup2DTo4D(ivec2 texel, const ivec4 resolution) {
-	vec2 uvXY = vec2(texel % resolution.xy) / resolution.xy;
-	vec2 uvZW = floor(vec2(texel.xy) / vec2(resolution.xy)) / resolution.zw;
-
-	return vec4(uvXY, uvZW);
-}
-
 vec3 Texture4DRGBE8(sampler2D sampler, vec4 coord, ivec4 res) {
 	coord = coord * res - 0.5;
 	ivec4 i = ivec4(floor(coord));
@@ -53,10 +38,11 @@ vec3 Texture4DRGBE8(sampler2D sampler, vec4 coord, ivec4 res) {
 
 vec3 AtmosphereScattering(sampler2D sampler, float R, float Mu, float MuS, float V) {
 	vec4 uv = AtmosphereScatteringLookupUv(R, Mu, MuS, V);
-	vec3 single_rayleigh = PhaseRayleigh(V)             * Texture4DRGBE8(sampler,  uv                  / vec4(1,1,1,2), res4D * ivec4(1,1,1,2));
-	vec3 single_mie      = PhaseMie(V, atmosphere_mieg) * Texture4DRGBE8(sampler, (uv + vec4(0,0,0,1)) / vec4(1,1,1,2), res4D * ivec4(1,1,1,2));
+	vec3 single_rayleigh = PhaseRayleigh(V)             * Texture4DRGBE8(sampler, uv,                 res4D);
+	vec3 single_mie      = PhaseMie(V, atmosphere_mieg) * Texture4DRGBE8(sampler, uv + vec4(0,0,0,1), res4D);
+	vec3 multi           =                                Texture4DRGBE8(sampler, uv + vec4(0,0,0,2), res4D);
 
-	return single_rayleigh + single_mie;
+	return single_rayleigh + single_mie + multi;
 }
 vec3 AtmosphereScattering(sampler2D sampler, vec3 p, vec3 d, vec3 l) {
 	float R   = length(p);

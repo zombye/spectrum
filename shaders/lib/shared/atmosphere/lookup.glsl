@@ -7,6 +7,24 @@
 \*/
 
 //----------------------------------------------------------------------------//
+//--// 2D/4D conversion //----------------------------------------------------//
+
+vec2 LookupUv4DTo2D(vec4 coord, const ivec4 resolution) {
+	vec2 xy = coord.xy;
+	ivec2 zw = ivec2(floor(coord.zw)) * resolution.xy;
+	return xy + zw;
+}
+ivec2 LookupUv4DTo2D(ivec4 coord, const ivec4 resolution) {
+	return coord.xy + coord.zw * resolution.xy;
+}
+vec4 Lookup2DTo4D(ivec2 texel, const ivec4 resolution) {
+	vec2 uvXY = vec2(texel % resolution.xy) / resolution.xy;
+	vec2 uvZW = floor(vec2(texel.xy) / vec2(resolution.xy)) / resolution.zw;
+
+	return vec4(uvXY, uvZW);
+}
+
+//----------------------------------------------------------------------------//
 //--// Boundary intersection functions //-------------------------------------//
 
 bool AtmosphereRayIntersectsLowerLimit(float R, float Mu) {
