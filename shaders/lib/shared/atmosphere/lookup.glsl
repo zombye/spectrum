@@ -99,6 +99,7 @@ vec4 AtmosphereScatteringLookupUv(float R, float Mu, float MuS, float V) {
 	float a = (d - dMin) / (dMax - dMin);
 	float A = -2.0 * atmosphere_MuS_min * atmosphere_lowerLimitRadius / (dMax - dMin);
 	float uvMuS = AddUvMargin(Max0(1.0 - a / A) / (1.0 + a), resMuS);
+	      uvMuS = clamp(uvMuS, 1.5 / resMuS, 1.0);
 
 	float uvV = AddUvMargin((V + 1.0) / 2.0, resV);
 
