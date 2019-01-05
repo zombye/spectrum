@@ -127,7 +127,8 @@ uniform vec3 shadowLightVector;
 		skyAmbient *= sampleWeight;
 		skyAmbientUp *= sampleWeight;
 
-		vec3 shadowlightTransmittance = AtmosphereTransmittance(colortex7, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
+		vec3 shadowlightTransmittance  = AtmosphereTransmittance(colortex7, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
+		     shadowlightTransmittance *= smoothstep(0.0, 0.01, abs(shadowLightVector.y));
 		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : moonIlluminance) * shadowlightTransmittance;
 
 		averageCloudTransmittance = CalculateAverageCloudTransmittance(GetCloudCoverage());

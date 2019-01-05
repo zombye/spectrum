@@ -146,7 +146,8 @@ uniform vec3 shadowLightVector;
 		skylightNegY *= sampleWeight;
 		skylightNegZ *= sampleWeight;
 
-		vec3 shadowlightTransmittance = AtmosphereTransmittance(colortex7, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
+		vec3 shadowlightTransmittance  = AtmosphereTransmittance(colortex7, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
+		     shadowlightTransmittance *= smoothstep(0.0, 0.01, abs(shadowLightVector.y));
 		luminanceShadowlight   = (sunAngle < 0.5 ? sunLuminance   : moonLuminance)   * shadowlightTransmittance;
 		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : moonIlluminance) * shadowlightTransmittance;
 	}

@@ -1,7 +1,12 @@
 #if !defined INCLUDE_SHARED_ATMOSPHERE_TRANSMITTANCE
 #define INCLUDE_SHARED_ATMOSPHERE_TRANSMITTANCE
 
-vec3 TextureRGBE8(sampler2D sampler, vec2 coord, ivec2 resolution) {
+vec3 AtmosphereTransmittance(sampler2D sampler, float coreDistance, float cosViewZenithAngle) {
+	ivec2 resolution = textureSize(sampler, 0);
+
+	vec2 coord = AtmosphereTransmittanceLookupUv(coreDistance, cosViewZenithAngle);
+	     coord = AddUvMargin(coord, resolution);
+
 	coord = coord * resolution - 0.5;
 	ivec2 i = ivec2(floor(coord));
 	vec2 f = coord - i;
@@ -12,14 +17,6 @@ vec3 TextureRGBE8(sampler2D sampler, vec2 coord, ivec2 resolution) {
 	vec3 s3 = DecodeRGBE8(texelFetch(sampler, i + ivec2(1,1), 0));
 
 	return mix(mix(s0, s1, f.x), mix(s2, s3, f.x), f.y);
-}
-vec3 TextureRGBE8(sampler2D sampler, vec2 coord) {
-	return TextureRGBE8(sampler, coord, textureSize(sampler, 0));
-}
-vec3 AtmosphereTransmittance(sampler2D sampler, float coreDistance, float cosViewZenithAngle) {
-	vec2 coord = AtmosphereTransmittanceLookupUv(coreDistance, cosViewZenithAngle);
-	     coord = AddUvMargin(coord, textureSize(sampler, 0));
-	return TextureRGBE8(sampler, coord);
 }
 vec3 AtmosphereTransmittance(sampler2D sampler, float coreDistance, float cosViewZenithAngle, float distance) {
 	// Transmittance from A to B is same as transmittance from B to A
