@@ -4,6 +4,9 @@
 #define CLOUDS3D_STEPS 15 // [5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25]
 #define CLOUDS3D_SELFSHADOW_STEPS_SUN 15 // Default 5
 #define CLOUDS3D_SELFSHADOW_STEPS_SKY 5 // Default 5
+#define CLOUDS3D_NOISE_SMOOTH
+#define CLOUDS3D_NOISE_OCTAVES_VIEW 5
+#define CLOUDS3D_NOISE_OCTAVES_SHADOW 4
 
 #define CLOUDS3D_DYNAMIC_COVERAGE
 #define CLOUDS3D_AVERAGE_COVERAGE 0.5 // [0 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1 0.11 0.12 0.13 0.14 0.15 0.16 0.17 0.18 0.19 0.2 0.21 0.22 0.23 0.24 0.25 0.26 0.27 0.28 0.29 0.3 0.31 0.32 0.33 0.34 0.35 0.36 0.37 0.38 0.39 0.4 0.41 0.42 0.43 0.44 0.45 0.46 0.47 0.48 0.49 0.5 0.51 0.52 0.53 0.54 0.55 0.56 0.57 0.58 0.59 0.6 0.61 0.62 0.63 0.64 0.65 0.66 0.67 0.68 0.69 0.7 0.71 0.72 0.73 0.74 0.75 0.76 0.77 0.78 0.79 0.8 0.81 0.82 0.83 0.84 0.85 0.86 0.87 0.88 0.89 0.9 0.91 0.92 0.93 0.94 0.95 0.96 0.97 0.98 0.99 1]
@@ -37,10 +40,23 @@ float Get1DNoise(float c, uint seed) {
 }
 
 float Get3DNoise(vec3 position) {
-	float flr = floor(position.z);
-	vec2 coord = (position.xy * 0.015625) + (flr * 0.265625); // 1/64 | 17/64
-	vec2 noise = texture(noisetex, coord).xy;
-	return mix(noise.x, noise.y, position.z - flr);
+	#ifdef CLOUDS3D_NOISE_SMOOTH
+		vec3 flr  = floor(position);
+		vec3 frc  = position - flr;
+		     frc *= frc * (3.0 - 2.0 * frc);
+
+		vec2 coord = ((flr.xy + frc.xy) * 0.015625) + (flr.z * 0.265625); // 1/64 | 17/64
+		vec2 noise = texture(noisetex, coord).xy;
+
+		return mix(noise.x, noise.y, frc.z);
+	#else
+		float flr = floor(position.z);
+
+		vec2 coord = (position.xy * 0.015625) + (flr * 0.265625); // 1/64 | 17/64
+		vec2 noise = texture(noisetex, coord).xy;
+
+		return mix(noise.x, noise.y, position.z - flr);
+	#endif
 }
 
 //--// Shape //---------------------------------------------------------------//
@@ -67,7 +83,7 @@ float GetCloudCoverage() {
 	return Clamp01(coverage + wetness);
 }
 
-float Get3DCloudDensity(vec3 position, float coreDistance, float coverage) {
+float Get3DCloudDensity(vec3 position, float coreDistance, float coverage, const int octaves) {
 	#ifdef CLOUDS3D_USE_WORLD_TIME
 		float cloudsTime = (worldDay % 128 + worldTime / 24000.0) * CLOUDS3D_SPEED;
 	#else
@@ -80,8 +96,6 @@ float Get3DCloudDensity(vec3 position, float coreDistance, float coverage) {
 	//--// Noise
 
 	position = position * 1e-3 + cloudsTime;
-
-	const int octaves = 5;
 
 	float density = Get3DNoise(position);
 	for (int i = 1; i < octaves; ++i) {
@@ -100,9 +114,9 @@ float Get3DCloudDensity(vec3 position, float coreDistance, float coverage) {
 
 	return density;
 }
-float Get3DCloudDensity(vec3 position, float coverage) {
+float Get3DCloudDensity(vec3 position, float coverage, const int octaves) {
 	vec3 corePosition = position + vec3(-cameraPosition.x, atmosphere_planetRadius, -cameraPosition.z);
-	return Get3DCloudDensity(position, length(corePosition), coverage);
+	return Get3DCloudDensity(position, length(corePosition), coverage, octaves);
 }
 
 //--// Optical depth //-------------------------------------------------------//
@@ -116,7 +130,7 @@ float Calculate3DCloudsAirmass(vec3 position, vec3 direction, float coverage, co
 
 	float airmass = 0.0;
 	for (int i = 0; i < steps; ++i, position += increment) {
-		airmass += Get3DCloudDensity(position, coverage);
+		airmass += Get3DCloudDensity(position, coverage, CLOUDS3D_NOISE_OCTAVES_SHADOW);
 	} airmass *= stepSize;
 
 	return airmass;
@@ -134,7 +148,7 @@ float Calculate3DCloudsAirmassUp(vec3 position, float coverage, const int steps)
 
 	float airmass = 0.0;
 	for (int i = 0; i < steps; ++i, position += increment, coreDistance += stepSize) {
-		airmass += Get3DCloudDensity(position, coreDistance, coverage);
+		airmass += Get3DCloudDensity(position, coreDistance, coverage, CLOUDS3D_NOISE_OCTAVES_SHADOW);
 	} airmass *= stepSize;
 
 	return airmass;
@@ -228,7 +242,7 @@ float Calculate3DCloudsOpticalDepthUp(vec3 position, float coverage) { // Simple
 		for (int i = 0; i < steps; ++i, position += increment) {
 			//--// Optical depth
 
-			float stepDensity = Get3DCloudDensity(position, coverage);
+			float stepDensity = Get3DCloudDensity(position, coverage, CLOUDS3D_NOISE_OCTAVES_VIEW);
 			if (stepDensity <= 0.0) { continue; } // Skip steps that would do nothing
 			float stepOpticalDepth = CLOUDS3D_ATTENUATION_COEFFICIENT * stepSize * stepDensity;
 
