@@ -1,10 +1,10 @@
 #if !defined INCLUDE_SHARED_ATMOSPHERE_CONSTANTS
 #define INCLUDE_SHARED_ATMOSPHERE_CONSTANTS
 
-const float atmosphere_MuS_min = -0.4;
+const float atmosphere_MuS_min = -0.35;
 
-const int resMu  = 128;
-const int resV   = 8;
+const int resMu  = 64;
+const int resV   = 16;
 const int resR   = 32;
 const int resMuS = 32;
 

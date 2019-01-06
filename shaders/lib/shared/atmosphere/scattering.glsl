@@ -37,6 +37,8 @@ vec3 Texture4DRGBE8(sampler2D sampler, vec4 coord, ivec4 res) {
 }
 
 vec3 AtmosphereScattering(sampler2D sampler, float R, float Mu, float MuS, float V) {
+	if (MuS < atmosphere_MuS_min) { return vec3(0.0); }
+
 	vec4 uv = AtmosphereScatteringLookupUv(R, Mu, MuS, V);
 	vec3 single_rayleigh = PhaseRayleigh(V)             * Texture4DRGBE8(sampler, uv,                 res4D);
 	vec3 single_mie      = PhaseMie(V, atmosphere_mieg) * Texture4DRGBE8(sampler, uv + vec4(0,0,0,1), res4D);
