@@ -133,30 +133,21 @@
 		float spread = tan(lightAngularRadius) * SHADOW_DEPTH_RADIUS * shadowProjection[0].x; // this could be moved to be part of the filter section
 
 		float pixelRadiusBase = 1.0 / SHADOW_RESOLUTION;
-		/*
-		#if defined SHADOW_COLORED && SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
-			vec2 penumbraSize = averageBlockerDepth * spread * 2.0;
-			vec2 filterRadius = penumbraSize;
-		#else
-			float penumbraSize = averageBlockerDepth * spread * 2.0;
-			float filterRadius = penumbraSize;
-		#endif
-		*/
-
 		#ifdef SHADOW_COLORED
 			#if SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
 				vec2 filterRadius = averageBlockerDepth * spread * 2.0;
 			#else
 				float filterRadius = averageBlockerDepth * spread * 2.0;
 			#endif
+
+			#if defined SHADOW_FILTER_MIN_RADIUS_LIMITED
+				filterRadius = clamp(filterRadius, 4.0 * pixelRadiusBase * SHADOW_DISTORTION_AMOUNT_INVERSE, 0.5 * searchRadius);
+			#else
+				filterRadius = min(filterRadius, 0.5 * searchRadius);
+			#endif
 		#else
 			float penumbraSize = averageBlockerDepth * spread * 2.0;
-			float filterRadius = penumbraSize;
-		#endif
-		#if defined SHADOW_FILTER_MIN_RADIUS_LIMITED
-			filterRadius = clamp(filterRadius, 4.0 * pixelRadiusBase * SHADOW_DISTORTION_AMOUNT_INVERSE, 0.5 * searchRadius);
-		#else
-			filterRadius = min(filterRadius, 0.5 * searchRadius);
+			float filterRadius = clamp(penumbraSize, 4.0 * pixelRadiusBase * SHADOW_DISTORTION_AMOUNT_INVERSE, 0.5 * searchRadius);
 		#endif
 
 		refZ += biasAdd;
@@ -198,7 +189,8 @@
 		} result /= filterSamples;
 
 		#ifndef SHADOW_COLORED
-			result = LinearStep(mix(0.5, 0.0, Clamp01(penumbraSize / filterRadius)), mix(0.5, 1.0, Clamp01(penumbraSize / filterRadius)), result);
+			float penumbraFraction = Clamp01(penumbraSize / filterRadius);
+			result = LinearStep(0.5 - 0.5 * penumbraFraction, 0.5 + 0.5 * penumbraFraction, result);
 		#endif
 
 		return result;
