@@ -142,10 +142,16 @@
 			float filterRadius = penumbraSize;
 		#endif
 		*/
-		#if defined SHADOW_COLORED && SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
-			vec2 filterRadius = averageBlockerDepth * spread * 2.0;
+
+		#ifdef SHADOW_COLORED
+			#if SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
+				vec2 filterRadius = averageBlockerDepth * spread * 2.0;
+			#else
+				float filterRadius = averageBlockerDepth * spread * 2.0;
+			#endif
 		#else
-			float filterRadius = averageBlockerDepth * spread * 2.0;
+			float penumbraSize = averageBlockerDepth * spread * 2.0;
+			float filterRadius = penumbraSize;
 		#endif
 		#if defined SHADOW_FILTER_MIN_RADIUS_LIMITED
 			filterRadius = clamp(filterRadius, 4.0 * pixelRadiusBase * SHADOW_DISTORTION_AMOUNT_INVERSE, 0.5 * searchRadius);
@@ -191,7 +197,9 @@
 			#endif
 		} result /= filterSamples;
 
-		//result = LinearStep(mix(0.5, 0.0, Clamp01(penumbraSize / filterRadius)), mix(0.5, 1.0, Clamp01(penumbraSize / filterRadius)), result);
+		#ifndef SHADOW_COLORED
+			result = LinearStep(mix(0.5, 0.0, Clamp01(penumbraSize / filterRadius)), mix(0.5, 1.0, Clamp01(penumbraSize / filterRadius)), result);
+		#endif
 
 		return result;
 	}
