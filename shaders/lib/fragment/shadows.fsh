@@ -72,7 +72,7 @@
 			float distortionFactor = CalculateDistortionFactor(sampleCoord);
 			sampleCoord = (sampleCoord * distortionFactor) * 0.5 + 0.5;
 
-			float bias = pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE) + (filterRadius / SHADOW_DISTORTION_AMOUNT_INVERSE);
+			float bias = pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE) + filterRadius;
 
 			result += ReadShadowMapsBilinear(vec3(sampleCoord, biasMul * bias + refZ));
 		} result /= filterSamples;
@@ -167,8 +167,8 @@
 				sampleCoordTransp = (sampleCoordTransp * distortionFactorTransp) * 0.5 + 0.5;
 				sampleCoordOpaque = (sampleCoordOpaque * distortionFactorOpaque) * 0.5 + 0.5;
 
-				float biasTransp = pixelRadiusBase / Pow2(distortionFactorTransp * SHADOW_DISTORTION_AMOUNT_INVERSE) + (filterRadius.x / SHADOW_DISTORTION_AMOUNT_INVERSE);
-				float biasOpaque = pixelRadiusBase / Pow2(distortionFactorOpaque * SHADOW_DISTORTION_AMOUNT_INVERSE) + (filterRadius.y / SHADOW_DISTORTION_AMOUNT_INVERSE);
+				float biasTransp = pixelRadiusBase / Pow2(distortionFactorTransp * SHADOW_DISTORTION_AMOUNT_INVERSE) + filterRadius.x;
+				float biasOpaque = pixelRadiusBase / Pow2(distortionFactorOpaque * SHADOW_DISTORTION_AMOUNT_INVERSE) + filterRadius.y;
 
 				float shadow0 = step(biasMul * biasTransp + refZ, textureLod(shadowtex0, sampleCoordTransp, 0.0).r);
 				float shadow1 = step(biasMul * biasOpaque + refZ, textureLod(shadowtex1, sampleCoordOpaque, 0.0).r);
@@ -182,7 +182,7 @@
 				float distortionFactor = CalculateDistortionFactor(sampleCoord);
 				sampleCoord = (sampleCoord * distortionFactor) * 0.5 + 0.5;
 
-				float bias = pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE) + (filterRadius / SHADOW_DISTORTION_AMOUNT_INVERSE);
+				float bias = pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE) + filterRadius;
 
 				result += ReadShadowMapsBilinear(vec3(sampleCoord, biasMul * bias + refZ));
 			#endif
