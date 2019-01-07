@@ -247,8 +247,12 @@ uniform vec3 shadowLightVector;
 			vec3 scattering = vec3(0.0);
 			vec3 transmittance = vec3(1.0);
 
-			vec3 sun  = AtmosphereScattering(colortex5, position, viewVector, sunVector ) * sunIlluminance;
-			vec3 moon = AtmosphereScattering(colortex5, position, viewVector, moonVector) * moonIlluminance;
+			scattering += AtmosphereScatteringMulti(colortex5, position, viewVector, sunVector ) * sunIlluminance;
+			scattering += AtmosphereScatteringMulti(colortex5, position, viewVector, moonVector) * moonIlluminance;
+			scattering *= averageCloudTransmittance;
+
+			vec3 sun  = AtmosphereScatteringSingle(colortex5, position, viewVector, sunVector ) * sunIlluminance;
+			vec3 moon = AtmosphereScatteringSingle(colortex5, position, viewVector, moonVector) * moonIlluminance;
 			for (int i = 0; i < steps; ++i) {
 				float cloudShadow = Calculate3DCloudShadows(position + vec3(cameraPosition.x, -atmosphere_planetRadius, cameraPosition.z), cloudCoverage, 3);
 				if (sunAngle < 0.5) {
@@ -267,8 +271,8 @@ uniform vec3 shadowLightVector;
 
 				position += increment;
 
-				sun  = Max0(AtmosphereScattering(colortex5, position, viewVector, sunVector )) * sunIlluminance;
-				moon = Max0(AtmosphereScattering(colortex5, position, viewVector, moonVector)) * moonIlluminance;
+				sun  = Max0(AtmosphereScatteringSingle(colortex5, position, viewVector, sunVector )) * sunIlluminance;
+				moon = Max0(AtmosphereScatteringSingle(colortex5, position, viewVector, moonVector)) * moonIlluminance;
 				if (sunAngle < 0.5) {
 					scattering -= (sun * cloudShadow + moon) * transmittance;
 				} else {

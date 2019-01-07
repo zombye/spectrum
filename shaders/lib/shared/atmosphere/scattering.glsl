@@ -36,6 +36,48 @@ vec3 Texture4DRGBE8(sampler2D sampler, vec4 coord, ivec4 res) {
 	);
 }
 
+vec3 AtmosphereScatteringSingle(sampler2D sampler, float R, float Mu, float MuS, float V) {
+	if (MuS < atmosphere_MuS_min) { return vec3(0.0); }
+
+	vec4 uv = AtmosphereScatteringLookupUv(R, Mu, MuS, V);
+	vec3 single_rayleigh = PhaseRayleigh(V)             * Texture4DRGBE8(sampler, uv,                 res4D);
+	vec3 single_mie      = PhaseMie(V, atmosphere_mieg) * Texture4DRGBE8(sampler, uv + vec4(0,0,0,1), res4D);
+
+	return single_rayleigh + single_mie;
+}
+vec3 AtmosphereScatteringSingle(sampler2D sampler, vec3 p, vec3 d, vec3 l) {
+	float R   = length(p);
+	float Mu  = dot(p, d) / R;
+	float MuS = dot(p, l) / R;
+	float V   = dot(d, l);
+
+	return AtmosphereScatteringSingle(sampler, R, Mu, MuS, V);
+}
+vec3 AtmosphereScatteringSingle(sampler2D samplerScattering, sampler2D samplerTransmittance, vec3 p, vec3 d, vec3 l, float ed) {
+	return AtmosphereScatteringSingle(samplerScattering, p, d, l) - AtmosphereScatteringSingle(samplerScattering, p + d * ed, d, l) * AtmosphereTransmittance(samplerTransmittance, p, d, ed);
+}
+
+vec3 AtmosphereScatteringMulti(sampler2D sampler, float R, float Mu, float MuS, float V) {
+	if (MuS < atmosphere_MuS_min) { return vec3(0.0); }
+
+	vec4 uv = AtmosphereScatteringLookupUv(R, Mu, MuS, V);
+	vec3 multi = Texture4DRGBE8(sampler, uv + vec4(0,0,0,2), res4D);
+
+	return multi;
+}
+vec3 AtmosphereScatteringMulti(sampler2D sampler, vec3 p, vec3 d, vec3 l) {
+	float R   = length(p);
+	float Mu  = dot(p, d) / R;
+	float MuS = dot(p, l) / R;
+	float V   = dot(d, l);
+
+	return AtmosphereScatteringMulti(sampler, R, Mu, MuS, V);
+}
+
+vec3 AtmosphereScatteringMulti(sampler2D samplerScattering, sampler2D samplerTransmittance, vec3 p, vec3 d, vec3 l, float ed) {
+	return AtmosphereScatteringMulti(samplerScattering, p, d, l) - AtmosphereScatteringMulti(samplerScattering, p + d * ed, d, l) * AtmosphereTransmittance(samplerTransmittance, p, d, ed);
+}
+
 vec3 AtmosphereScattering(sampler2D sampler, float R, float Mu, float MuS, float V) {
 	if (MuS < atmosphere_MuS_min) { return vec3(0.0); }
 
@@ -54,7 +96,6 @@ vec3 AtmosphereScattering(sampler2D sampler, vec3 p, vec3 d, vec3 l) {
 
 	return AtmosphereScattering(sampler, R, Mu, MuS, V);
 }
-
 vec3 AtmosphereScattering(sampler2D samplerScattering, sampler2D samplerTransmittance, vec3 p, vec3 d, vec3 l, float ed) {
 	return AtmosphereScattering(samplerScattering, p, d, l) - AtmosphereScattering(samplerScattering, p + d * ed, d, l) * AtmosphereTransmittance(samplerTransmittance, p, d, ed);
 }

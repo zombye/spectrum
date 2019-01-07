@@ -74,7 +74,7 @@ float GetCloudCoverage() {
 			coverage += Get1DNoise(c *= 2.0, i) * exp2(-int(i));
 		} coverage /= 2.0 - exp2(-int(octaves));
 
-		coverage = mix(0.35, 0.6, coverage * coverage);
+		coverage = mix(0.4, 0.6, coverage * coverage);
 	#else
 		const float coverage = CLOUDS3D_STATIC_COVERAGE;
 	#endif
