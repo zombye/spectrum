@@ -380,7 +380,10 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 	float biasMul  = SHADOW_DISTORTION_AMOUNT_INVERSE / -SHADOW_DEPTH_RADIUS;
 	      biasMul *= SumOf(abs(normalize(normal.xy)) * vec2(shadowProjectionInverse[0].x, shadowProjectionInverse[1].y));
 	      biasMul *= sqrt(Clamp01(1.0 - normal.z * normal.z)) / abs(normal.z);
-	float biasAdd = (0.25 / (-SHADOW_DEPTH_RADIUS * SHADOW_DISTANCE_EFFECTIVE) - SHADOW_DISTORTION_AMOUNT_INVERSE * 0.25 / (-SHADOW_DEPTH_RADIUS * SHADOW_DISTANCE_EFFECTIVE)); // This is to fix some issues caused by distortion only being per-vertex in the shadow map. If there was no distortion, this would just be 0.
+
+	// This exists to fix some issues caused by distortion only being per-vertex in the shadow map. If there is no distortion, or distortion properly affected depth, this would just be 0.
+	float biasAdd = 0.5 / (-SHADOW_DEPTH_RADIUS * SHADOW_DISTANCE_EFFECTIVE);
+	      biasAdd = biasAdd - biasAdd * SHADOW_DISTORTION_AMOUNT_INVERSE;
 
 	vec3 shadowCoord = shadowClip;
 	float distortionFactor = CalculateDistortionFactor(shadowClip.xy);
