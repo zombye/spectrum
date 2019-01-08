@@ -14,12 +14,6 @@
 #define CLOUDS2D_ATTENUATION_COEFFICIENT 0.02
 #define CLOUDS2D_SCATTERING_ALBEDO 0.8
 
-//--// Utility functions, should be moved //----------------------------------//
-
-float Get2DNoise(vec2 position) {
-	return texture(noisetex, position.xy * 0.015625).x; // 1/64
-}
-
 //--// Shape //---------------------------------------------------------------//
 
 float Get2DCloudsDensity(vec2 position, float cloudsTime) {
@@ -29,11 +23,11 @@ float Get2DCloudsDensity(vec2 position, float cloudsTime) {
 
 	const int mainOctaves = 6;
 
-	float mainNoise = Get2DNoise(mainPosition);
+	float mainNoise = GetNoise(mainPosition);
 	for (int i = 1; i < mainOctaves; ++i) {
 		mainPosition *= rotateGoldenAngle;
 		mainPosition = mainPosition * pi + cloudsTime;
-		mainNoise += Get2DNoise(mainPosition) * exp2(-i);
+		mainNoise += GetNoise(mainPosition) * exp2(-i);
 	} mainNoise = mainNoise * 0.5 + (0.5 * exp2(-mainOctaves));
 
 	//--// Apply Coverage

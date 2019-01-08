@@ -23,42 +23,6 @@
 #define CLOUDS3D_ALTITUDE_MIN 600
 #define CLOUDS3D_THICKNESS (CLOUDS3D_ALTITUDE_MAX - CLOUDS3D_ALTITUDE_MIN)
 
-//--// Utility functions, should be moved //----------------------------------//
-
-float Get1DNoise(float c, uint seed) {
-	float cf = fract(c);
-	uint c0 = uint(c - cf);
-	uint c1 = c0 + 1u;
-
-	uint hashedSeed = Hash(seed);
-
-	return mix(
-		float(Hash(c0 ^ hashedSeed)) * exp2(-32.0), // * 2.3283064365386962890625e-10,
-		float(Hash(c1 ^ hashedSeed)) * exp2(-32.0),
-		cf * cf * (3.0 - 2.0 * cf)
-	);
-}
-
-float Get3DNoise(vec3 position) {
-	#ifdef CLOUDS3D_NOISE_SMOOTH
-		vec3 flr  = floor(position);
-		vec3 frc  = position - flr;
-		     frc *= frc * (3.0 - 2.0 * frc);
-
-		vec2 coord = ((flr.xy + frc.xy) * 0.015625) + (flr.z * 0.265625); // 1/64 | 17/64
-		vec2 noise = texture(noisetex, coord).xy;
-
-		return mix(noise.x, noise.y, frc.z);
-	#else
-		float flr = floor(position.z);
-
-		vec2 coord = (position.xy * 0.015625) + (flr * 0.265625); // 1/64 | 17/64
-		vec2 noise = texture(noisetex, coord).xy;
-
-		return mix(noise.x, noise.y, position.z - flr);
-	#endif
-}
-
 //--// Shape //---------------------------------------------------------------//
 
 float GetCloudCoverage() {
@@ -69,9 +33,9 @@ float GetCloudCoverage() {
 		float c  = worldDay + worldTime / 24000.0;
 		      c *= changeFrequency;
 
-		float coverage = Get1DNoise(c, 0u);
+		float coverage = ValueNoise1(c, 0u);
 		for (uint i = 1u; i < octaves; ++i) {
-			coverage += Get1DNoise(c *= 2.0, i) * exp2(-int(i));
+			coverage += ValueNoise1(c *= 2.0, i) * exp2(-int(i));
 		} coverage /= 2.0 - exp2(-int(octaves));
 
 		coverage = mix(0.4, 0.6, coverage * coverage);
@@ -96,12 +60,20 @@ float Get3DCloudDensity(vec3 position, float coreDistance, float coverage, const
 
 	position = position * 1e-3 + cloudsTime;
 
-	float density = Get3DNoise(position);
+	#ifdef CLOUDS3D_NOISE_SMOOTH
+		#define GetClouds3DNoise(pos) GetNoiseSmooth(pos)
+	#else
+		#define GetClouds3DNoise(pos) GetNoise(pos)
+	#endif
+
+	float density = GetClouds3DNoise(position);
 	for (int i = 1; i < octaves; ++i) {
 		position.xz *= rotateGoldenAngle;
 		position = position * pi + cloudsTime;
-		density += Get3DNoise(position) * exp2(-i);
+		density += GetClouds3DNoise(position) * exp2(-i);
 	} density = density * 0.5 + (0.5 * exp2(-octaves));
+
+	#undef GetClouds3DNoise
 
 	//--// Apply coverage
 
