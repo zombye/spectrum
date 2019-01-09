@@ -53,7 +53,8 @@ uniform sampler2D colortex4;
 		return color * pow(luminance, float(GAMMA_LUMINANCE) / float(GAMMA_CHROMINANCE)) / luminance;
 	}
 	vec3 Lift(vec3 color) {
-		const float lift = LIFT * 0.02;
+		const vec3 liftSrgb = vec3(LIFT_R, LIFT_G, LIFT_B) / 255.0;
+		vec3 lift = sign(liftSrgb) * SrgbToLinear(abs(liftSrgb));
 		return color * (1.0 - lift) + lift;
 	}
 

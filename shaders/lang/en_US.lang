@@ -145,7 +145,6 @@ option.WATER_WAVES_WAVE_HEIGHT_GAIN=Wave Height Gain
 screen.postProcess=Post-Processing
 option.GAMMA_LUMINANCE=Luminance Gamma
 option.GAMMA_CHROMINANCE=Chrominance Gamma
-option.LIFT=Lift
 
 option.BLOOM=Bloom
 
@@ -153,6 +152,24 @@ option.LOWLIGHT_NOISE=Lowlight Noise
 option.LOWLIGHT_DESATURATION=Lowlight Desaturation
 option.CONE_OVERLAP_SIMULATION=Cone Overlap Simulation
 option.CONE_OVERLAP_SIMULATION.comment=Simulates the effects that the overlapping response ranges of cone cells has on highlights. This significantly improves the appearance of highlights.
+
+##--## Color Matrix & Lift
+
+screen.colorMatrix=Color Matrix & Lift
+
+option.COLORMATRIX_R_TO_R=R to R
+option.COLORMATRIX_R_TO_G=R to G
+option.COLORMATRIX_R_TO_B=R to B
+option.COLORMATRIX_G_TO_R=G to R
+option.COLORMATRIX_G_TO_G=G to G
+option.COLORMATRIX_G_TO_B=G to B
+option.COLORMATRIX_B_TO_R=B to R
+option.COLORMATRIX_B_TO_G=B to G
+option.COLORMATRIX_B_TO_B=B to B
+
+option.LIFT_R=Lift R
+option.LIFT_G=Lift G
+option.LIFT_B=Lift B
 
 ##--## Tonemapping
 

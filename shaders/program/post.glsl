@@ -37,6 +37,7 @@ uniform vec2 viewPixelSize;
 	//--// Fragment Libraries
 
 	#include "/lib/utility.glsl"
+	#include "/lib/utility/colorspace.glsl"
 	#include "/lib/utility/encoding.glsl"
 	#include "/lib/utility/noise.glsl"
 
@@ -88,6 +89,12 @@ uniform vec2 viewPixelSize;
 		#ifdef LOWLIGHT_DESATURATION
 			color = LowlightDesaturate(color, exposure);
 		#endif
+
+		color *= mat3( // Apply color matrix before tonemapping
+			SrgbToLinear(vec3(COLORMATRIX_R_TO_R, COLORMATRIX_G_TO_R, COLORMATRIX_B_TO_R) / 255.0),
+			SrgbToLinear(vec3(COLORMATRIX_R_TO_G, COLORMATRIX_G_TO_G, COLORMATRIX_B_TO_G) / 255.0),
+			SrgbToLinear(vec3(COLORMATRIX_R_TO_B, COLORMATRIX_G_TO_B, COLORMATRIX_B_TO_B) / 255.0)
+		);
 
 		#ifdef CONE_OVERLAP_SIMULATION
 			const mat3 coneOverlapMatrix2Deg = mat3(
