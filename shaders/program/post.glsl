@@ -96,16 +96,12 @@ uniform vec2 viewPixelSize;
 			COLORMATRIX_R_TO_B, COLORMATRIX_G_TO_B, COLORMATRIX_B_TO_B
 		);
 
-		#ifdef CONE_OVERLAP_SIMULATION
-			const mat3 coneOverlapMatrix2Deg = mat3(
-				0.5595088340965042, 0.39845359892109633, 0.04203756698239944,
-				0.43585871315661756, 0.5003841413971261, 0.06375714544625634,
-				0.10997368482498855, 0.15247972169325025, 0.7375465934817612
-			);
-			color = Tonemap(color * coneOverlapMatrix2Deg) * inverse(coneOverlapMatrix2Deg);
-		#else
-			color = Tonemap(color);
-		#endif
+		const mat3 coneOverlapMatrix2Deg = mat3(
+			mix(vec3(1.0, 0.0, 0.0), vec3(0.5595088340965042, 0.39845359892109633, 0.04203756698239944), vec3(CONE_OVERLAP_SIMULATION)),
+			mix(vec3(0.0, 1.0, 0.0), vec3(0.43585871315661756, 0.5003841413971261, 0.06375714544625634), vec3(CONE_OVERLAP_SIMULATION)),
+			mix(vec3(0.0, 0.0, 1.0), vec3(0.10997368482498855, 0.15247972169325025, 0.7375465934817612), vec3(CONE_OVERLAP_SIMULATION))
+		);
+		color = Tonemap(color * coneOverlapMatrix2Deg) * inverse(coneOverlapMatrix2Deg);
 		colortex4Write = EncodeRGBE8(color);
 	}
 #endif

@@ -152,6 +152,7 @@ option.LOWLIGHT_NOISE=Lowlight Noise
 option.LOWLIGHT_DESATURATION=Lowlight Desaturation
 option.CONE_OVERLAP_SIMULATION=Cone Overlap Simulation
 option.CONE_OVERLAP_SIMULATION.comment=Simulates the effects that the overlapping response ranges of cone cells has on highlights. This significantly improves the appearance of highlights.
+value.CONE_OVERLAP_SIMULATION.0=Off
 
 ##--## Color Matrix & Lift
 
