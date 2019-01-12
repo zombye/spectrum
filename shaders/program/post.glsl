@@ -43,7 +43,7 @@ uniform vec2 viewPixelSize;
 
 	#include "/lib/shared/blurTileOffset.glsl"
 
-	#include "/lib/fragment/filmTonemap.fsh"
+	#include "/lib/fragment/tonemap.fsh"
 
 	//--// Fragment Functions
 
@@ -102,6 +102,35 @@ uniform vec2 viewPixelSize;
 			mix(vec3(0.0, 0.0, 1.0), vec3(0.10997368482498855, 0.15247972169325025, 0.7375465934817612), vec3(CONE_OVERLAP_SIMULATION))
 		);
 		color = Tonemap(color * coneOverlapMatrix2Deg) * inverse(coneOverlapMatrix2Deg);
+
+		#define DEBUG_TONEMAP
+		#ifdef DEBUG_TONEMAP
+			{
+				const ivec2 pos  = ivec2(4, 3);
+				const ivec2 size = ivec2(512, 128);
+				const float lineWidth = 1.5;
+
+				vec2 coord = gl_FragCoord.xy - pos;
+
+				if (clamp(coord, vec2(0), size) == coord) {
+					color *= 0.2;
+
+					float scale = 8.0;
+
+					float newmin = -10.0;
+					float newmax =   8.0;
+
+					float cLum = exp2((coord.x / size.x) * (newmax - newmin) + newmin);
+
+					vec3 lineHeight = Tonemap(vec3(cLum)) * size.y;
+					vec3 derivative = dFdx(lineHeight);
+
+					vec3 line = LinearStep(0.5 * lineWidth + 0.5, 0.5 * lineWidth - 0.5, abs(lineHeight - coord.y) * inversesqrt(1.0 + derivative * derivative) * sqrt(2.0));
+					color = mix(color * 0.2, vec3(1.0), line);
+				}
+			}
+		#endif
+
 		colortex4Write = EncodeRGBE8(color);
 	}
 #endif

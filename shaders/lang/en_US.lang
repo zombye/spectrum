@@ -178,15 +178,13 @@ option.LIFT_B=Lift B
 
 screen.tonemapping=Tonemapping
 option.TONEMAP_TOE_STRENGTH=Toe Strength
-option.TONEMAP_TOE_STRENGTH.comment=Determines how sharp the toe is.
+option.TONEMAP_TOE_STRENGTH.comment=Determines how sharp the toe section is
 option.TONEMAP_TOE_LENGTH=Toe Length
-option.TONEMAP_TOE_LENGTH.comment=Determines how quickly the toe transitions to the linear section.
-option.TONEMAP_SHOULDER_STRENGTH=Shoulder Strength
-option.TONEMAP_SHOULDER_STRENGTH.comment=Determines how soon the shoulder starts after the toe has ended.
-option.TONEMAP_SHOULDER_LENGTH=Shoulder Length
-option.TONEMAP_SHOULDER_LENGTH.comment=Determines the white point in stops above what the white point would be if the shoulder didn't exist.
-option.TONEMAP_SHOULDER_ANGLE=Shoulder Angle
-option.TONEMAP_SHOULDER_ANGLE.comment=Determines the angle that the white point is hit. Too large values can cause the image to be significantly darker, depending on how long the shoulder is.
+option.TONEMAP_TOE_LENGTH.comment=Determines how long the toe section is
+option.TONEMAP_LINEAR_LENGTH=Shoulder Start
+option.TONEMAP_LINEAR_LENGTH.comment=Determines when the shoulder section starts after the toe has ended
+option.TONEMAP_SHOULDER_CURVE=Shoulder Curve
+option.TONEMAP_SHOULDER_CURVE.comment=Determines how quickly the shoulder section flattens out at its start
 
 ##--## Temporal Anti-Aliasing
 
