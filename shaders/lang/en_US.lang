@@ -146,6 +146,8 @@ screen.postProcess=Post-Processing
 option.GAMMA_LUMINANCE=Luminance Gamma
 option.GAMMA_CHROMINANCE=Chrominance Gamma
 
+option.LUT=Lookup Table
+
 option.BLOOM=Bloom
 
 option.LOWLIGHT_NOISE=Lowlight Noise
