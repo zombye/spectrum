@@ -169,7 +169,7 @@ vec3 CalculateSpecularHighlight(float NoL, float NoV, float LoV, float VoH, floa
 		return result;
 	}
 
-	vec3 CalculateSsr(sampler2D sampler, mat3 position, vec3 normal, float NoV, float roughness, vec3 n, vec3 k, float skyFade, float dither, const float ditherSize) {
+	vec3 CalculateSsr(sampler2D sampler, mat3 position, vec3 normal, float NoV, float roughness, vec3 n, vec3 k, float skyFade, bool isWater, float dither, const float ditherSize) {
 		float roughnessSquared = roughness * roughness;
 		vec3 viewDirection = normalize(position[1]);
 		normal = mat3(gbufferModelView) * normal;
@@ -190,7 +190,7 @@ vec3 CalculateSpecularHighlight(float NoL, float NoV, float LoV, float VoH, floa
 
 			vec3 reflectionSample = TraceSsrRay(sampler, position, rayDirection, NoL, roughness, skyFade, dither);
 
-			reflectionSample *= FresnelDielectric(MoV, (isEyeInWater == 1 ? 1.333 : 1.0002275) / n);
+			reflectionSample *= FresnelDielectric(MoV, (isEyeInWater == 1 && isWater ? 1.333 : 1.0002275) / n);
 
 			vec2 G1G2 = G1G2SmithGGX(NoV, NoL, roughnessSquared);
 			reflectionSample *= G1G2.y / G1G2.x;

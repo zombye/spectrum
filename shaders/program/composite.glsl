@@ -576,7 +576,7 @@ uniform vec3 shadowLightVector;
 			if (material.n != eyeN) {
 				float NoV = dot(normal, -viewVector);
 
-				color += CalculateSsr(colortex4, frontPosition, normal, NoV, material.roughness, material.n, material.k, skylightFade, dither, ditherSize);
+				color += CalculateSsr(colortex4, frontPosition, normal, NoV, material.roughness, material.n, material.k, skylightFade, blockId == 8, dither, ditherSize);
 
 				if (backPosition[0].z != frontPosition[0].z) {
 					float NoL = dot(normal, shadowLightVector);
