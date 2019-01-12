@@ -7,8 +7,8 @@
 		ivec2 tileOffset     = ivec2(atlasTileOffset * textureResolution);
 
 		tileCoordinates = tileCoordinates * atlasTileResolution - 0.5;
+		ivec2 i = ivec2(tileCoordinates);
 		vec2  f = fract(tileCoordinates);
-		ivec2 i = ivec2(tileCoordinates - f);
 
 		vec4 s = vec4(
 			texelFetch(normals, ((i + ivec2(0, 1)) % tileResolution) + tileOffset, 0).a,

@@ -458,7 +458,7 @@ uniform vec3 shadowLightVector;
 	vec3 CalculateStars(vec3 background, vec3 viewVector) {
 		const float scale = 256.0;
 		const float coverage = 0.01;
-		const float maxLuminance = 0.3;
+		const float maxLuminance = 0.7;
 		const float minTemperature = 1500.0;
 		const float maxTemperature = 9000.0;
 

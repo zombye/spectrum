@@ -73,7 +73,6 @@ vec3 AtmosphereScatteringMulti(sampler2D sampler, vec3 p, vec3 d, vec3 l) {
 
 	return AtmosphereScatteringMulti(sampler, R, Mu, MuS, V);
 }
-
 vec3 AtmosphereScatteringMulti(sampler2D samplerScattering, sampler2D samplerTransmittance, vec3 p, vec3 d, vec3 l, float ed) {
 	return AtmosphereScatteringMulti(samplerScattering, p, d, l) - AtmosphereScatteringMulti(samplerScattering, p + d * ed, d, l) * AtmosphereTransmittance(samplerTransmittance, p, d, ed);
 }

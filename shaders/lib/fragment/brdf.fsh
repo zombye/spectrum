@@ -2,13 +2,12 @@
 #define INCLUDE_FRAGMENT_BRDF
 
 vec3 FresnelNonpolarized(float VoH, ComplexVec3 n1, ComplexVec3 n2) {
-	// Assuming this is all correctly implemented this should be exact.
 	ComplexVec3 eta       = ComplexDiv(n1, n2);
 	vec3        cosThetaI = vec3(VoH);
-	float       sinThetaI = sqrt(clamp(1.0 - VoH * VoH, 0.0, 1.0));
+	float       sinThetaI = sqrt(Clamp01(1.0 - VoH * VoH));
 	ComplexVec3 sinThetaT = ComplexVec3(eta.r * sinThetaI, eta.i * sinThetaI);
-	ComplexVec3 cosThetaT = ComplexSqrt(ComplexSub(vec3(1.0), ComplexMul(sinThetaT, sinThetaT))); // assuming `sqrt(1-x^2) = cos(asin(x)) = sin(acos(x))` is still true for complex numbers...
-	//ComplexVec3 cosThetaT = ComplexCos(ComplexAsin(sinThetaT)); // i actually don't know how to implement these two with complex numbers so I can't make sure it's correct
+	ComplexVec3 cosThetaT = ComplexSqrt(ComplexSub(vec3(1.0), ComplexMul(sinThetaT, sinThetaT))); // Seems to be correct as long as Re(sinThetaT) is between -1 and 1, or Im(sinThetaT) is non-0.
+	//ComplexVec3 cosThetaT = ComplexCos(ComplexArcsin(sinThetaT));
 
 	vec3 sqrtRs = ComplexAbs(ComplexDiv(ComplexSub(ComplexMul(n1, cosThetaI), ComplexMul(n2, cosThetaT)), ComplexAdd(ComplexMul(n1, cosThetaI), ComplexMul(n2, cosThetaT))));
 	vec3 sqrtRp = ComplexAbs(ComplexDiv(ComplexSub(ComplexMul(n1, cosThetaT), ComplexMul(n2, cosThetaI)), ComplexAdd(ComplexMul(n1, cosThetaT), ComplexMul(n2, cosThetaI))));
@@ -37,7 +36,6 @@ vec3 FresnelConductor(float VoH, vec3 n2, vec3 k2) {
 	// Found this while looking into complex fresnel online.
 	// No idea about the original source.
 	// Seems to assume that n1 and k1 are 1 and 0, respectively.
-	// Also supposedly assumes that n2^2 + k2^2 is above 1.
 	vec3 ksq = k2 * k2;
 	vec3 rs = (Pow2(n2 -        VoH ) + ksq) / (Pow2(n2 +        VoH ) + ksq);
 	vec3 rp = (Pow2(n2 - (1.0 / VoH)) + ksq) / (Pow2(n2 + (1.0 / VoH)) + ksq);

@@ -174,7 +174,7 @@ float CellNoise1(vec3 position) {
 	ivec3 i = ivec3(floor(position));
 	vec3  f = fract(position);
 
-	float dist = sqrt(1*1+1*1+1*1); // max possible?
+	float dist = sqrt(2.75); // max possible
 	for (int x = -1; x <= 1; ++x) {
 		for (int y = -1; y <= 1; ++y) {
 			for (int z = -1; z <= 1; ++z) {
