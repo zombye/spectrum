@@ -103,7 +103,7 @@ uniform vec2 viewPixelSize;
 		);
 		color = Tonemap(color * coneOverlapMatrix2Deg) * inverse(coneOverlapMatrix2Deg);
 
-		#define DEBUG_TONEMAP
+		//#define DEBUG_TONEMAP
 		#ifdef DEBUG_TONEMAP
 			{
 				const ivec2 pos  = ivec2(4, 3);
