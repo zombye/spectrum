@@ -49,8 +49,45 @@
 	}
 #endif
 
-#if   SHADOW_FILTER == SHADOW_FILTER_PCF
-	vec3 PercentageCloserFilter(vec3 position, float biasMul, float biasAdd, float dither, const float ditherSize) {
+#if   SHADOW_FILTER == SHADOW_FILTER_BILINEAR
+	vec3 BilinearFilter(vec3 shadowCoord, float distortionFactor, float biasMul, float biasAdd, out float waterFraction, out float waterDepth) {
+		// Bias
+		float pixelRadiusBase = 0.5 / SHADOW_RESOLUTION;
+		shadowCoord.z += 2.0 * biasMul * (pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE)) + biasAdd;
+
+		// Separate integer & fractional coordinates
+		shadowCoord.xy = shadowCoord.xy * SHADOW_RESOLUTION + 0.5;
+
+		ivec2 i = ivec2(shadowCoord.xy);
+		vec2  f = shadowCoord.xy - i;
+
+		//
+		vec2 samplePos = vec2(i) / SHADOW_RESOLUTION;
+
+		vec4 samples0 = textureGather(shadowtex0, samplePos);
+
+		vec4 visible0 = step(shadowCoord.z, samples0);
+		vec4 visible1 = step(shadowCoord.z, textureGather(shadowtex1, samplePos));
+		vec4 valid    = visible1 - visible0 * visible1;
+		vec4 isWater  = textureGather(shadowcolor0, samplePos, 3) * valid;
+
+		waterFraction  = SumOf(isWater);
+		waterDepth     = SumOf(samples0 * isWater) / waterFraction;
+		waterFraction /= SumOf(valid);
+
+		#ifdef SHADOW_COLORED
+			vec3 c0 = BlendColoredShadow(visible0.x, visible1.x, texelFetch(shadowcolor1, i - ivec2(1, 0), 0));
+			vec3 c1 = BlendColoredShadow(visible0.y, visible1.y, texelFetch(shadowcolor1, i - ivec2(0, 0), 0));
+			vec3 c2 = BlendColoredShadow(visible0.z, visible1.z, texelFetch(shadowcolor1, i - ivec2(0, 1), 0));
+			vec3 c3 = BlendColoredShadow(visible0.w, visible1.w, texelFetch(shadowcolor1, i - ivec2(1, 1), 0));
+
+			return mix(mix(c3, c2, f.x), mix(c0, c1, f.x), f.y);
+		#else
+			return vec3(mix(mix(visible1.w, visible1.z, f.x), mix(visible1.x, visible1.y, f.x), f.y));
+		#endif
+	}
+#elif SHADOW_FILTER == SHADOW_FILTER_PCF
+	vec3 PercentageCloserFilter(vec3 position, float biasMul, float biasAdd, float dither, const float ditherSize, out float waterFraction, out float waterDepth) {
 		const int filterSamples = SHADOW_FILTER_SAMPLES;
 
 		dither = dither * ditherSize + 0.5;
@@ -62,25 +99,63 @@
 		float refZ = position.z * 0.5 + 0.5 + biasAdd;
 
 		vec3 result = vec3(0.0);
+		waterFraction = 0.0, waterDepth = 0.0; float validSamples = 0.0;
 		vec2 dir = SinCos(dither * goldenAngle);
 		for (int i = 0; i < filterSamples; ++i) {
 			vec2 sampleOffset = dir * sqrt((i + dither2) / filterSamples) * filterRadius;
 			dir *= rotateGoldenAngle;
 
-			vec2 sampleCoord = sampleOffset + position.xy;
+			vec3 sampleCoord;
+			     sampleCoord.xy = sampleOffset + position.xy;
 
-			float distortionFactor = CalculateDistortionFactor(sampleCoord);
-			sampleCoord = (sampleCoord * distortionFactor) * 0.5 + 0.5;
+			float distortionFactor = CalculateDistortionFactor(sampleCoord.xy);
+			sampleCoord.xy = (sampleCoord.xy * distortionFactor) * 0.5 + 0.5;
 
 			float bias = pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE) + filterRadius;
 
-			result += ReadShadowMapsBilinear(vec3(sampleCoord, biasMul * bias + refZ));
+			sampleCoord.z = biasMul * bias + refZ;
+
+			//--//
+
+			// Separate integer & fractional coordinates
+			sampleCoord.xy = sampleCoord.xy * SHADOW_RESOLUTION + 0.5;
+
+			ivec2 ip = ivec2(sampleCoord.xy);
+			vec2  fp = sampleCoord.xy - ip;
+
+			//
+			vec2 samplePos = vec2(ip) / SHADOW_RESOLUTION;
+
+			vec4 samples0 = textureGather(shadowtex0, samplePos);
+
+			vec4 visible0 = step(sampleCoord.z, samples0);
+			vec4 visible1 = step(sampleCoord.z, textureGather(shadowtex1, samplePos));
+			vec4 valid = visible1 - visible0 * visible1;
+			vec4 isWater = textureGather(shadowcolor0, samplePos, 3) * valid;
+
+			waterFraction += SumOf(isWater);
+			waterDepth    += SumOf(samples0 * isWater);
+			validSamples  += SumOf(valid);
+
+			#ifdef SHADOW_COLORED
+				vec3 c0 = BlendColoredShadow(visible0.x, visible1.x, texelFetch(shadowcolor1, ip - ivec2(1, 0), 0));
+				vec3 c1 = BlendColoredShadow(visible0.y, visible1.y, texelFetch(shadowcolor1, ip - ivec2(0, 0), 0));
+				vec3 c2 = BlendColoredShadow(visible0.z, visible1.z, texelFetch(shadowcolor1, ip - ivec2(0, 1), 0));
+				vec3 c3 = BlendColoredShadow(visible0.w, visible1.w, texelFetch(shadowcolor1, ip - ivec2(1, 1), 0));
+
+				return mix(mix(c3, c2, fp.x), mix(c0, c1, fp.x), fp.y);
+			#else
+				result += mix(mix(visible1.w, visible1.z, fp.x), mix(visible1.x, visible1.y, fp.x), fp.y);
+			#endif
 		} result /= filterSamples;
+
+		waterDepth    /= waterFraction;
+		waterFraction /= validSamples;
 
 		return result;
 	}
 #elif SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
-	vec3 PercentageCloserSoftShadows(vec3 position, float biasMul, float biasAdd, float dither, const float ditherSize) {
+	vec3 PercentageCloserSoftShadows(vec3 position, vec3 shadowCoord, float distortionFactor, float biasMul, float biasAdd, float dither, const float ditherSize, out float waterFraction, out float waterDepth) {
 		const int filterSamples = SHADOW_FILTER_SAMPLES;
 		const int searchSamples = SHADOW_SEARCH_SAMPLES;
 
@@ -153,6 +228,9 @@
 		refZ += biasAdd;
 
 		vec3 result = vec3(0.0);
+		#if !defined SHADOW_COLORED || SHADOW_FILTER != SHADOW_FILTER_DUAL_PCSS
+			waterFraction = 0.0, waterDepth = 0.0, validSamples = 0.0;
+		#endif
 		dir = initialDir;
 		for (int i = 0; i < filterSamples; ++i) {
 			vec2 sampleOffset = dir * sqrt((i + dither2) / filterSamples);
@@ -177,16 +255,67 @@
 
 				result += (shadowC.rgb * shadowC.a - shadowC.a) * (-shadow1 * shadow0 + shadow1) + shadow1;
 			#else
-				vec2 sampleCoord = sampleOffset * filterRadius + position.xy;
+				vec3 sampleCoord;
+				     sampleCoord.xy = sampleOffset * filterRadius + position.xy;
 
-				float distortionFactor = CalculateDistortionFactor(sampleCoord);
-				sampleCoord = (sampleCoord * distortionFactor) * 0.5 + 0.5;
+				float distortionFactor = CalculateDistortionFactor(sampleCoord.xy);
+				sampleCoord.xy = (sampleCoord.xy * distortionFactor) * 0.5 + 0.5;
 
 				float bias = pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE) + filterRadius;
 
-				result += ReadShadowMapsBilinear(vec3(sampleCoord, biasMul * bias + refZ));
+				sampleCoord.z = biasMul * bias + refZ;
+
+				//--//
+
+				// Separate integer & fractional coordinates
+				sampleCoord.xy = sampleCoord.xy * SHADOW_RESOLUTION + 0.5;
+
+				ivec2 ip = ivec2(sampleCoord.xy);
+				vec2  fp = sampleCoord.xy - ip;
+
+				//
+				vec2 samplePos = vec2(ip) / SHADOW_RESOLUTION;
+
+				vec4 samples0 = textureGather(shadowtex0, samplePos);
+
+				vec4 visible0 = step(sampleCoord.z, samples0);
+				vec4 visible1 = step(sampleCoord.z, textureGather(shadowtex1, samplePos));
+				vec4 valid = visible1 - visible0 * visible1;
+				vec4 isWater = textureGather(shadowcolor0, samplePos, 3) * valid;
+
+				waterFraction += SumOf(isWater);
+				waterDepth    += SumOf(samples0 * isWater);
+				validSamples  += SumOf(valid);
+
+				#ifdef SHADOW_COLORED
+					vec3 c0 = BlendColoredShadow(visible0.x, visible1.x, texelFetch(shadowcolor1, ip - ivec2(1, 0), 0));
+					vec3 c1 = BlendColoredShadow(visible0.y, visible1.y, texelFetch(shadowcolor1, ip - ivec2(0, 0), 0));
+					vec3 c2 = BlendColoredShadow(visible0.z, visible1.z, texelFetch(shadowcolor1, ip - ivec2(0, 1), 0));
+					vec3 c3 = BlendColoredShadow(visible0.w, visible1.w, texelFetch(shadowcolor1, ip - ivec2(1, 1), 0));
+
+					result += mix(mix(c3, c2, fp.x), mix(c0, c1, fp.x), fp.y);
+				#else
+					result += mix(mix(visible1.w, visible1.z, fp.x), mix(visible1.x, visible1.y, fp.x), fp.y);
+				#endif
 			#endif
 		} result /= filterSamples;
+
+		#if !defined SHADOW_COLORED || SHADOW_FILTER != SHADOW_FILTER_DUAL_PCSS
+			waterDepth    /= waterFraction;
+			waterFraction /= validSamples;
+		#else
+			shadowCoord.z += biasMul * (0.5 * pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE)) + biasAdd;
+
+			waterFraction = texture(shadowcolor0, shadowCoord.xy).a;
+
+			float sample0 = texture(shadowtex0, shadowCoord.xy).r;
+			waterDepth = sample0;
+
+			float visible0 = step(shadowCoord.z, sample0);
+			float visible1 = step(shadowCoord.z, texture(shadowtex1, shadowCoord.xy).r);
+
+			waterFraction *= (visible1 - visible0 * visible1);
+		#endif
 
 		#ifndef SHADOW_COLORED
 			float penumbraFraction = Clamp01(penumbraSize / filterRadius);
@@ -271,7 +400,7 @@
 		return RectangleSolidAngle(p0 - position.xy, p1 - position.xy, abs(depthLin - position.z));
 	}
 
-	vec3 ExperimentalVPS(vec3 position, float biasMul, float biasAdd, float dither, const float ditherSize) {
+	vec3 ExperimentalVPS(vec3 position, float biasMul, float biasAdd, float dither, const float ditherSize, out float waterFraction) {
 		const int samples = 128;
 
 		float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
@@ -390,38 +519,54 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 	shadowCoord.xy *= distortionFactor;
 	shadowCoord     = shadowCoord * 0.5 + 0.5;
 
-	#if   SHADOW_FILTER == SHADOW_FILTER_NONE || SHADOW_FILTER == SHADOW_FILTER_BILINEAR
+	#if   SHADOW_FILTER == SHADOW_FILTER_NONE
+		float waterFraction = texture(shadowcolor0, shadowCoord.xy).a, waterDepth;
 		vec3 shadows; {
 			float pixelRadiusBase = 0.5 / SHADOW_RESOLUTION;
 
-			#if SHADOW_FILTER == SHADOW_FILTER_BILINEAR
-				shadowCoord.z += 2.0 * biasMul * (pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE)) + biasAdd;
-				shadows = vec3(ReadShadowMapsBilinear(shadowCoord));
+			shadowCoord.z += biasMul * (pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE)) + biasAdd;
+
+			float sample0 = texture(shadowtex0, shadowCoord.xy).r;
+			waterDepth = sample0;
+
+			float visible0 = step(shadowCoord.z, sample0);
+			float visible1 = step(shadowCoord.z, texture(shadowtex1, shadowCoord.xy).r);
+			waterFraction *= visible1 - visible0 * visible1;
+
+			#ifdef SHADOW_COLORED
+				shadows = BlendColoredShadow(visible0, visible1, textureLod(shadowcolor1, shadowCoord.xy, 0.0));
 			#else
-				shadowCoord.z += biasMul * (pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE)) + biasAdd;
-				shadows = vec3(ReadShadowMaps(shadowCoord));
+				shadows = vec3(visible1);
 			#endif
 		}
+	#elif SHADOW_FILTER == SHADOW_FILTER_BILINEAR
+		float waterFraction, waterDepth;
+		vec3 shadows = BilinearFilter(shadowCoord, distortionFactor, biasMul, biasAdd, waterFraction, waterDepth);
 	#elif SHADOW_FILTER == SHADOW_FILTER_PCF
-		vec3 shadows = PercentageCloserFilter(shadowClip, biasMul, biasAdd, dither, ditherSize);
+		float waterFraction, waterDepth;
+		vec3 shadows = PercentageCloserFilter(shadowClip, biasMul, biasAdd, dither, ditherSize, waterFraction, waterDepth);
 	#elif SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
-		vec3 shadows = PercentageCloserSoftShadows(shadowClip, biasMul, biasAdd, dither, ditherSize);
+		float waterFraction, waterDepth;
+		vec3 shadows = PercentageCloserSoftShadows(shadowClip, shadowCoord, distortionFactor, biasMul, biasAdd, dither, ditherSize, waterFraction, waterDepth);
 	#elif SHADOW_FILTER == SHADOW_FILTER_EXPERIMENTAL || SHADOW_FILTER == SHADOW_FILTER_EXPERIMENTAL_PCSSASSISTED
-		vec3 shadows = ExperimentalVPS(shadowClip, biasMul, biasAdd, dither, ditherSize);
+		float waterFraction = 0.0;
+		vec3 shadows = ExperimentalVPS(shadowClip, biasMul, biasAdd, dither, ditherSize, waterFraction, waterDepth);
 	#endif
 
-	float waterDepth = SHADOW_DEPTH_RADIUS * Max0(shadowCoord.z - texture(shadowtex0, shadowCoord.xy).r);
-	if (texture(shadowcolor0, shadowCoord.xy).a > 0.5 && waterDepth > 0.01) {
+	waterDepth = SHADOW_DEPTH_RADIUS * (shadowCoord.z - waterDepth);
+	if (waterFraction > 0) {
 		#ifdef UNDERWATER_ADAPTATION
 			float fogDensity = isEyeInWater == 1 ? fogDensity : 0.1;
 		#else
 			const float fogDensity = 0.1;
 		#endif
-		shadows *= exp(-vec3(WATER_ATTENUATION_R, WATER_ATTENUATION_G, WATER_ATTENUATION_B) * fogDensity * waterDepth);
+		vec3 waterShadow = exp(-vec3(WATER_ATTENUATION_R, WATER_ATTENUATION_G, WATER_ATTENUATION_B) * fogDensity * waterDepth);
 
 		#ifdef CAUSTICS
-			shadows *= CalculateCaustics(position[2], waterDepth, dither, ditherSize);
+			waterShadow *= CalculateCaustics(position[2], waterDepth, dither, ditherSize) * waterFraction + (1.0 - waterFraction);
 		#endif
+
+		shadows *= waterShadow * waterFraction + (1.0 - waterFraction);
 	}
 
 	#ifdef SSCS
