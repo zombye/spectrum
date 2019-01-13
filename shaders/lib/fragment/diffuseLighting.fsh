@@ -128,7 +128,7 @@ vec3 CalculateDiffuseLighting(
 	}
 
 	// Ambient light (so you can see anything at all in unlit caves caves)
-	diffuseLighting += hemisphereDiffuse * ao * mix(0.002, 0.005, screenBrightness);
+	diffuseLighting += hemisphereDiffuse * ao * mix(0.002, 0.005, screenBrightness) * NIGHT_SKY_BRIGHTNESS;
 
 	// Done outside all the functions, common and small optimization (and makes a "lighting-only" view easy)
 	#ifndef LIGHTING_ONLY

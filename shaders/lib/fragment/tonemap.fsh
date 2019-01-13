@@ -2,12 +2,12 @@
 #define INCLUDE_FRAGMENT_TONEMAP
 
 vec3 Tonemap(vec3 color) {
-	const float toeStrength      = TONEMAP_TOE_STRENGTH;
-	const float toeLength        = TONEMAP_TOE_LENGTH * TONEMAP_TOE_LENGTH / 2;
-	const float linearSlope      = TONEMAP_LINEAR_SLOPE;
-	const float linearLength     = TONEMAP_LINEAR_LENGTH;
-	const float shoulderCurve    = TONEMAP_SHOULDER_CURVE;
-	const float shoulderLength   = 1.0; // WIP
+	const float toeStrength    = TONEMAP_TOE_STRENGTH;
+	const float toeLength      = TONEMAP_TOE_LENGTH * TONEMAP_TOE_LENGTH / 2;
+	const float linearSlope    = TONEMAP_LINEAR_SLOPE;
+	const float linearLength   = TONEMAP_LINEAR_LENGTH;
+	const float shoulderCurve  = TONEMAP_SHOULDER_CURVE;
+	const float shoulderLength = TONEMAP_SHOULDER_LENGTH;
 
 	const float toeX     = toeLength;
 	const float toeY     = linearSlope * toeLength * (1.0 - toeStrength);
@@ -19,9 +19,8 @@ vec3 Tonemap(vec3 color) {
 	const float lm = linearSlope;
 	const float la = toeStrength == 1.0 ? -linearSlope * toeX : toeY - toeY * toePower;
 
-	const float shoulderX     = linearLength * (1.0 - toeY) / linearSlope + toeX;
-	const float shoulderY     = linearLength * (1.0 - toeY) + toeY;
-	const float shoulderPower = 1.0 / shoulderCurve;
+	const float shoulderX = linearLength * (1.0 - toeY) / linearSlope + toeX;
+	const float shoulderY = linearLength * (1.0 - toeY) + toeY;
 
 	const float sim = linearSlope * shoulderLength / (1.0 - shoulderY);
 	const float sia = -sim * shoulderX;
@@ -35,7 +34,7 @@ vec3 Tonemap(vec3 color) {
 			color[i] = lm * color[i] + la;
 		} else {
 			color[i]  = sim * color[i] + sia;
-			color[i] /= pow(pow(color[i], shoulderPower) + 1.0, 1.0 / shoulderPower);
+			color[i] /= pow(pow(color[i], 1.0 / shoulderCurve) + 1.0, shoulderCurve);
 			color[i]  = som * color[i] + soa;
 		}
 	}

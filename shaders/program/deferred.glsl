@@ -74,6 +74,7 @@ uniform vec3 shadowLightVector;
 #include "/lib/utility/sampling.glsl"
 
 #include "/lib/shared/celestialConstants.glsl"
+#define moonIlluminance (moonIlluminance * NIGHT_SKY_BRIGHTNESS)
 
 #include "/lib/shared/atmosphere/constants.glsl"
 #include "/lib/shared/atmosphere/lookup.glsl"
@@ -129,7 +130,7 @@ uniform vec3 shadowLightVector;
 
 		vec3 shadowlightTransmittance  = AtmosphereTransmittance(colortex7, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
 		     shadowlightTransmittance *= smoothstep(0.0, 0.01, abs(shadowLightVector.y));
-		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : moonIlluminance) * shadowlightTransmittance;
+		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : (moonIlluminance / NIGHT_SKY_BRIGHTNESS)) * shadowlightTransmittance;
 
 		averageCloudTransmittance = CalculateAverageCloudTransmittance(GetCloudCoverage());
 	}
