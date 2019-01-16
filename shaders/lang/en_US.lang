@@ -116,9 +116,13 @@ option.WATER_FOG_B=Water Fog Color B
 screen.parallax=Parallax Mapping
 option.PARALLAX=Parallax Mapping
 option.PARALLAX_SHADOWS=Self-Shadowing
+option.SMOOTH_PARALLAX=Smooth Parallax
+option.SMART_PARALLAX=Smart Parallax
+option.SMART_PARALLAX.comment=Currently incompatible with Smooth Parallax. Non-standard exact method for parallax. Typically faster for lower resolution textures, but much slower for higher resolution textures.
 option.PARALLAX_DEPTH=Depth
 suffix.PARALLAX_DEPTH=m
-option.SMOOTH_PARALLAX=Smooth Parallax
+option.PARALLAX_QUALITY=Quality
+option.PARALLAX_QUALITY.comment=Does not affect Smart Parallax.
 
 option.WATER_PARALLAX=Water Parallax
 option.WATER_PARALLAX_DEPTH_MULTIPLIER=Water Parallax Depth

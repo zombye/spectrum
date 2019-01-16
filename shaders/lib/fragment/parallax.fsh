@@ -1,6 +1,9 @@
 #if !defined INCLUDE_FRAGMENT_PARALLAX
 #define INCLUDE_FRAGMENT_PARALLAX
 
+#ifdef SMART_PARALLAX
+#endif
+
 #ifdef SMOOTH_PARALLAX
 	float ReadHeight(vec2 tileCoordinates, ivec2 textureResolution, int lod) {
 		ivec2 tileResolution = ivec2(atlasTileResolution);
@@ -20,7 +23,17 @@
 		s.xy = mix(s.wx, s.zy, f.x);
 		return mix(s.x,  s.y,  f.y);
 	}
+#else
+	float ReadHeight(vec2 tileCoordinates, ivec2 textureResolution, int lod) {
+		return textureLod(normals, tileCoordinates * atlasTileSize + atlasTileOffset, lod).a;
+	}
 
+	float ReadHeight(vec2 tileCoordinates, mat2 textureCoordinateDerivatives) {
+		return textureGrad(normals, tileCoordinates * atlasTileSize + atlasTileOffset, textureCoordinateDerivatives[0], textureCoordinateDerivatives[1]).a;
+	}
+#endif
+
+#if defined SMOOTH_PARALLAX || !defined SMART_PARALLAX
 	vec2 CalculateParallaxedCoordinate(vec2 textureCoordinates, mat2 textureCoordinateDerivatives, vec3 tangentViewVector, out vec3 position) {
 		// Skip parallax for cases where it doesn't work
 		if(tangentViewVector.z >= 0.0                           // This should never be true for anything visible, but in some cases it is anyway.
@@ -40,7 +53,7 @@
 		// Init
 		position = vec3((textureCoordinates - atlasTileOffset) / atlasTileSize, 1.0);
 
-		vec3 increment    = vec3(tangentViewVector.xy, tangentViewVector.z / PARALLAX_DEPTH) * (inversesqrt(dot(tangentViewVector, tangentViewVector)) * gbufferProjectionInverse[1].y * -viewPosition.z / 100.0);
+		vec3 increment    = vec3(tangentViewVector.xy, tangentViewVector.z / PARALLAX_DEPTH) * (inversesqrt(dot(tangentViewVector, tangentViewVector)) * gbufferProjectionInverse[1].y * -viewPosition.z * 0.1 / PARALLAX_QUALITY);
 		     increment.y *= atlasTileResolution.x / atlasTileResolution.y; // Tile aspect ratio - fixes some warping
 
 		// Loop to find approximate intersection location
@@ -60,10 +73,6 @@
 		return position.xy;
 	}
 #else
-	float ReadHeight(vec2 tileCoordinates, mat2 textureCoordinateDerivatives) {
-		return textureGrad(normals, tileCoordinates * atlasTileSize + atlasTileOffset, textureCoordinateDerivatives[0], textureCoordinateDerivatives[1]).a;
-	}
-
 	vec2 CalculateParallaxedCoordinate(vec2 textureCoordinates, mat2 textureCoordinateDerivatives, vec3 tangentViewVector, out vec3 endPosition) {
 		// Skip parallax for cases where it doesn't work
 		if(tangentViewVector.z >= 0.0                           // This should never be true for anything visible, but in some cases it is anyway.
@@ -147,7 +156,7 @@
 #endif
 
 #ifdef PARALLAX_SHADOWS
-	#ifdef SMOOTH_PARALLAX
+	#if defined SMOOTH_PARALLAX || !defined SMART_PARALLAX
 		float CalculateParallaxSelfShadow(vec2 hitTextureCoordinates, vec3 coord, mat2 textureCoordinateDerivatives, vec3 tangentLightVector) {
 			if(tangentLightVector.z <= 0.0
 			|| abs(blockId - 9.5) < 1.6
@@ -155,7 +164,7 @@
 
 			coord.xy = (coord.xy - atlasTileOffset) / atlasTileSize;
 
-			vec3 increment    = vec3(tangentLightVector.xy, tangentLightVector.z / PARALLAX_DEPTH) * (gbufferProjectionInverse[1].y * -viewPosition.z / 200.0);
+			vec3 increment    = vec3(tangentLightVector.xy, tangentLightVector.z / PARALLAX_DEPTH) * (gbufferProjectionInverse[1].y * -viewPosition.z * 0.1 / PARALLAX_QUALITY);
 			     increment.y *= atlasTileResolution.x / atlasTileResolution.y; // Tile aspect ratio - fixes some warping
 			vec3 offset = vec3(0.0, 0.0, coord.z);
 
