@@ -2,7 +2,8 @@
 #define INCLUDE_FRAGMENT_CLOUDS3D
 
 #define CLOUDS3D_STEPS 15 // [5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25]
-#define CLOUDS3D_SELFSHADOW_STEPS_SUN 15 // Default 5
+#define CLOUDS3D_SELFSHADOW_STEPS_SUN 7 // Default 7
+#define CLOUDS3D_SELFSHADOW_RANGE_SUN 350
 #define CLOUDS3D_SELFSHADOW_STEPS_SKY 5 // Default 5
 #define CLOUDS3D_NOISE_SMOOTH
 #define CLOUDS3D_NOISE_OCTAVES_VIEW 5
@@ -92,6 +93,21 @@ float Get3DCloudDensity(vec3 position, float coverage, const int octaves) {
 
 //--// Optical depth //-------------------------------------------------------//
 
+float Calculate3DCloudsAirmass(vec3 position, vec3 direction, float coverage, const float range, const int steps) {
+	float outerDistance = RaySphereIntersection(position + vec3(0.0, atmosphere_planetRadius, 0.0), direction, atmosphere_planetRadius + CLOUDS3D_ALTITUDE_MAX).y;
+	float stepSize = min(outerDistance, range) / steps;
+	if (stepSize < 0.0) { return 0.0; }
+
+	vec3 increment = direction * stepSize;
+	position += increment * 0.5;
+
+	float airmass = 0.0;
+	for (int i = 0; i < steps; ++i, position += increment) {
+		airmass += Get3DCloudDensity(position, coverage, CLOUDS3D_NOISE_OCTAVES_SHADOW);
+	} airmass *= stepSize;
+
+	return airmass;
+}
 float Calculate3DCloudsAirmass(vec3 position, vec3 direction, float coverage, const int steps) {
 	float stepSize = RaySphereIntersection(position + vec3(0.0, atmosphere_planetRadius, 0.0), direction, atmosphere_planetRadius + CLOUDS3D_ALTITUDE_MAX).y / steps;
 	if (stepSize < 0.0) { return 0.0; }
@@ -125,6 +141,9 @@ float Calculate3DCloudsAirmassUp(vec3 position, float coverage, const int steps)
 	return airmass;
 }
 
+float Calculate3DCloudsOpticalDepth(vec3 position, vec3 direction, float coverage, const float range, const int steps) {
+	return CLOUDS3D_ATTENUATION_COEFFICIENT * Calculate3DCloudsAirmass(position, direction, coverage, range, steps);
+}
 float Calculate3DCloudsOpticalDepth(vec3 position, vec3 direction, float coverage, const int steps) {
 	return CLOUDS3D_ATTENUATION_COEFFICIENT * Calculate3DCloudsAirmass(position, direction, coverage, steps);
 }
@@ -156,7 +175,7 @@ float Calculate3DCloudsOpticalDepthUp(vec3 position, float coverage) { // Simple
 	}
 
 	float Calculate3DCloudsSunlight(vec3 position, float coverage, float phase) {
-		float opticalDepth = Calculate3DCloudsOpticalDepth(position, shadowLightVector, coverage, CLOUDS3D_SELFSHADOW_STEPS_SUN);
+		float opticalDepth = Calculate3DCloudsOpticalDepth(position, shadowLightVector, coverage, CLOUDS3D_SELFSHADOW_RANGE_SUN, CLOUDS3D_SELFSHADOW_STEPS_SUN);
 
 		// TODO: Merge single & multiple scattering, and blend phase function towards isotropic based on optical depth (and scattering albedo)
 		float single = phase       * exp(-opticalDepth);
