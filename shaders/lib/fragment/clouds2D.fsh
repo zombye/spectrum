@@ -59,13 +59,16 @@ float CloudsPhase2(float cosTheta, vec3 g, vec3 w) {
 
 	return dot(res, w) / (w.x + w.y + w.z);
 }
-vec3 Calculate2DCloudsSunlight(vec3 position, vec3 viewVector, float viewRayLength, float density, float cloudsTime, float dither) {
+
+vec3 Calculate2DCloudsSunlightAndMoonlight(vec3 position, vec3 viewVector, float viewRayLength, float density, float cloudsTime, float dither) {
 	const float upperAltitude = CLOUDS2D_ALTITUDE + CLOUDS2D_THICKNESS / 2.0;
 	const float lowerAltitude = CLOUDS2D_ALTITUDE - CLOUDS2D_THICKNESS / 2.0;
 
-	float shadowStartDist   = RaySphereIntersection(position + vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector, atmosphere_planetRadius + lowerAltitude).y;
-	float shadowEndDist     = RaySphereIntersection(position + vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector, atmosphere_planetRadius + upperAltitude).y;
-	float stepSizeShadowing = (shadowEndDist - shadowStartDist) / CLOUDS2D_SELFSHADOW_QUALITY;
+	position.y += atmosphere_planetRadius;
+
+	float shadowStartDist   = RaySphereIntersection(position, shadowLightVector, atmosphere_planetRadius + lowerAltitude).y;
+	float shadowEndDist     = RaySphereIntersection(position, shadowLightVector, atmosphere_planetRadius + upperAltitude).y;
+	float stepSizeShadowing = (shadowStartDist > 0.0 ? shadowEndDist - shadowStartDist : shadowEndDist) / CLOUDS2D_SELFSHADOW_QUALITY;
 
 	float stepSize          = viewRayLength / CLOUDS2D_SELFSHADOW_QUALITY;
 	float stepOpticalDepth  = CLOUDS2D_ATTENUATION_COEFFICIENT * stepSize * density;
@@ -81,18 +84,48 @@ vec3 Calculate2DCloudsSunlight(vec3 position, vec3 viewVector, float viewRayLeng
 	float densityMult       = (1.0 - CLOUDS2D_SCATTERING_ALBEDO) * CLOUDS2D_ATTENUATION_COEFFICIENT * stepSizeShadowing;
 	//*/
 
-	vec2 increment = stepSizeShadowing * shadowLightVector.xz;
-	position.xz += increment * dither;
+	vec2 incrementSun  = stepSizeShadowing * sunVector.xz;
+	vec2 incrementMoon = stepSizeShadowing * moonVector.xz;
+	vec2 positionSun   = incrementSun  * dither + position.xz;
+	vec2 positionMoon  = incrementMoon * dither + position.xz;
 
-	float scattering = 0.0, transmittance = 1.0;
-	for (int i = 0; i < CLOUDS2D_SELFSHADOW_QUALITY; ++i, position.xz += increment) {
-		transmittance *= exp(-densityMult * Get2DCloudsDensity(position.xz, cloudsTime));
-		scattering = scattering * stepTransmittance + transmittance;
-	} scattering *= stepScattering;
 
-	float phase = CloudsPhase2(dot(viewVector, shadowLightVector), vec3(-0.1, 0.3, 0.9), vec3(0.3, 0.6, 0.1));
+	float scatteringSun = 0.0, scatteringMoon = 0.0, transmittanceSun = 1.0, transmittanceMoon = 1.0;
+	if (dot(position, sunVector) >= 0.0) {
+		for (int i = 0; i < CLOUDS2D_SELFSHADOW_QUALITY; ++i, positionSun += incrementSun, positionMoon += incrementMoon) {
+			transmittanceSun *= exp(-densityMult * Get2DCloudsDensity(positionSun, cloudsTime));
+			scatteringSun     = scatteringSun * stepTransmittance + transmittanceSun;
 
-	return illuminanceShadowlight * scattering * phase;
+			transmittanceMoon *= exp(-densityMult * Get2DCloudsDensity(positionMoon, cloudsTime));
+			scatteringMoon    += transmittanceMoon;
+			transmittanceMoon *= stepTransmittance;
+		}
+	} else {
+		for (int i = 0; i < CLOUDS2D_SELFSHADOW_QUALITY; ++i, positionSun += incrementSun, positionMoon += incrementMoon) {
+			transmittanceSun *= exp(-densityMult * Get2DCloudsDensity(positionSun, cloudsTime));
+			scatteringSun    += transmittanceSun;
+			transmittanceSun *= stepTransmittance;
+
+			transmittanceMoon *= exp(-densityMult * Get2DCloudsDensity(positionMoon, cloudsTime));
+			scatteringMoon     = scatteringMoon * stepTransmittance + transmittanceMoon;
+		}
+	}
+
+	scatteringSun  *= stepScattering;
+	scatteringMoon *= stepScattering;
+
+	// TODO: Add shadows cast by other, more distant clouds, as an option.
+
+	vec3 sunlight   = sunIlluminance * AtmosphereTransmittance(colortex7, position, sunVector);
+	     sunlight  *= CloudsPhase2(dot(viewVector, sunVector), vec3(-0.1, 0.3, 0.9), vec3(0.3, 0.6, 0.1));
+	vec3 moonlight  = moonIlluminance * AtmosphereTransmittance(colortex7, position, moonVector);
+	     moonlight *= CloudsPhase2(dot(viewVector, moonVector), vec3(-0.1, 0.3, 0.9), vec3(0.3, 0.6, 0.1));
+
+	vec3 scattering = vec3(0.0);
+	scattering += scatteringSun  * sunlight;
+	scattering += scatteringMoon * moonlight;
+
+	return scattering;
 }
 
 vec4 Calculate2DClouds(vec3 viewVector, float dither) {
@@ -119,7 +152,7 @@ vec4 Calculate2DClouds(vec3 viewVector, float dither) {
 
 	float viewRayLength = endDistance - startDistance;
 
-	vec3 scattering = Calculate2DCloudsSunlight(centerPosition, viewVector, viewRayLength, density, cloudsTime, dither);
+	vec3 scattering = Calculate2DCloudsSunlightAndMoonlight(centerPosition, viewVector, viewRayLength, density, cloudsTime, dither);
 	float transmittance = exp(-CLOUDS2D_ATTENUATION_COEFFICIENT * density * viewRayLength);
 
 	return vec4(scattering, transmittance);
