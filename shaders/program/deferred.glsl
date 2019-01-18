@@ -152,7 +152,7 @@ uniform vec3 shadowLightVector;
 
 		layout (location = 3) out vec4 rsmEncode;
 	#else
-		/* DRAWBUFFERS:3462 */
+		/* DRAWBUFFERS:346 */
 	#endif
 
 	layout (location = 0) out float cloudTransmittance;
@@ -167,7 +167,7 @@ uniform vec3 shadowLightVector;
 
 	#include "/lib/shared/shadowDistortion.glsl"
 
-	#include "/lib/shared/atmosphere/raymarch/transmittance.glsl"
+	#include "/lib/shared/atmosphere/density.glsl"
 
 	#include "/lib/fragment/clouds2D.fsh"
 	#include "/lib/fragment/clouds3D.fsh"

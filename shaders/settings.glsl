@@ -83,6 +83,8 @@
 //#define VL_WATER_CAUSTICS
 #define UNDERWATER_ADAPTATION
 
+#define FOG_AIR_DENSITY 15 // [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20]
+
 //--// Materials //-----------------------------------------------------------//
 
 #if PROGRAM == PROGRAM_TERRAIN || PROGRAM == PROGRAM_WATER || PROGRAM == PROGRAM_HAND || PROGRAM == PROGRAM_HAND_WATER

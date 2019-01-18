@@ -183,6 +183,7 @@ uniform vec3 shadowLightVector;
 		#endif
 	#endif
 
+	#include "/lib/shared/atmosphere/density.glsl"
 	#include "/lib/shared/atmosphere/phase.glsl"
 
 	vec3 CalculateAirFog(vec3 background, vec3 startPosition, vec3 endPosition, vec3 viewVector, float LoV, float skylight, float dither, bool sky) {
@@ -194,58 +195,68 @@ uniform vec3 shadowLightVector;
 		#ifdef VL_AIR
 			const int steps = 6;
 
-			//--//
-
-			vec3 scattering = vec3(0.0), transmittance = vec3(1.0);
-
 			if (sky) {
 				endPosition = startPosition + viewVector * far;
 			}
 
-			float stepSize = distance(startPosition, endPosition) / steps;
+			//--//
 
-			vec3 incrementWorld     = viewVector * stepSize;
+			vec3 incrementWorld = (endPosition - startPosition) / steps;
+			vec3 worldPosition  = startPosition + cameraPosition;
+			     worldPosition += dither * incrementWorld;
+
 			vec3 incrementShadow    = mat3(shadowModelView) * incrementWorld;
 			     incrementShadow   *= Diagonal(shadowProjection).xyz;
 			     incrementShadow.z /= SHADOW_DEPTH_SCALE;
+			vec3 shadowPosition     = mat3(shadowModelView) * startPosition + shadowModelView[3].xyz;
+			     shadowPosition     = Diagonal(shadowProjection).xyz * shadowPosition + shadowProjection[3].xyz;
+			     shadowPosition.z  /= SHADOW_DEPTH_SCALE;
+			     shadowPosition    += dither * incrementShadow;
 
-			vec3 worldPosition = startPosition + cameraPosition;
-			vec3 shadowClip    = mat3(shadowModelView) * startPosition + shadowModelView[3].xyz;
-			     shadowClip    = Diagonal(shadowProjection).xyz * shadowClip + shadowProjection[3].xyz;
-			     shadowClip.z /= SHADOW_DEPTH_SCALE;
-
-			worldPosition += incrementWorld * dither;
-			shadowClip += incrementShadow * dither;
+			float stepSize = length(incrementWorld);
 
 			//--//
 
-			for (int i = 0; i < steps; ++i, worldPosition += incrementWorld, shadowClip += incrementShadow) {
-				vec3 lightingSun  = illuminanceShadowlight;
-				     lightingSun *= Calculate3DCloudShadows(worldPosition);
-				vec3 lightingSky  = illuminanceSky * skylight;
+			vec3 scatteringSun = vec3(0.0);
+			vec3 scatteringSky = vec3(0.0);
+			vec3 transmittance = vec3(1.0);
+			for (int i = 0; i < steps; ++i, worldPosition += incrementWorld, shadowPosition += incrementShadow) {
+				vec3 density      = FOG_AIR_DENSITY * AtmosphereDensity(worldPosition.y + atmosphere_planetRadius);
+				vec3 stepAirmass  = density * stepSize;
+				vec3 opticalDepth = atmosphere_coefficientsAttenuation * stepAirmass;
 
-				#ifndef SHADOW_INFINITE_RENDER_DISTANCE
-					lightingSun *= ReadShadowMaps(DistortShadowSpace(shadowClip) * 0.5 + 0.5);
+				vec3 stepTransmittance       = exp(-opticalDepth);
+				vec3 stepTransmittedFraction = Clamp01((stepTransmittance - 1.0) / -opticalDepth);
+				vec3 stepVisibleFraction     = transmittance * stepTransmittedFraction;
+
+				//--//
+
+				vec3 lightingSun;
+				#ifdef SHADOW_INFINITE_RENDER_DISTANCE
+					lightingSun = vec3(ReadShadowMaps(DistortShadowSpace(shadowPosition) * 0.5 + 0.5));
 				#else
-					if (dot(shadowClip.xy, shadowClip.xy) < 1.0) {
-						lightingSun *= ReadShadowMaps(DistortShadowSpace(shadowClip) * 0.5 + 0.5);
+					if (dot(shadowPosition.xy, shadowPosition.xy) < 1.0) {
+						lightingSun = vec3(ReadShadowMaps(DistortShadowSpace(shadowPosition) * 0.5 + 0.5));
+					} else {
+						lightingSun = vec3(1.0);
 					}
+				#endif
+
+				#ifdef CLOUDS3D
+					lightingSun *= Calculate3DCloudShadows(worldPosition);
 				#endif
 
 				//--//
 
-				vec3 density      = vec3(1.0);
-				vec3 stepAirmass  = density * stepSize;
-				vec3 opticalDepth = atmosphere_coefficientsAttenuation * stepAirmass;
-
-				vec3 stepTransmittance       = Clamp01(exp(-opticalDepth));
-				vec3 stepTransmittedFraction = Clamp01((stepTransmittance - 1.0) / -opticalDepth);
-				vec3 stepVisibleFraction     = transmittance * stepTransmittedFraction;
-
-				scattering += atmosphere_coefficientsScattering * (stepAirmass.xy * phaseSun) * stepVisibleFraction * lightingSun;
-				scattering += atmosphere_coefficientsScattering * (stepAirmass.xy * phaseSky) * stepVisibleFraction * lightingSky;
+				scatteringSun += atmosphere_coefficientsScattering * (stepAirmass.xy * phaseSun) * stepVisibleFraction * lightingSun;
+				scatteringSky += atmosphere_coefficientsScattering * (stepAirmass.xy * phaseSky) * stepVisibleFraction;
 				transmittance *= stepTransmittance;
 			}
+
+			scatteringSun *= illuminanceShadowlight;
+			scatteringSky *= illuminanceSky * skylight;
+
+			vec3 scattering = scatteringSun + scatteringSky;
 		#else
 			vec3 lightingSky = illuminanceSky * skylight;
 			vec3 lightingSun = illuminanceShadowlight * skylight * Calculate3DCloudShadows(startPosition + cameraPosition);
@@ -255,7 +266,7 @@ uniform vec3 shadowLightVector;
 			}
 
 			float depth = distance(startPosition, endPosition);
-			vec3 opticalDepth = baseAttenuationCoefficient * depth;
+			vec3 opticalDepth = baseAttenuationCoefficient * FOG_AIR_DENSITY * depth;
 
 			vec3 transmittance   = exp(-opticalDepth);
 			vec3 visibleFraction = (transmittance - 1.0) / -opticalDepth;
