@@ -265,8 +265,8 @@ uniform vec3 shadowLightVector;
 				return background;
 			}
 
-			float depth = distance(startPosition, endPosition);
-			vec3 opticalDepth = baseAttenuationCoefficient * FOG_AIR_DENSITY * depth;
+			float depth = FOG_AIR_DENSITY * distance(startPosition, endPosition);
+			vec3 opticalDepth = baseAttenuationCoefficient * depth;
 
 			vec3 transmittance   = exp(-opticalDepth);
 			vec3 visibleFraction = (transmittance - 1.0) / -opticalDepth;
