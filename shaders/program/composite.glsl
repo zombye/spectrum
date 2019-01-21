@@ -518,12 +518,10 @@ uniform vec3 shadowLightVector;
 		      eyeSkylight = eyeSkylight * exp(eyeSkylight * 6.0 - 6.0);
 
 		// Dither pattern
+		const float ditherSize = 32.0 * 32.0;
+		float dither = Bayer32(gl_FragCoord.st);
 		#ifdef TAA
-			const float ditherSize = 32.0 * 32.0 * 16.0;
-			float dither = Bayer32(gl_FragCoord.st) + (frameCounter % 16) / ditherSize; // should use like a Nx1 bayer matrix for the temporal part
-		#else
-			const float ditherSize = 32.0 * 32.0;
-			float dither = Bayer32(gl_FragCoord.st);
+		      dither = fract(dither + LinearBayer16(frameCounter));
 		#endif
 
 		vec3 transparentFlatNormal = normalize(cross(dFdx(frontPosition[2]), dFdy(frontPosition[2])));

@@ -552,13 +552,10 @@ uniform vec3 shadowLightVector;
 		position[2] = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
 		vec3 viewVector = normalize(position[2] - gbufferModelViewInverse[3].xyz);
 
+		const float ditherSize = 8.0 * 8.0;
+		float dither = Bayer8(gl_FragCoord.st);
 		#ifdef TAA
-			const int ditherSize = 8 * 8 * 16;
-			float dither = Bayer8(gl_FragCoord.st) + float(frameCounter % 16) / ditherSize; // should use like a Nx1 bayer matrix for the temporal part
-			//float dither = Bayer8(gl_FragCoord.st) + LinearBayer16(frameCounter % 16) * 16 / ditherSize;
-		#else
-			const int ditherSize = 8 * 8;
-			float dither = Bayer8(gl_FragCoord.st);
+		      dither = fract(dither + LinearBayer16(frameCounter));
 		#endif
 
 		vec4 colortex0Sample = texture(colortex0, screenCoord);

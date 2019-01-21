@@ -286,12 +286,10 @@ uniform vec3 shadowLightVector;
 	#endif
 
 	void main() {
+		const float ditherSize = 16.0 * 16.0;
+		float dither = Bayer16(gl_FragCoord.st);
 		#ifdef TAA
-			const float ditherSize = 16.0 * 16.0 * 16.0;
-			float dither = Bayer16(gl_FragCoord.st) + (frameCounter % 16) / ditherSize; // should use like a Nx1 bayer matrix for the temporal part
-		#else
-			const float ditherSize = 16.0 * 16.0;
-			float dither = Bayer16(gl_FragCoord.st);
+		      dither = fract(dither + LinearBayer16(frameCounter));
 		#endif
 
 		//--// RSM //---------------------------------------------------------//
