@@ -159,7 +159,7 @@ vec3 CalculateSpecularHighlight(float NoL, float NoV, float LoV, float VoH, floa
 			result = texture(colortex6, ProjectSky(rayDirectionWorld)).rgb * skyFade;
 		}
 
-		float LoV = dot(rayDirection, shadowLightVector);
+		float LoV = dot(rayDirectionWorld, shadowLightVector);
 		if (isEyeInWater == 1) {
 			result = CalculateWaterFog(result, position[2], hitPositionScene, rayDirectionWorld, LoV, skyFade, dither, !intersected);
 		} else {
