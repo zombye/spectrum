@@ -46,9 +46,9 @@ uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
 
 // Shadow Uniforms
+uniform mat4 shadowModelView;
 #if defined VL_AIR || defined VL_WATER
 	uniform mat4 shadowProjection;
-	uniform mat4 shadowModelView;
 
 	uniform sampler2D shadowtex0;
 	uniform sampler2D shadowtex1;
