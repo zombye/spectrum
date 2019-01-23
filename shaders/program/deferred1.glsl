@@ -171,7 +171,7 @@ uniform vec3 shadowLightVector;
 	/* DRAWBUFFERS:46 */
 
 	layout (location = 0) out vec4 colortex4Write;
-	layout (location = 1) out vec3 colortex6Write;
+	layout (location = 1) out vec4 colortex6Write;
 
 	//--// Fragment Libraries
 
@@ -528,22 +528,23 @@ uniform vec3 shadowLightVector;
 	}
 
 	void main() {
+		colortex6Write.a = texelFetch(colortex6, ivec2(gl_FragCoord.st), 0).a;
 		if (gl_FragCoord.x < 6.0 && gl_FragCoord.y < 1.0) {
 			if (gl_FragCoord.x < 1.0) {
-				colortex6Write = skylightPosX;
+				colortex6Write.rgb = skylightPosX;
 			} else if (gl_FragCoord.x < 2.0) {
-				colortex6Write = skylightPosY;
+				colortex6Write.rgb = skylightPosY;
 			} else if (gl_FragCoord.x < 3.0) {
-				colortex6Write = skylightPosZ;
+				colortex6Write.rgb = skylightPosZ;
 			} else if (gl_FragCoord.x < 4.0) {
-				colortex6Write = skylightNegX;
+				colortex6Write.rgb = skylightNegX;
 			} else if (gl_FragCoord.x < 5.0) {
-				colortex6Write = skylightNegY;
+				colortex6Write.rgb = skylightNegY;
 			} else {
-				colortex6Write = skylightNegZ;
+				colortex6Write.rgb = skylightNegZ;
 			}
 		} else {
-			colortex6Write = vec3(0.0);
+			colortex6Write.rgb = vec3(0.0);
 		}
 
 		mat3 position;
@@ -620,7 +621,7 @@ uniform vec3 shadowLightVector;
 			vec3 shadows = vec3(0.0), bounce = vec3(0.0);
 			#ifdef GLOBAL_LIGHT_FADE_WITH_SKYLIGHT
 				if (lightmap.y > 0.0) {
-					float cloudShadow = Calculate3DCloudShadows(position[2] + cameraPosition);
+					float cloudShadow = GetCloudShadows(position[2]);
 					bool translucent = material.translucency.r + material.translucency.g + material.translucency.b > 0.0;
 					shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
 					if (shadows.r > 0.0 && (NoL > 0.0 || translucent)) {
@@ -637,7 +638,7 @@ uniform vec3 shadowLightVector;
 					bounce *= cloudShadow * ao;
 				}
 			#else
-				float cloudShadow = Calculate3DCloudShadows(position[2] + cameraPosition);
+				float cloudShadow = GetCloudShadows(position[2]);
 				bool translucent = material.translucency.r + material.translucency.g + material.translucency.b > 0.0;
 				shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
 				if (shadows.r > 0.0 && (NoL > 0.0 || translucent)) {

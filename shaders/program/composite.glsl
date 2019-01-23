@@ -202,8 +202,7 @@ uniform vec3 shadowLightVector;
 			//--//
 
 			vec3 incrementWorld = (endPosition - startPosition) / steps;
-			vec3 worldPosition  = startPosition + cameraPosition;
-			     worldPosition += dither * incrementWorld;
+			vec3 worldPosition  = startPosition + incrementWorld * dither;
 
 			vec3 incrementShadow    = mat3(shadowModelView) * incrementWorld;
 			     incrementShadow   *= Diagonal(shadowProjection).xyz;
@@ -221,7 +220,7 @@ uniform vec3 shadowLightVector;
 			vec3 scatteringSky = vec3(0.0);
 			vec3 transmittance = vec3(1.0);
 			for (int i = 0; i < steps; ++i, worldPosition += incrementWorld, shadowPosition += incrementShadow) {
-				vec3 density      = FOG_AIR_DENSITY * AtmosphereDensity(worldPosition.y + atmosphere_planetRadius);
+				vec3 density      = FOG_AIR_DENSITY * AtmosphereDensity(worldPosition.y + cameraPosition.y + atmosphere_planetRadius);
 				vec3 stepAirmass  = density * stepSize;
 				vec3 opticalDepth = atmosphere_coefficientsAttenuation * stepAirmass;
 
@@ -243,7 +242,7 @@ uniform vec3 shadowLightVector;
 				#endif
 
 				#ifdef CLOUDS3D
-					lightingSun *= Calculate3DCloudShadows(worldPosition);
+					lightingSun *= GetCloudShadows(worldPosition);
 				#endif
 
 				//--//
@@ -259,7 +258,7 @@ uniform vec3 shadowLightVector;
 			vec3 scattering = scatteringSun + scatteringSky;
 		#else
 			vec3 lightingSky = illuminanceSky * skylight;
-			vec3 lightingSun = illuminanceShadowlight * skylight * Calculate3DCloudShadows(startPosition + cameraPosition);
+			vec3 lightingSun = illuminanceShadowlight * skylight * GetCloudShadows(startPosition);
 
 			if (sky) {
 				return background;
@@ -323,8 +322,7 @@ uniform vec3 shadowLightVector;
 			//--//
 
 			vec3 incrementWorld = (endPosition - startPosition) / steps;
-			vec3 worldPosition  = startPosition + cameraPosition;
-			     worldPosition += incrementWorld * dither;
+			vec3 worldPosition  = startPosition + incrementWorld * dither;
 
 			vec3 incrementShadow    = mat3(shadowModelView) * incrementWorld;
 			     incrementShadow   *= Diagonal(shadowProjection).xyz;
@@ -359,7 +357,7 @@ uniform vec3 shadowLightVector;
 				#endif
 
 				#ifdef CLOUDS3D
-					lightingSun *= Calculate3DCloudShadows(worldPosition);
+					lightingSun *= GetCloudShadows(worldPosition);
 				#endif
 
 				if (texture(shadowcolor0, shadowCoord.xy).a > 0.5) {
@@ -369,7 +367,7 @@ uniform vec3 shadowLightVector;
 						lightingSun *= exp(-baseAttenuationCoefficient * fogDensity * waterDepth);
 
 						#if defined VL_WATER_CAUSTICS && defined CAUSTICS
-							lightingSun *= CalculateCaustics(worldPosition - cameraPosition, waterDepth, 0.5, 1.0);
+							lightingSun *= CalculateCaustics(worldPosition, waterDepth, 0.5, 1.0);
 						#endif
 					}
 				}
@@ -395,7 +393,7 @@ uniform vec3 shadowLightVector;
 				vec3 lighting = illuminanceShadowlight * sunlightPhase;
 				#ifdef CLOUDS3D
 					if (isEyeInWater == 1) {
-						lighting *= Calculate3DCloudShadows(gbufferModelViewInverse[3].xyz + cameraPosition);
+						lighting *= GetCloudShadows(gbufferModelViewInverse[3].xyz);
 					}
 				#endif
 				lighting += illuminanceSky * isotropicPhase * skylight;
@@ -406,7 +404,7 @@ uniform vec3 shadowLightVector;
 		#else
 			vec3 lighting = illuminanceSky * isotropicPhase * skylight;
 			if (isEyeInWater == 1) {
-				lighting += illuminanceShadowlight * sunlightPhase * skylight * Calculate3DCloudShadows(startPosition + cameraPosition);
+				lighting += illuminanceShadowlight * sunlightPhase * skylight * GetCloudShadows(startPosition);
 			} else {
 				lighting += illuminanceShadowlight * sunlightPhase * SrgbToLinear(texture(colortex2, screenCoord).rgb);
 			}

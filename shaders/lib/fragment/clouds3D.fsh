@@ -260,6 +260,16 @@ float Calculate3DCloudsOpticalDepthUp(vec3 position, float coverage) { // Simple
 
 		return vec4(scattering, exp(-opticalDepth));
 	}
+#else
+	float GetCloudShadows(vec3 position) {
+		position     = mat3(shadowModelView) * position;
+		position.xy /= 200.0;
+		position.xy /= 1.0 + length(position.xy);
+		position.xy  = position.xy * 0.5 + 0.5;
+		position.xy *= CLOUD_SHADOW_MAP_RESOLUTION * viewPixelSize;
+
+		return texture(colortex6, position.xy).a;
+	}
 #endif
 
 float Calculate3DCloudShadows(vec3 position, float coverage, const int steps) {

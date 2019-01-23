@@ -398,7 +398,7 @@ uniform vec3 shadowLightVector;
 		#ifdef GLOBAL_LIGHT_FADE_WITH_SKYLIGHT
 			vec3 shadows = vec3(0.0), vec3 bounce = vec3(0.0);
 			if (lightmapCoordinates.y > 0.0) {
-				float cloudShadow = Calculate3DCloudShadows(position[2] + cameraPosition);
+				float cloudShadow = GetCloudShadows(position[2]);
 				shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
 				if (shadows.r > 0.0 && (NoL > 0.0 || translucent)) {
 					shadows *= CalculateShadows(position, tbn[2], translucent, dither, ditherSize);
@@ -409,7 +409,7 @@ uniform vec3 shadowLightVector;
 				bounce *= cloudShadow * vertexAo;
 			}
 		#else
-			float cloudShadow = Calculate3DCloudShadows(position[2] + cameraPosition);
+			float cloudShadow = GetCloudShadows(position[2]);
 			vec3 shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
 			if (shadows.r > 0.0 && (NoL > 0.0 || translucent)) {
 				shadows *= CalculateShadows(position, tbn[2], translucent, dither, ditherSize);

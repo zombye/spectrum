@@ -157,7 +157,7 @@ uniform vec3 shadowLightVector;
 
 	layout (location = 0) out float cloudTransmittance;
 	layout (location = 1) out vec4  scatteringEncode;
-	layout (location = 2) out vec3  skyImage;
+	layout (location = 2) out vec4  skyImage_cloudShadow;
 
 	//--// Fragment Libraries
 
@@ -282,6 +282,29 @@ uniform vec3 shadowLightVector;
 			}
 
 			return mat2x3(scattering, transmittance);
+		}
+	#endif
+
+	#ifdef CLOUDS3D
+		float CalculateCloudShadowMap(float cloudCoverage) {
+			vec3 pos = vec3(screenCoord, 0.0);
+			pos.xy /= CLOUD_SHADOW_MAP_RESOLUTION * viewPixelSize;
+			if (Clamp01(pos.xy) != pos.xy) { return 1.0; }
+			pos.xy  = pos.xy * 2.0 - 1.0;
+			pos.xy /= 1.0 - length(pos.xy);
+			pos.xy *= 200.0;
+			pos     = mat3(shadowModelViewInverse) * pos;
+
+			pos += cameraPosition;
+			pos += shadowLightVector * (256.0 - pos.y) / shadowLightVector.y;
+
+			//--//
+
+			float cloudShadow = 1.0;
+
+			cloudShadow *= Calculate3DCloudShadows(pos, cloudCoverage, 10);
+
+			return cloudShadow;
 		}
 	#endif
 
@@ -413,6 +436,7 @@ uniform vec3 shadowLightVector;
 
 		float tileSize = min(floor(viewResolution.x * 0.5) / 1.5, floor(viewResolution.y * 0.5)) * exp2(-SKY_IMAGE_LOD);
 		vec2 cmp = tileSize * vec2(3.0, 2.0);
+		vec3 skyImage;
 		if (gl_FragCoord.x < cmp.x && gl_FragCoord.y < cmp.y) {
 			vec3 viewVector = UnprojectSky(screenCoord, SKY_IMAGE_LOD);
 
@@ -476,5 +500,11 @@ uniform vec3 shadowLightVector;
 		} else {
 			skyImage = vec3(0.0);
 		}
+
+		skyImage_cloudShadow.rgb = skyImage;
+
+		#ifdef CLOUDS3D
+			skyImage_cloudShadow.a = CalculateCloudShadowMap(cloudCoverage);
+		#endif
 	}
 #endif
