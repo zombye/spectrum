@@ -505,6 +505,8 @@ uniform vec3 shadowLightVector;
 
 		#ifdef CLOUDS3D
 			skyImage_cloudShadow.a = CalculateCloudShadowMap(cloudCoverage);
+		#else
+			skyImage_cloudShadow.a = 1.0;
 		#endif
 	}
 #endif
