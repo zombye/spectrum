@@ -302,7 +302,7 @@ uniform vec3 shadowLightVector;
 
 			float cloudShadow = 1.0;
 
-			cloudShadow *= Calculate3DCloudShadows(pos, cloudCoverage, 10);
+			cloudShadow *= Calculate3DCloudShadows(pos, cloudCoverage, 20);
 
 			return cloudShadow;
 		}

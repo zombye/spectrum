@@ -1,28 +1,41 @@
 #if !defined INCLUDE_FRAGMENT_CLOUDS3D
 #define INCLUDE_FRAGMENT_CLOUDS3D
 
-#define CLOUDS3D_STEPS 15 // [5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25]
-#define CLOUDS3D_SELFSHADOW_STEPS_SUN 7 // Default 7
-#define CLOUDS3D_SELFSHADOW_RANGE_SUN 350
-#define CLOUDS3D_SELFSHADOW_STEPS_SKY 5 // Default 5
+//--// Settings //------------------------------------------------------------//
+
+#define CLOUDS3D_STEPS 10 // [5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30]
+#define CLOUDS3D_SELFSHADOW_STEPS_SUN 5
+#define CLOUDS3D_SELFSHADOW_RANGE_SUN 500
+#define CLOUDS3D_SELFSHADOW_STEPS_SKY 3
+
 #define CLOUDS3D_NOISE_SMOOTH
 #define CLOUDS3D_NOISE_OCTAVES_VIEW 5
 #define CLOUDS3D_NOISE_OCTAVES_SHADOW 4
 
 #define CLOUDS3D_DYNAMIC_COVERAGE
-#define CLOUDS3D_STATIC_COVERAGE 0.5 // [0 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1 0.11 0.12 0.13 0.14 0.15 0.16 0.17 0.18 0.19 0.2 0.21 0.22 0.23 0.24 0.25 0.26 0.27 0.28 0.29 0.3 0.31 0.32 0.33 0.34 0.35 0.36 0.37 0.38 0.39 0.4 0.41 0.42 0.43 0.44 0.45 0.46 0.47 0.48 0.49 0.5 0.51 0.52 0.53 0.54 0.55 0.56 0.57 0.58 0.59 0.6 0.61 0.62 0.63 0.64 0.65 0.66 0.67 0.68 0.69 0.7 0.71 0.72 0.73 0.74 0.75 0.76 0.77 0.78 0.79 0.8 0.81 0.82 0.83 0.84 0.85 0.86 0.87 0.88 0.89 0.9 0.91 0.92 0.93 0.94 0.95 0.96 0.97 0.98 0.99 1]
+#define CLOUDS3D_STATIC_COVERAGE 0.45 // [0 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1 0.11 0.12 0.13 0.14 0.15 0.16 0.17 0.18 0.19 0.2 0.21 0.22 0.23 0.24 0.25 0.26 0.27 0.28 0.29 0.3 0.31 0.32 0.33 0.34 0.35 0.36 0.37 0.38 0.39 0.4 0.41 0.42 0.43 0.44 0.45 0.46 0.47 0.48 0.49 0.5 0.51 0.52 0.53 0.54 0.55 0.56 0.57 0.58 0.59 0.6 0.61 0.62 0.63 0.64 0.65 0.66 0.67 0.68 0.69 0.7 0.71 0.72 0.73 0.74 0.75 0.76 0.77 0.78 0.79 0.8 0.81 0.82 0.83 0.84 0.85 0.86 0.87 0.88 0.89 0.9 0.91 0.92 0.93 0.94 0.95 0.96 0.97 0.98 0.99 1]
 
 #define CLOUDS3D_USE_WORLD_TIME
 #define CLOUDS3D_SPEED 4.8 // [0 0.2 0.4 0.6 0.8 1 1.2 1.4 1.6 1.8 2 2.2 2.4 2.6 2.8 3 3.2 3.4 3.6 3.8 4 4.2 4.4 4.6 4.8 5 5.2 5.4 5.6 5.8 6 6.2 6.4 6.6 6.8 7 7.2 7.4 7.6 7.8 8 8.2 8.4 8.6 8.8 9 9.2 9.4 9.6 9.8 10]
 
-//#define CLOUDS3D_SIMPLE_SKYLIGHT_SHADING // Simpler and much faster skylight shading on clouds.
+#define CLOUDS3D_SIMPLE_SKYLIGHT_SHADING // Simpler and much faster skylight shading on clouds.
 
-#define CLOUDS3D_ATTENUATION_COEFFICIENT 0.15
-#define CLOUDS3D_SCATTERING_ALBEDO 0.7
+#define CLOUDS3D_ALTITUDE 500 // [300 400 500 600 700 800 900 1000]
+#define CLOUDS3D_THICKNESS_MULT 1 // [0.5 0.6 0.7 0.8 0.9 1 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2]
+#define CLOUDS3D_SCALE 0.5
 
-#define CLOUDS3D_ALTITUDE_MAX 900
-#define CLOUDS3D_ALTITUDE_MIN 600
-#define CLOUDS3D_THICKNESS (CLOUDS3D_ALTITUDE_MAX - CLOUDS3D_ALTITUDE_MIN)
+#define CLOUDS3D_THICKNESS (CLOUDS3D_ALTITUDE * CLOUDS3D_THICKNESS_MULT)
+#define CLOUDS3D_ALTITUDE_MIN CLOUDS3D_ALTITUDE
+#define CLOUDS3D_ALTITUDE_MAX (CLOUDS3D_ALTITUDE + CLOUDS3D_THICKNESS)
+
+#define CLOUDS3D_DENSITY 1.3e1
+#define CLOUDS3D_ATTENUATION_COEFFICIENT (CLOUDS3D_DENSITY / CLOUDS3D_THICKNESS)
+#define CLOUDS3D_SCATTERING_ALBEDO 0.99
+
+#define CLOUDS3D_MULTISCATTER_STRENGTH 0.75 // 0 to 1
+#define CLOUDS3D_MULTISCATTER_SCALE_VIEW 0.5 // 0 to 1
+#define CLOUDS3D_MULTISCATTER_COEFF (CLOUDS3D_SCATTERING_ALBEDO * CLOUDS3D_MULTISCATTER_STRENGTH)
+#define CLOUDS3D_MULTISCATTER_COEFF_VIEW (CLOUDS3D_MULTISCATTER_COEFF * CLOUDS3D_MULTISCATTER_SCALE_VIEW)
 
 //--// Shape //---------------------------------------------------------------//
 
@@ -51,15 +64,12 @@ float Get3DCloudDensity(vec3 position, float coreDistance, float coverage, const
 	#ifdef CLOUDS3D_USE_WORLD_TIME
 		float cloudsTime = (worldDay % 128 + worldTime / 24000.0) * CLOUDS3D_SPEED;
 	#else
-		float cloudsTime = frameTimeCounter * (1.0 / 1200.0) * CLOUDS3D_SPEED;
+		float cloudsTime = frameTimeCounter * CLOUDS3D_SPEED / 1200.0;
 	#endif
-
-	float cloudAltitude = coreDistance - atmosphere_planetRadius;
-	      cloudAltitude = (cloudAltitude - CLOUDS3D_ALTITUDE_MIN) / CLOUDS3D_THICKNESS;
 
 	//--// Noise
 
-	position = position * 1e-3 + cloudsTime;
+	position = position * (CLOUDS3D_SCALE / CLOUDS3D_ALTITUDE_MIN) + cloudsTime;
 
 	#ifdef CLOUDS3D_NOISE_SMOOTH
 		#define GetClouds3DNoise(pos) GetNoiseSmooth(pos)
@@ -78,11 +88,14 @@ float Get3DCloudDensity(vec3 position, float coreDistance, float coverage, const
 
 	//--// Apply coverage
 
-	float falloffCoverage = LinearStep(0.0, 0.3, cloudAltitude) * LinearStep(1.0, 0.7, cloudAltitude);
+	float cloudAltitude = coreDistance - atmosphere_planetRadius;
+	      cloudAltitude = (cloudAltitude - CLOUDS3D_ALTITUDE_MIN) / CLOUDS3D_THICKNESS;
+
+	float falloffCoverage = LinearStep(0.0, 0.2, cloudAltitude) * LinearStep(1.0, 0.5, cloudAltitude);
 	      falloffCoverage = falloffCoverage * Clamp01(coverage) + Clamp01(1.0 - coverage);
 
 	density = Clamp01(density + coverage * falloffCoverage - 1.0);
-	density = 1.0 - Pow4(1.0 - density);
+	density = sqrt(1.0 - Pow12(1.0 - density));
 
 	return density;
 }
@@ -156,7 +169,7 @@ float Calculate3DCloudsOpticalDepthUp(vec3 position, float coverage) { // Simple
 	float coreDistance = length(corePosition);
 
 	float altitude = coreDistance - atmosphere_planetRadius;
-	float airmass = 0.5 * coverage * (CLOUDS3D_THICKNESS + CLOUDS3D_ALTITUDE_MIN - altitude);
+	float airmass = coverage * (CLOUDS3D_THICKNESS + CLOUDS3D_ALTITUDE_MIN - altitude);
 	return CLOUDS3D_ATTENUATION_COEFFICIENT * airmass;
 }
 
@@ -178,8 +191,8 @@ float Calculate3DCloudsOpticalDepthUp(vec3 position, float coverage) { // Simple
 		float opticalDepth = Calculate3DCloudsOpticalDepth(position, shadowLightVector, coverage, CLOUDS3D_SELFSHADOW_RANGE_SUN, CLOUDS3D_SELFSHADOW_STEPS_SUN);
 
 		// TODO: Merge single & multiple scattering, and blend phase function towards isotropic based on optical depth (and scattering albedo)
-		float single = phase       * exp(-opticalDepth);
-		float multi  = (0.25 / pi) * (1.0 - exp(-CLOUDS3D_SCATTERING_ALBEDO * opticalDepth)) * exp((CLOUDS3D_SCATTERING_ALBEDO - 1.0) * opticalDepth);
+		float single = phase * exp(-opticalDepth);
+		float multi  = (0.25 / pi) * (1.0 - exp(-CLOUDS3D_MULTISCATTER_COEFF * opticalDepth)) * exp((CLOUDS3D_MULTISCATTER_COEFF - 1.0) * opticalDepth);
 
 		return single + multi;
 	}
@@ -192,9 +205,7 @@ float Calculate3DCloudsOpticalDepthUp(vec3 position, float coverage) { // Simple
 			float opticalDepth = Calculate3DCloudsOpticalDepthUp(position, coverage, CLOUDS3D_SELFSHADOW_STEPS_SKY);
 		#endif
 
-		opticalDepth *= 0.2; // Really inaccurate, but needed to get skylight to look right-ish.
-
-		return phase * exp((CLOUDS3D_SCATTERING_ALBEDO - 1.0) * opticalDepth);
+		return phase * exp((CLOUDS3D_MULTISCATTER_COEFF - 1.0) * opticalDepth);
 	}
 
 	vec4 Calculate3DClouds(vec3 viewVector, float dither) {
@@ -218,9 +229,8 @@ float Calculate3DCloudsOpticalDepthUp(vec3 position, float coverage) { // Simple
 		vec2 innerDistances = RaySphereIntersection(vec3(0.0, atmosphere_planetRadius + eyeAltitude, 0.0), viewVector, atmosphere_planetRadius + CLOUDS3D_ALTITUDE_MIN);
 		bool innerIntersected = innerDistances.y >= 0.0;
 
-		// Assuming that we're inside the inner sphere
-		float startDistance = innerDistances.y;
-		float endDistance   = outerDistances.y;
+		float startDistance = eyeAltitude < CLOUDS3D_ALTITUDE_MIN ? innerDistances.y : (eyeAltitude > CLOUDS3D_ALTITUDE_MAX ? outerDistances.x : 0.0);
+		float endDistance   = eyeAltitude < CLOUDS3D_ALTITUDE_MIN ? outerDistances.y : (innerIntersected ? innerDistances.x : outerDistances.y);
 
 		float stepSize = (endDistance - startDistance) / steps;
 
@@ -239,14 +249,17 @@ float Calculate3DCloudsOpticalDepthUp(vec3 position, float coverage) { // Simple
 			//--// Attenuation and unlit scattering
 
 			/* Unoptimized version
-			float stepTransmittedFraction = Clamp01((exp((CLOUDS3D_SCATTERING_ALBEDO - 1.0) * stepOpticalDepth) - 1.0) / ((CLOUDS3D_SCATTERING_ALBEDO - 1.0) * stepOpticalDepth)); // Fraction of light scattered in the step towards the viewer that leaves the step
-			float stepVisibleFraction     = exp((CLOUDS3D_SCATTERING_ALBEDO - 1.0) * opticalDepth) * stepTransmittedFraction;                                                      // Fraction of light scattered in the step towards the viewer that reaches the viewer
+			float stepTransmittedFraction = Clamp01((exp((CLOUDS3D_MULTISCATTER_COEFF_VIEW - 1.0) * stepOpticalDepth) - 1.0) / ((CLOUDS3D_MULTISCATTER_COEFF_VIEW - 1.0) * stepOpticalDepth)); // Fraction of light scattered in the step towards the viewer that leaves the step
+			float stepVisibleFraction     = exp((CLOUDS3D_MULTISCATTER_COEFF_VIEW - 1.0) * opticalDepth) * stepTransmittedFraction;                                                            // Fraction of light scattered in the step towards the viewer that reaches the viewer
 
-			float stepScatteringUnlit = CLOUDS3D_SCATTERING_ALBEDO * stepOpticalDepth * stepVisibleFraction;
+			// View ray doesn't have as much multiscattering to help prevent some issues from being noticeable, this is used to get the brightness back up
+			const float multiscatterRatio = (1.0 - CLOUDS3D_MULTISCATTER_COEFF_VIEW) / (1.0 - CLOUDS3D_MULTISCATTER_COEFF);
+
+			float stepScatteringUnlit = CLOUDS3D_SCATTERING_ALBEDO * multiscatterRatio * stepOpticalDepth * stepVisibleFraction;
 			//*/
 
-			const float c1 = CLOUDS3D_SCATTERING_ALBEDO - 1.0, c2 = 1.0 / (1.0 - CLOUDS3D_SCATTERING_ALBEDO);
-			float stepScatteringUnlit = CLOUDS3D_SCATTERING_ALBEDO * exp(c1 * opticalDepth) * (c2 - c2 * exp(c1 * stepOpticalDepth));
+			const float c1 = CLOUDS3D_MULTISCATTER_COEFF_VIEW - 1.0, c2 = CLOUDS3D_SCATTERING_ALBEDO / (1.0 - CLOUDS3D_MULTISCATTER_COEFF);
+			float stepScatteringUnlit = exp(c1 * opticalDepth) * (c2 - c2 * exp(c1 * stepOpticalDepth));
 
 			//--// Light and ccumulate
 

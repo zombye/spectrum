@@ -244,7 +244,7 @@ const int shadowMapResolution = 2048; // Default if not set: 1024 [512 768 1024 
 
 //--// Sky //-----------------------------------------------------------------//
 
-#define SKY_RENDER_LOD 1 // [0 1]
+#define SKY_RENDER_LOD 0 // [0 1]
 #define SKY_IMAGE_LOD 1 // [0 1]
 
 //--// Clouds
