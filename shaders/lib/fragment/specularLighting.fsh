@@ -163,7 +163,7 @@ vec3 CalculateSpecularHighlight(float NoL, float NoV, float LoV, float VoH, floa
 		if (isEyeInWater == 1) {
 			result = CalculateWaterFog(result, position[2], hitPositionScene, rayDirectionWorld, LoV, skyFade, dither, !intersected);
 		} else {
-			result = CalculateAirFog(result, position[2], hitPositionScene, rayDirectionWorld, LoV, skyFade, dither, !intersected);
+			result = CalculateAirFog(result, position[2], hitPositionScene, rayDirectionWorld, LoV, skyFade, skyFade, dither, !intersected);
 		}
 
 		return result;

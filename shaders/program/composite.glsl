@@ -186,7 +186,9 @@ uniform vec3 shadowLightVector;
 	#include "/lib/shared/atmosphere/density.glsl"
 	#include "/lib/shared/atmosphere/phase.glsl"
 
-	vec3 CalculateAirFog(vec3 background, vec3 startPosition, vec3 endPosition, vec3 viewVector, float LoV, float skylight, float dither, bool sky) {
+	vec3 CalculateAirFog(vec3 background, vec3 startPosition, vec3 endPosition, vec3 viewVector, float LoV, float startSkylight, float endSkylight, float dither, bool sky) {
+		float skylight = startSkylight * (1.0 - endSkylight) + endSkylight;
+
 		vec2 phaseSun = AtmospherePhases(LoV, atmosphere_mieg);
 		const vec2 phaseSky = vec2(0.25 / pi);
 
@@ -257,14 +259,12 @@ uniform vec3 shadowLightVector;
 
 			vec3 scattering = scatteringSun + scatteringSky;
 		#else
-			vec3 lightingSky = illuminanceSky * skylight;
-			vec3 lightingSun = illuminanceShadowlight * skylight * GetCloudShadows(startPosition);
+			phaseSun.y *= endSkylight;
 
-			if (sky) {
-				return background;
-			}
+			vec3 lightingSky = illuminanceSky * startSkylight;
+			vec3 lightingSun = illuminanceShadowlight * startSkylight * GetCloudShadows(startPosition);
 
-			float depth = FOG_AIR_DENSITY * distance(startPosition, endPosition);
+			float depth = FOG_AIR_DENSITY * (sky ? far : distance(startPosition, endPosition));
 			vec3 opticalDepth = baseAttenuationCoefficient * depth;
 
 			vec3 transmittance   = exp(-opticalDepth);
@@ -590,7 +590,7 @@ uniform vec3 shadowLightVector;
 				if (isEyeInWater != 1 && (blockId == 8 || blockId == 9)) { // Water fog
 					color = CalculateWaterFog(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, dither, backIsSky);
 				} else { // Air fog
-					color = CalculateAirFog(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, dither, backIsSky);
+					color = CalculateAirFog(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, skylightFade, dither, backIsSky);
 				}
 
 				// Apply transparents
@@ -621,7 +621,7 @@ uniform vec3 shadowLightVector;
 			} else if (isEyeInWater == 2) { // Lava fog
 				// TODO
 			} else { // Air fog
-				color = CalculateAirFog(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight * (1.0 - skylightFade) + skylightFade, dither, false);
+				color = CalculateAirFog(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight, skylightFade, dither, false);
 			}
 		} else { // Sky
 			color = DecodeRGBE8(texture(colortex4, screenCoord));
@@ -631,7 +631,7 @@ uniform vec3 shadowLightVector;
 			} else if (isEyeInWater == 2) { // Lava fog
 				// TODO
 			} else { // Air fog
-				color = CalculateAirFog(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight, dither, true);
+				color = CalculateAirFog(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight, 1.0, dither, true);
 			}
 		}
 
