@@ -331,7 +331,7 @@ uniform vec3 shadowLightVector;
 
 		return cosHorizonAngle;
 	}
-	vec4 CalculateHBAO(vec3 position, vec3 viewVector, vec3 normal, float dither, const int ditherSize) {
+	vec4 CalculateHBAO(vec3 position, vec3 viewVector, vec3 normal, float dither, const float ditherSize) {
 		dither += 0.5 / ditherSize;
 
 		float NoV = dot(normal, viewVector);
