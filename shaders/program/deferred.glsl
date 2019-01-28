@@ -155,14 +155,15 @@ uniform vec3 shadowLightVector;
 		/* DRAWBUFFERS:346 */
 	#endif
 
-	layout (location = 0) out float cloudTransmittance;
-	layout (location = 1) out vec4  scatteringEncode;
-	layout (location = 2) out vec4  skyImage_cloudShadow;
+	layout (location = 0) out vec4 cloudTransmittance_ao;
+	layout (location = 1) out vec4 scatteringEncode;
+	layout (location = 2) out vec4 skyImage_cloudShadow;
 
 	//--// Fragment Libraries
 
 	#include "/lib/utility/dithering.glsl"
 	#include "/lib/utility/packing.glsl"
+	#include "/lib/utility/rotation.glsl"
 	#include "/lib/utility/spaceConversion.glsl"
 
 	#include "/lib/shared/shadowDistortion.glsl"
@@ -173,6 +174,156 @@ uniform vec3 shadowLightVector;
 	#include "/lib/fragment/clouds3D.fsh"
 
 	//--// Fragment Functions
+
+	#if AO_METHOD == AO_HBAO || defined RSM
+		float GetLinearDepth(sampler2D depthSampler, vec2 coord) {
+			//float depth = texelFetch(depthSampler, ivec2(coord * viewResolution), 0).r + gbufferProjectionInverse[1].y*exp2(-3.0);
+			//return ScreenSpaceToViewSpace(depth, gbufferProjectionInverse);
+
+			// Interpolates after linearizing, significantly reduces a lot of issues for screen-space shadows
+			coord = coord * viewResolution + 0.5;
+
+			vec2  f = fract(coord);
+			ivec2 i = ivec2(coord - f);
+
+			vec4 s = textureGather(depthSampler, i / viewResolution) * 2.0 - 1.0;
+			     s = 1.0 / (gbufferProjectionInverse[2].w * s + gbufferProjectionInverse[3].w);
+
+			s.xy = mix(s.wx, s.zy, f.x);
+			return mix(s.x,  s.y,  f.y) * gbufferProjectionInverse[3].z;
+		}
+	#endif
+
+	#if AO_METHOD == AO_HBAO
+		float CalculateCosBaseHorizonAngle(
+			vec3  Po,   // Point on the plane
+			vec3  Td,   // Direction to get tangent vector for
+			vec3  L,    // (Normalized) Vector in the direction of the line
+			vec3  N,    // Normal vector to the plane
+			float LdotN // Dot product of L and N
+		) {
+			vec3 negPoLd = Td - Po;
+
+			float D = -dot(negPoLd, N) / LdotN;
+			float Mu = dot(negPoLd, L);
+
+			return (Mu + D) * inversesqrt(D * D + 2.0 * Mu * D + dot(negPoLd, negPoLd));
+		}
+		float CalculateCosHorizonAngle(vec3 horizonDirection, vec3 position, vec3 viewVector, vec3 normal, float NoV, float sampleOffset) {
+			float cosHorizonAngle = CalculateCosBaseHorizonAngle(position, horizonDirection, viewVector, normal, NoV);
+
+			for (int i = 0; i < HBAO_ANGLE_SAMPLES; ++i) {
+				float sampleRadius = Pow2(float(i) / float(HBAO_ANGLE_SAMPLES) + sampleOffset);
+				vec2 sampleCoord = ViewSpaceToScreenSpace(position + horizonDirection * sampleRadius * AO_RADIUS, gbufferProjection).xy;
+
+				if (Clamp01(sampleCoord) != sampleCoord) { break; }
+
+				//vec3 samplePosition = vec3(sampleCoord, texture(depthtex1, sampleCoord).r);
+				//     samplePosition = ScreenSpaceToViewSpace(samplePosition, gbufferProjectionInverse);
+				vec3 samplePosition = vec3(sampleCoord * 2.0 - 1.0, GetLinearDepth(depthtex1, sampleCoord));
+				#ifdef TAA
+					samplePosition.xy -= taaOffset;
+				#endif
+				samplePosition.xy *= Diagonal(gbufferProjectionInverse).xy * -samplePosition.z;
+				samplePosition.z += samplePosition.z * 2e-4; // done to prevent overocclusion in some cases
+
+				vec3  sampleVector          = samplePosition - position;
+				float sampleDistanceSquared = dot(sampleVector, sampleVector);
+
+				if (sampleDistanceSquared > AO_RADIUS * AO_RADIUS) { continue; }
+
+				float cosSampleAngle = dot(viewVector, sampleVector) * inversesqrt(sampleDistanceSquared);
+
+				cosHorizonAngle = max(cosHorizonAngle, cosSampleAngle);
+			}
+
+			return cosHorizonAngle;
+		}
+		vec4 CalculateHBAO(vec3 position, vec3 viewVector, vec3 normal, float dither, const float ditherSize) {
+			dither += 0.5 / ditherSize;
+
+			float NoV = dot(normal, viewVector);
+
+			vec3 normal2 = Rotate(normal, viewVector, vec3(0,0,1));
+			float phiN = atan(normal2.x, normal2.y), thetaN = acos(normal2.z);
+			float sinThetaN = sin(thetaN);
+			float cosThetaN = normal2.z;
+
+			vec4 result = vec4(0.0); // xyz = direction, w = angle
+			for (int i = 0; i < HBAO_DIRECTIONS; ++i) {
+				float idx = i + dither;
+				float phi = idx * pi / HBAO_DIRECTIONS;
+				vec2 xy = SinCos(phi);
+				vec3 horizonDirection = Rotate(vec3(xy, 0.0), vec3(0,0,1), viewVector);
+
+				//--// Get cosine horizon angles
+
+				float sampleOffset = fract(idx * ditherSize * phi) / HBAO_ANGLE_SAMPLES;
+
+				float cosTheta1 = CalculateCosHorizonAngle( horizonDirection, position, viewVector, normal, NoV, sampleOffset);
+				float cosTheta2 = CalculateCosHorizonAngle(-horizonDirection, position, viewVector, normal, NoV, sampleOffset);
+
+				//--// Integrate over theta
+
+				// Parts that are reused
+				float theta1 = acos(clamp(cosTheta1, -1.0, 1.0));
+				float theta2 = acos(clamp(cosTheta2, -1.0, 1.0));
+				float sinTheta1 = sin(theta1);
+				float sinTheta2 = sin(theta2);
+				float sinThetaSq1 = sinTheta1 * sinTheta1;
+				float sinThetaSq2 = sinTheta2 * sinTheta2;
+				float cu1MinusCu2 = sinThetaSq1 * sinTheta1 - sinThetaSq2 * sinTheta2;
+
+				float temp = cos(phiN - phi) * sinThetaN;
+
+				// Average non-occluded direction
+				float xym = cos(3.0 * theta1) + cos(3.0 * theta2) - 9.0 * (cosTheta1 + cosTheta2);
+				      xym = temp * (0.25 * xym + 4.0) + cosThetaN * cu1MinusCu2;
+
+				result.xy += xy * xym;
+				result.z  += temp * cu1MinusCu2 + cosThetaN * (2.0 - Pow3(cosTheta1) - Pow3(cosTheta2));
+
+				// AO
+				result.w += temp * (theta1 + 0.5 * (sin(2.0 * theta2) - sin(2.0 * theta1)) - theta2);
+				result.w += cosThetaN * (sinThetaSq1 + sinThetaSq2);
+			}
+
+			result.xyz = Rotate(result.xyz, vec3(0, 0, 1), viewVector);
+
+			float coneLength = length(result.xyz);
+			result.xyz = coneLength <= 0.0 ? normal : result.xyz / coneLength;
+			result.w /= 2.0 * HBAO_DIRECTIONS;
+
+			return result;
+		}
+	#elif AO_METHOD == AO_RTAO
+		float RTAO(mat3 position, vec3 normal, float dither, out vec3 lightdir) {
+			const int rays = RTAO_RAYS;
+			normal = mat3(gbufferModelView) * normal;
+
+			lightdir = vec3(0.0);
+			float ao = 0.0;
+			for (int i = 0; i < rays; ++i) {
+				vec3 dir = GenerateUnitVector(Hash2(vec2(dither, i / float(rays))));
+				float NoL = dot(dir, normal);
+				if (NoL < 0.0) {
+					dir = -dir;
+					NoL = -NoL;
+				}
+
+				vec3 hitPos = position[0];
+				if (!RaytraceIntersection(hitPos, position[1], dir, dither, AO_RADIUS, RTAO_RAY_STEPS, 4)) {
+					lightdir += dir * NoL;
+					ao += NoL;
+				}
+			}
+			float ldl = dot(lightdir, lightdir);
+			lightdir = ldl == 0.0 ? normal : lightdir * inversesqrt(ldl);
+			lightdir = mat3(gbufferModelViewInverse) * lightdir;
+
+			return ao * 2.0 / rays;
+		}
+	#endif
 
 	#ifdef RSM
 		vec3 ReflectiveShadowMaps(vec3 position, vec3 normal, float skylight, float dither, const float ditherSize) {
@@ -315,14 +466,16 @@ uniform vec3 shadowLightVector;
 		      dither = fract(dither + LinearBayer16(frameCounter));
 		#endif
 
-		//--// RSM //---------------------------------------------------------//
+		//--// AO & RSM //----------------------------------------------------//
 
-		#ifdef RSM
+		#if AO_METHOD != AO_VERTEX || defined RSM
 			if (screenCoord.x < 0.5 && screenCoord.y < 0.5) {
 				mat3 position;
-				position[0] = vec3(screenCoord * 2.0, texture(depthtex1, screenCoord * 2.0).r);
-				position[1] = ScreenSpaceToViewSpace(position[0], gbufferProjectionInverse);
-				position[2] = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
+				position[0].xy = screenCoord * 2.0;
+				position[1]    = GetViewDirection(screenCoord * 2.0, gbufferProjectionInverse);
+				position[1]    = position[1] * GetLinearDepth(depthtex1, position[0].xy) / position[1].z;
+				position[0].z  = ViewSpaceToScreenSpace(position[1].z, gbufferProjection);
+				position[2]    = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
 
 				vec3 normal = DecodeNormal(Unpack2x8(texelFetch(colortex1, ivec2(gl_FragCoord.st * 2.0), 0).a) * 2.0 - 1.0);
 				float skylight = Unpack2x8Y(texelFetch(colortex0, ivec2(gl_FragCoord.st * 2.0), 0).b);
@@ -330,10 +483,27 @@ uniform vec3 shadowLightVector;
 				const float ditherSize = 8.0 * 8.0;
 				float dither = Bayer8(gl_FragCoord.st);
 
-				vec3 rsm = ReflectiveShadowMaps(position[2], normal, skylight, dither, ditherSize);
-				rsmEncode = EncodeRGBE8(rsm);
+				#ifdef RSM
+					vec3 rsm = ReflectiveShadowMaps(position[2], normal, skylight, dither, ditherSize);
+					rsmEncode = EncodeRGBE8(rsm);
+				#endif
+
+				#if AO_METHOD == AO_HBAO
+					#ifdef TAA
+						dither = fract(dither + LinearBayer16(frameCounter));
+					#endif
+
+					vec4 hbao = CalculateHBAO(position[1], -normalize(position[1]), mat3(gbufferModelView) * normal, dither, ditherSize);
+					cloudTransmittance_ao.bg = EncodeNormal(mat3(gbufferModelViewInverse) * hbao.xyz);
+					cloudTransmittance_ao.a  = hbao.w;
+				#endif
 			} else {
-				rsmEncode = vec4(0.0);
+				#ifdef RSM
+					rsmEncode = vec4(0.0);
+				#endif
+				#if AO_METHOD != AO_VERTEX
+					cloudTransmittance_ao.bga = vec3(0.0, 0.0, 1.0);
+				#endif
 			}
 		#endif
 
@@ -350,7 +520,7 @@ uniform vec3 shadowLightVector;
 			position[2] = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
 			vec3 viewVector = normalize(position[2] - gbufferModelViewInverse[3].xyz);
 
-			cloudTransmittance = 1.0;
+			cloudTransmittance_ao.r = 1.0;
 			#ifdef CLOUDS3D
 				vec3 scattering = vec3(0.0);
 
@@ -395,7 +565,7 @@ uniform vec3 shadowLightVector;
 
 						vec4 clouds3D = Calculate3DClouds(viewVector, dither);
 						scattering += clouds3D.rgb * transmittance; transmittance *= clouds3D.a;
-						cloudTransmittance *= clouds3D.a;
+						cloudTransmittance_ao.r *= clouds3D.a;
 
 						scattering += atmosphereScattering * transmittance;
 					#endif
@@ -430,7 +600,7 @@ uniform vec3 shadowLightVector;
 
 			scatteringEncode = EncodeRGBE8(scattering);
 		} else {
-			cloudTransmittance = 1.0;
+			cloudTransmittance_ao.r = 1.0;
 			scatteringEncode = vec4(0.0);
 		}
 

@@ -26,6 +26,11 @@ vec3 ScreenSpaceToViewSpace(vec3 screenPosition, mat4 projectionInverse) {
 
 vec3 GetViewDirection(vec2 uv, mat4 projectionInverse) {
 	uv = uv * 2.0 - 1.0;
+
+	#ifdef TAA
+		uv -= taaOffset;
+	#endif
+
 	uv = vec2(projectionInverse[0].x, projectionInverse[1].y) * uv + projectionInverse[3].xy;
 
 	return normalize(vec3(uv, projectionInverse[3].z));
