@@ -95,7 +95,7 @@ float Get3DCloudDensity(vec3 position, float coreDistance, float coverage, const
 	      falloffCoverage = falloffCoverage * Clamp01(coverage) + Clamp01(1.0 - coverage);
 
 	density = Clamp01(density + coverage * falloffCoverage - 1.0);
-	density = sqrt(1.0 - Pow12(1.0 - density));
+	density = 1.0 - Pow16(1.0 - density);
 
 	return density;
 }
