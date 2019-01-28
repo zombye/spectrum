@@ -78,6 +78,10 @@ vec3 CalculateDiffuseLighting(
 ) {
 	vec3 diffuseLighting = vec3(0.0);
 
+	#ifdef LIGHTING_ONLY
+		material.albedo = vec3(1.0);
+	#endif
+
 	vec3 hemisphereDiffuse = DiffuseHammonAmbient(NoV, material.albedo, material.roughness);
 
 	#ifdef GLOBAL_LIGHT_FADE_WITH_SKYLIGHT
@@ -130,10 +134,8 @@ vec3 CalculateDiffuseLighting(
 	// Ambient light (so you can see anything at all in unlit caves caves)
 	diffuseLighting += hemisphereDiffuse * ao * mix(0.002, 0.005, screenBrightness) * NIGHT_SKY_BRIGHTNESS;
 
-	// Done outside all the functions, common small optimization (and makes a "lighting-only" view easy)
-	#ifndef LIGHTING_ONLY
-		diffuseLighting *= material.albedo;
-	#endif
+	// Done outside all the functions, common small optimization
+	diffuseLighting *= material.albedo;
 
 	return diffuseLighting;
 }
