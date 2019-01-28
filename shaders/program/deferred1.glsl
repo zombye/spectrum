@@ -59,7 +59,10 @@ uniform sampler2D colortex3; // Clouds Transmittance
 uniform sampler2D colortex4; // Sky Encode
 uniform sampler2D colortex5; // Sky Scattering LUT
 uniform sampler2D colortex6; // Sky Scattering Image
-uniform sampler2D colortex7; // Sky Transmittance LUT
+uniform sampler2D colortex7; // Misc encoded stuff
+
+uniform sampler2D depthtex0; // Sky Transmittance LUT
+#define transmittanceLut depthtex0
 
 uniform sampler2D noisetex;
 
@@ -146,7 +149,7 @@ uniform vec3 shadowLightVector;
 		skylightNegY *= sampleWeight;
 		skylightNegZ *= sampleWeight;
 
-		vec3 shadowlightTransmittance  = AtmosphereTransmittance(colortex7, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
+		vec3 shadowlightTransmittance  = AtmosphereTransmittance(transmittanceLut, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
 		     shadowlightTransmittance *= smoothstep(0.0, 0.01, abs(shadowLightVector.y));
 		luminanceShadowlight   = (sunAngle < 0.5 ? sunLuminance   : moonLuminance)   * shadowlightTransmittance;
 		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : moonIlluminance) * shadowlightTransmittance;
@@ -219,8 +222,36 @@ uniform vec3 shadowLightVector;
 	//--// Fragment Functions
 
 	vec4 FilterAo(vec3 flatNormal, float depth) {
-		vec3 hbao = texelFetch(colortex3, ivec2(gl_FragCoord.st) / 2, 0).bga;
-		return vec4(DecodeNormal(hbao.xy), hbao.z);
+		ivec2 fragCoord = ivec2(gl_FragCoord.st) / 2;
+		ivec2 shift     = ivec2(gl_FragCoord.st) % 2;
+
+		vec4 hbao = texelFetch(colortex7, fragCoord, 0);
+		hbao.xyz = hbao.xyz * 2.0 - 1.0;
+
+		float weightSum = 1.0;
+		for (int x = -2; x < 2; ++x) {
+			for (int y = -2; y < 2; ++y) {
+				ivec2 offset = ivec2(x, y) + shift;
+				if (offset.x == 0 && offset.y == 0) { continue; }
+
+				vec3 normalSample = DecodeNormal(Unpack2x8(texelFetch(colortex1, (fragCoord + offset) * 2, 0).a) * 2.0 - 1.0);
+				float depthSample = GetLinearDepth(depthtex1, vec2(fragCoord + offset) * viewPixelSize * 2.0);
+
+				float weight  = pow(Clamp01(dot(normalSample, flatNormal)), 4.0);
+				      weight *= Clamp01(1.0 - abs(depthSample - depth));
+
+				vec4 hbaoSample = texelFetch(colortex7, fragCoord + offset, 0);
+				hbaoSample.xyz = hbaoSample.xyz * 2.0 - 1.0;
+
+				hbao += hbaoSample * weight;
+				weightSum += weight;
+			}
+		}
+
+		hbao.xyz = normalize(hbao.xyz);
+		hbao.w /= weightSum;
+
+		return hbao;
 	}
 
 	// --
@@ -236,10 +267,11 @@ uniform vec3 shadowLightVector;
 	}
 
 	vec3 FilterRSM(vec3 normalFlat, float linearDepth) {
+		ivec2 res       = ivec2(viewResolution / 2);
 		ivec2 fragCoord = ivec2(gl_FragCoord.st) / 2;
 		ivec2 shift     = ivec2(gl_FragCoord.st) % 2;
 
-		vec3 result = DecodeRGBE8(texelFetch(colortex2, fragCoord, 0));
+		vec3 result = texelFetch(colortex7, fragCoord + ivec2(res.x, 0), 0).rgb;
 		float weightAccum = 1.0;
 
 		for (int x = -4; x < 4; ++x) {
@@ -252,7 +284,7 @@ uniform vec3 shadowLightVector;
 				float weight = pow(Clamp01(dot(sampleNormal, normalFlat)), 4.0);
 				      weight *= Clamp01(1.0 - abs(sampleDepth - linearDepth));
 
-				result += weight * DecodeRGBE8(texelFetch(colortex2, fragCoord + offset, 0));
+				result += weight * texelFetch(colortex7, clamp(fragCoord + offset, ivec2(0), res) + ivec2(res.x, 0), 0).rgb;
 				weightAccum += weight;
 			}
 		}
@@ -466,7 +498,7 @@ uniform vec3 shadowLightVector;
 			color  = CalculateStars(vec3(0.0), viewVector);
 			color  = CalculateSun(color, viewVector, sunVector);
 			color  = CalculateMoon(color, viewVector, moonVector);
-			color *= AtmosphereTransmittance(colortex7, vec3(0.0, atmosphere_planetRadius + eyeAltitude, 0.0), viewVector);
+			color *= AtmosphereTransmittance(transmittanceLut, vec3(0.0, atmosphere_planetRadius + eyeAltitude, 0.0), viewVector);
 
 			vec4 sky;
 			sky.rgb = DecodeRGBE8(texelFetch(colortex4, ivec2(screenCoord * exp2(-SKY_RENDER_LOD) * viewResolution), 0));
@@ -478,7 +510,7 @@ uniform vec3 shadowLightVector;
 
 				float clouds2DDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_planetRadius + CLOUDS2D_ALTITUDE).y;
 
-				vec3 transmittance = AtmosphereTransmittance(colortex7, viewPosition, viewVector, clouds2DDistance) * sky.a;
+				vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, clouds2DDistance) * sky.a;
 
 				vec3 clouds2DPosition = clouds2DDistance * viewVector + viewPosition;
 				vec3 atmosphereScattering  = AtmosphereScattering(colortex5, clouds2DPosition, viewVector, sunVector ) * sunIlluminance;

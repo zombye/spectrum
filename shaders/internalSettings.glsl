@@ -19,7 +19,7 @@ const int colortex3Format = RGBA16F;    // Feedback: TAA, Exposure | Also used a
 const int colortex4Format = RGBA8;      // RGBE8 encode
 const int colortex5Format = RG16_SNORM; // Sky Scattering LUT throughout deferred, otherwise stores velocity vectors
 const int colortex6Format = RGBA16F;    // Sky Scattering Image & cloud shadow, then loddable color, then bloom
-const int colortex7Format = RGBA8;      // Sky Transmittance LUT
+const int colortex7Format = RGBA16;     // Some misc half-res stuff
 
 const bool colortex2Clear = false;
 const bool colortex3Clear = false;

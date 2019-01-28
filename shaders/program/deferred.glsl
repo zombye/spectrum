@@ -17,6 +17,7 @@ uniform float wetness;
 
 uniform float eyeAltitude;
 uniform vec3 cameraPosition;
+uniform vec3 previousCameraPosition;
 
 // Time
 uniform int   frameCounter;
@@ -28,8 +29,10 @@ uniform int worldTime;
 // Gbuffer Uniforms
 uniform mat4 gbufferModelView;
 uniform mat4 gbufferModelViewInverse;
+uniform mat4 gbufferPreviousModelView;
 uniform mat4 gbufferProjection;
 uniform mat4 gbufferProjectionInverse;
+uniform mat4 gbufferPreviousProjection;
 
 uniform sampler2D depthtex1;
 
@@ -50,8 +53,11 @@ uniform mat4 shadowProjectionInverse;
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
 uniform sampler2D colortex5; // Sky Scattering LUT
-uniform sampler2D colortex7; // Sky Transmittance LUT
+uniform sampler2D colortex7; // Previous frame data
 uniform sampler2D noisetex;
+
+uniform sampler2D depthtex0; // Sky Transmittance LUT
+#define transmittanceLut depthtex0
 
 // Custom Uniforms
 uniform vec2 viewResolution;
@@ -128,7 +134,7 @@ uniform vec3 shadowLightVector;
 		skyAmbient *= sampleWeight;
 		skyAmbientUp *= sampleWeight;
 
-		vec3 shadowlightTransmittance  = AtmosphereTransmittance(colortex7, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
+		vec3 shadowlightTransmittance  = AtmosphereTransmittance(transmittanceLut, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
 		     shadowlightTransmittance *= smoothstep(0.0, 0.01, abs(shadowLightVector.y));
 		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : (moonIlluminance / NIGHT_SKY_BRIGHTNESS)) * shadowlightTransmittance;
 
@@ -147,10 +153,10 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Outputs
 
-	#ifdef RSM
-		/* DRAWBUFFERS:3462 */
+	#if AO_METHOD != AO_VERTEX || defined RSM
+		/* DRAWBUFFERS:3467 */
 
-		layout (location = 3) out vec4 rsmEncode;
+		layout (location = 3) out vec4 halfres;
 	#else
 		/* DRAWBUFFERS:346 */
 	#endif
@@ -191,6 +197,22 @@ uniform vec3 shadowLightVector;
 
 			s.xy = mix(s.wx, s.zy, f.x);
 			return mix(s.x,  s.y,  f.y) * gbufferProjectionInverse[3].z;
+		}
+
+		vec3 GetVelocity(vec3 position) {
+			//if (position.z >= 1.0) { // Sky doesn't write to the velocity buffer
+				vec3 currentPosition = position;
+
+				position = ScreenSpaceToViewSpace(position, gbufferProjectionInverse);
+				position = mat3(gbufferModelViewInverse) * position + gbufferModelViewInverse[3].xyz;
+				position = position + cameraPosition - previousCameraPosition;
+				position = mat3(gbufferPreviousModelView) * position + gbufferPreviousModelView[3].xyz;
+				position = ViewSpaceToScreenSpace(position, gbufferPreviousProjection);
+
+				return currentPosition - position;
+			//}
+
+			//return texture(colortex5, position.xy).rgb;
 		}
 	#endif
 
@@ -460,54 +482,73 @@ uniform vec3 shadowLightVector;
 	#endif
 
 	void main() {
-		const float ditherSize = 16.0 * 16.0;
-		float dither = Bayer16(gl_FragCoord.st);
-		#ifdef TAA
-		      dither = fract(dither + LinearBayer16(frameCounter));
-		#endif
-
 		//--// AO & RSM //----------------------------------------------------//
 
 		#if AO_METHOD != AO_VERTEX || defined RSM
-			if (screenCoord.x < 0.5 && screenCoord.y < 0.5) {
+			{
+				halfres = vec4(0.0);
+
 				mat3 position;
-				position[0].xy = screenCoord * 2.0;
-				position[1]    = GetViewDirection(screenCoord * 2.0, gbufferProjectionInverse);
+				position[0].xy = fract(screenCoord * 2.0);
+				position[1]    = GetViewDirection(position[0].xy, gbufferProjectionInverse);
 				position[1]    = position[1] * GetLinearDepth(depthtex1, position[0].xy) / position[1].z;
 				position[0].z  = ViewSpaceToScreenSpace(position[1].z, gbufferProjection);
 				position[2]    = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
 
-				vec3 normal = DecodeNormal(Unpack2x8(texelFetch(colortex1, ivec2(gl_FragCoord.st * 2.0), 0).a) * 2.0 - 1.0);
-				float skylight = Unpack2x8Y(texelFetch(colortex0, ivec2(gl_FragCoord.st * 2.0), 0).b);
+				vec3 normal = DecodeNormal(Unpack2x8(texelFetch(colortex1, ivec2(gl_FragCoord.st * 2.0) % ivec2(viewResolution), 0).a) * 2.0 - 1.0);
+				float skylight = Unpack2x8Y(texelFetch(colortex0, ivec2(gl_FragCoord.st * 2.0) % ivec2(viewResolution), 0).b);
 
-				const float ditherSize = 8.0 * 8.0;
-				float dither = Bayer8(gl_FragCoord.st);
+				vec4 prevFrame = texelFetch(colortex7, ivec2(gl_FragCoord.st), 0);
 
-				#ifdef RSM
-					vec3 rsm = ReflectiveShadowMaps(position[2], normal, skylight, dither, ditherSize);
-					rsmEncode = EncodeRGBE8(rsm);
-				#endif
-
-				#if AO_METHOD == AO_HBAO
-					#ifdef TAA
-						dither = fract(dither + LinearBayer16(frameCounter));
-					#endif
-
-					vec4 hbao = CalculateHBAO(position[1], -normalize(position[1]), mat3(gbufferModelView) * normal, dither, ditherSize);
-					cloudTransmittance_ao.bg = EncodeNormal(mat3(gbufferModelViewInverse) * hbao.xyz);
-					cloudTransmittance_ao.a  = hbao.w;
-				#endif
-			} else {
-				#ifdef RSM
-					rsmEncode = vec4(0.0);
-				#endif
 				#if AO_METHOD != AO_VERTEX
-					cloudTransmittance_ao.bga = vec3(0.0, 0.0, 1.0);
+					if (screenCoord.x < 0.5 && screenCoord.y < 0.5) {
+						const float ditherSize = 4.0 * 4.0;
+						float dither = Bayer4(gl_FragCoord.st);
+						      dither = fract(dither + LinearBayer8(frameCounter));
+
+						#if AO_METHOD == AO_HBAO
+							vec3 velocity = GetVelocity(position[0]);
+							vec3 reprojPos = position[0] - velocity;
+							bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
+
+							vec4 hbaoCurr = CalculateHBAO(position[1], -normalize(position[1]), mat3(gbufferModelView) * normal, dither, ditherSize);
+							     hbaoCurr.xyz = mat3(gbufferModelViewInverse) * hbaoCurr.xyz;
+							vec4 hbaoPrev = textureLod(colortex7, reprojPos.xy * 0.5, 0.0);
+							hbaoPrev.xyz = hbaoPrev.xyz * 2.0 - 1.0;
+
+							halfres = mix(hbaoCurr, hbaoPrev, reprojValid ? 0.8 : 0.0);
+							halfres.xyz = normalize(halfres.xyz) * 0.5 + 0.5;
+						#endif
+					}
+				#endif
+
+				#ifdef RSM
+					if (screenCoord.x > 0.5 && screenCoord.y < 0.5) {
+						const float ditherSize = 8.0 * 8.0;
+						float dither = Bayer8(gl_FragCoord.st);
+						      dither = fract(dither + LinearBayer8(frameCounter));
+
+						vec3 velocity = GetVelocity(position[0]);
+						vec3 reprojPos = position[0] - velocity;
+						bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
+
+						vec3 rsmCurr = ReflectiveShadowMaps(position[2], normal, skylight, dither, ditherSize);
+						vec3 rsmPrev = textureLod(colortex7, reprojPos.xy * 0.5 + vec2(0.5, 0.0), 0.0).rgb;
+
+						halfres.rgb = mix(rsmCurr, rsmPrev, reprojValid ? 0.8 : 0.0);
+						halfres.a = 1.0;
+					}
 				#endif
 			}
 		#endif
 
 		//--// Sky //---------------------------------------------------------//
+
+		const float ditherSize = 16.0 * 16.0;
+		float dither = Bayer16(gl_FragCoord.st);
+		#ifdef TAA
+		      dither = fract(dither + LinearBayer16(frameCounter));
+		#endif
 
 		vec3 viewPosition  = vec3(0.0, atmosphere_planetRadius + eyeAltitude, 0.0);
 		float cloudCoverage = GetCloudCoverage();
@@ -549,12 +590,12 @@ uniform vec3 shadowLightVector;
 
 					#ifdef CLOUDS3D
 						#ifdef DISTANT_VL
-							transmittance *= AtmosphereTransmittance(colortex7, vlEndPosition, viewVector, Max0(clouds3DDistance - vlEndDistance));
+							transmittance *= AtmosphereTransmittance(transmittanceLut, vlEndPosition, viewVector, Max0(clouds3DDistance - vlEndDistance));
 						#else
 							scattering *= averageCloudTransmittance;
 							float clouds3DDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_planetRadius + CLOUDS3D_ALTITUDE_MIN).y;
 
-							vec3 transmittance = AtmosphereTransmittance(colortex7, viewPosition, viewVector, clouds3DDistance);
+							vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, clouds3DDistance);
 							vec3 atmosphereScattering;
 						#endif
 
@@ -579,7 +620,7 @@ uniform vec3 shadowLightVector;
 
 						mat2x3 distantVl = CloudShadowedAtmosphere(viewPosition, viewVector, vlEndDistance, cloudCoverage, dither);
 						scattering = distantVl[0];
-						vec3 transmittance = AtmosphereTransmittance(colortex7, viewPosition, viewVector, vlEndDistance);
+						vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, vlEndDistance);
 
 						vec3 vlEndPosition = vlEndDistance * viewVector + viewPosition;
 						vec3 atmosphereScattering  = AtmosphereScattering(colortex5, vlEndPosition, viewVector, sunVector ) * sunIlluminance;
@@ -622,7 +663,7 @@ uniform vec3 shadowLightVector;
 						float clouds3DDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_planetRadius + CLOUDS3D_ALTITUDE_MIN).y;
 						vec3  clouds3DPosition = clouds3DDistance * viewVector + viewPosition;
 
-						vec3 transmittance = AtmosphereTransmittance(colortex7, viewPosition, viewVector, clouds3DDistance);
+						vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, clouds3DDistance);
 						vec3 atmosphereScattering;
 
 						atmosphereScattering  = AtmosphereScattering(colortex5, clouds3DPosition, viewVector, sunVector ) * sunIlluminance;
@@ -640,9 +681,9 @@ uniform vec3 shadowLightVector;
 						vec3  clouds2DPosition = clouds2DDistance * viewVector + viewPosition;
 
 						#ifdef CLOUDS3D
-							transmittance *= AtmosphereTransmittance(colortex7, clouds3DPosition, viewVector, clouds2DDistance - clouds3DDistance);
+							transmittance *= AtmosphereTransmittance(transmittanceLut, clouds3DPosition, viewVector, clouds2DDistance - clouds3DDistance);
 						#else
-							vec3 transmittance = AtmosphereTransmittance(colortex7, viewPosition, viewVector, clouds2DDistance);
+							vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, clouds2DDistance);
 							vec3 atmosphereScattering;
 						#endif
 

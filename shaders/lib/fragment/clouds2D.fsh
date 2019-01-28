@@ -116,9 +116,9 @@ vec3 Calculate2DCloudsSunlightAndMoonlight(vec3 position, vec3 viewVector, float
 
 	// TODO: Add shadows cast by other, more distant clouds, as an option.
 
-	vec3 sunlight   = sunIlluminance * AtmosphereTransmittance(colortex7, position, sunVector);
+	vec3 sunlight   = sunIlluminance * AtmosphereTransmittance(transmittanceLut, position, sunVector);
 	     sunlight  *= CloudsPhase2(dot(viewVector, sunVector), vec3(-0.1, 0.3, 0.9), vec3(0.3, 0.6, 0.1));
-	vec3 moonlight  = moonIlluminance * AtmosphereTransmittance(colortex7, position, moonVector);
+	vec3 moonlight  = moonIlluminance * AtmosphereTransmittance(transmittanceLut, position, moonVector);
 	     moonlight *= CloudsPhase2(dot(viewVector, moonVector), vec3(-0.1, 0.3, 0.9), vec3(0.3, 0.6, 0.1));
 
 	vec3 scattering = vec3(0.0);
