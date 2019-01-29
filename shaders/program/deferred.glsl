@@ -491,7 +491,7 @@ uniform vec3 shadowLightVector;
 				mat3 position;
 				position[0].xy = fract(screenCoord * 2.0);
 				position[1]    = GetViewDirection(position[0].xy, gbufferProjectionInverse);
-				position[1]    = position[1] * GetLinearDepth(depthtex1, position[0].xy) / position[1].z;
+				position[1]   *= GetLinearDepth(depthtex1, position[0].xy) / position[1].z;
 				position[0].z  = ViewSpaceToScreenSpace(position[1].z, gbufferProjection);
 				position[2]    = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
 
@@ -502,41 +502,53 @@ uniform vec3 shadowLightVector;
 
 				#if AO_METHOD != AO_VERTEX
 					if (screenCoord.x < 0.5 && screenCoord.y < 0.5) {
-						const float ditherSize = 4.0 * 4.0;
-						float dither = Bayer4(gl_FragCoord.st);
-						      dither = fract(dither + LinearBayer8(frameCounter));
+						if (position[0].z < 1.0) {
+							const float ditherSize = 4.0 * 4.0;
+							float dither = Bayer4(gl_FragCoord.st);
+							dither = fract(dither + LinearBayer8(frameCounter));
 
-						#if AO_METHOD == AO_HBAO
-							vec3 velocity = GetVelocity(position[0]);
-							vec3 reprojPos = position[0] - velocity;
-							bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
+							#if AO_METHOD == AO_HBAO
+								vec3 velocity = GetVelocity(position[0]);
+								vec3 reprojPos = position[0] - velocity;
+								bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
 
-							vec4 hbaoCurr = CalculateHBAO(position[1], -normalize(position[1]), mat3(gbufferModelView) * normal, dither, ditherSize);
-							     hbaoCurr.xyz = mat3(gbufferModelViewInverse) * hbaoCurr.xyz;
-							vec4 hbaoPrev = textureLod(colortex7, reprojPos.xy * 0.5, 0.0);
-							hbaoPrev.xyz = hbaoPrev.xyz * 2.0 - 1.0;
+								vec4 hbaoCurr = CalculateHBAO(position[1], -normalize(position[1]), mat3(gbufferModelView) * normal, dither, ditherSize);
+								hbaoCurr.xyz = mat3(gbufferModelViewInverse) * hbaoCurr.xyz;
+								vec4 hbaoPrev = textureLod(colortex7, reprojPos.xy * 0.5, 0.0);
+								if (hbaoPrev.xyz == vec3(0.0)) {
+									hbaoPrev = vec4(normal, 1.0);
+								} else {
+									hbaoPrev.xyz = hbaoPrev.xyz * 2.0 - 1.0;
+								}
 
-							halfres = mix(hbaoCurr, hbaoPrev, reprojValid ? 0.8 : 0.0);
-							halfres.xyz = normalize(halfres.xyz) * 0.5 + 0.5;
-						#endif
+								halfres = mix(hbaoCurr, hbaoPrev, reprojValid ? 0.8 : 0.0);
+								halfres.xyz = normalize(halfres.xyz) * 0.5 + 0.5;
+							#endif
+						} else {
+							halfres = vec4(0.5, 0.5, 0.5, 1.0);
+						}
 					}
 				#endif
 
 				#ifdef RSM
 					if (screenCoord.x > 0.5 && screenCoord.y < 0.5) {
-						const float ditherSize = 8.0 * 8.0;
-						float dither = Bayer8(gl_FragCoord.st);
-						      dither = fract(dither + LinearBayer8(frameCounter));
+						if (position[0].z < 1.0) {
+							const float ditherSize = 8.0 * 8.0;
+							float dither = Bayer8(gl_FragCoord.st);
+							      dither = fract(dither + LinearBayer8(frameCounter));
 
-						vec3 velocity = GetVelocity(position[0]);
-						vec3 reprojPos = position[0] - velocity;
-						bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
+							vec3 velocity = GetVelocity(position[0]);
+							vec3 reprojPos = position[0] - velocity;
+							bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
 
-						vec3 rsmCurr = ReflectiveShadowMaps(position[2], normal, skylight, dither, ditherSize);
-						vec3 rsmPrev = textureLod(colortex7, reprojPos.xy * 0.5 + vec2(0.5, 0.0), 0.0).rgb;
+							vec3 rsmCurr = ReflectiveShadowMaps(position[2], normal, skylight, dither, ditherSize);
+							vec3 rsmPrev = textureLod(colortex7, reprojPos.xy * 0.5 + vec2(0.5, 0.0), 0.0).rgb;
 
-						halfres.rgb = mix(rsmCurr, rsmPrev, reprojValid ? 0.8 : 0.0);
-						halfres.a = 1.0;
+							halfres.rgb = mix(rsmCurr, rsmPrev, reprojValid ? 0.8 : 0.0);
+							halfres.a = 1.0;
+						} else {
+							halfres = vec4(0.0, 0.0, 0.0, 1.0);
+						}
 					}
 				#endif
 			}

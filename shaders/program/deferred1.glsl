@@ -54,7 +54,6 @@ uniform sampler2D shadowcolor0;
 // Misc samplers
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
-uniform sampler2D colortex2; // RSM Encode
 uniform sampler2D colortex3; // Clouds Transmittance
 uniform sampler2D colortex4; // Sky Encode
 uniform sampler2D colortex5; // Sky Scattering LUT
@@ -221,7 +220,13 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Functions
 
-	vec4 FilterAo(vec3 flatNormal, float depth) {
+	float CalculateSampleWeight(vec3 centerNormal, vec3 sampleNormal, vec3 sampleVector) {
+		float planeDist = abs(dot(centerNormal, sampleVector));
+		return Clamp01(dot(centerNormal, sampleNormal)) * LinearStep(0.05, 0.0, planeDist);
+	}
+
+	vec4 FilterAo(vec3 flatNormal, vec3 position) {
+		ivec2 res       = ivec2(viewResolution) / 2;
 		ivec2 fragCoord = ivec2(gl_FragCoord.st) / 2;
 		ivec2 shift     = ivec2(gl_FragCoord.st) % 2;
 
@@ -234,13 +239,20 @@ uniform vec3 shadowLightVector;
 				ivec2 offset = ivec2(x, y) + shift;
 				if (offset.x == 0 && offset.y == 0) { continue; }
 
-				vec3 normalSample = DecodeNormal(Unpack2x8(texelFetch(colortex1, (fragCoord + offset) * 2, 0).a) * 2.0 - 1.0);
-				float depthSample = GetLinearDepth(depthtex1, vec2(fragCoord + offset) * viewPixelSize * 2.0);
+				ivec2 sampleFragCoord = fragCoord + offset;
 
-				float weight  = pow(Clamp01(dot(normalSample, flatNormal)), 4.0);
-				      weight *= Clamp01(1.0 - abs(depthSample - depth));
+				if (sampleFragCoord.x < 0 || sampleFragCoord.y < 0) { continue; }
+				if (sampleFragCoord.x >= res.x || sampleFragCoord.y >= res.y) { continue; }
 
-				vec4 hbaoSample = texelFetch(colortex7, fragCoord + offset, 0);
+				vec2 sampleCoord = vec2(fragCoord + offset) * viewPixelSize * 2.0;
+
+				vec3 sampleNormal = DecodeNormal(Unpack2x8(texelFetch(colortex1, sampleFragCoord * 2, 0).a) * 2.0 - 1.0);
+				vec3 samplePosition  = GetViewDirection(sampleCoord, gbufferProjectionInverse);
+				     samplePosition *= GetLinearDepth(depthtex1, sampleCoord) / samplePosition.z;
+
+				float weight = CalculateSampleWeight(flatNormal, sampleNormal, mat3(gbufferModelViewInverse) * (samplePosition - position));
+
+				vec4 hbaoSample = texelFetch(colortex7, sampleFragCoord, 0);
 				hbaoSample.xyz = hbaoSample.xyz * 2.0 - 1.0;
 
 				hbao += hbaoSample * weight;
@@ -266,30 +278,40 @@ uniform vec3 shadowLightVector;
 		return groundAlbedo * bounceIntensity;
 	}
 
-	vec3 FilterRSM(vec3 normalFlat, float linearDepth) {
+	vec3 FilterRSM(vec3 normalFlat, vec3 position) {
 		ivec2 res       = ivec2(viewResolution / 2);
 		ivec2 fragCoord = ivec2(gl_FragCoord.st) / 2;
 		ivec2 shift     = ivec2(gl_FragCoord.st) % 2;
 
 		vec3 result = texelFetch(colortex7, fragCoord + ivec2(res.x, 0), 0).rgb;
-		float weightAccum = 1.0;
+		float weightSum = 1.0;
 
 		for (int x = -4; x < 4; ++x) {
 			for (int y = -4; y < 4; ++y) {
 				ivec2 offset = ivec2(x, y) + shift;
 				if (offset.x == 0 && offset.y == 0) { continue; }
 
-				vec3 sampleNormal = DecodeNormal(Unpack2x8(texelFetch(colortex1, (fragCoord + offset) * 2, 0).a) * 2.0 - 1.0);
-				float sampleDepth = ScreenSpaceToViewSpace(texelFetch(depthtex1, (fragCoord + offset) * 2, 0).r, gbufferProjectionInverse);
-				float weight = pow(Clamp01(dot(sampleNormal, normalFlat)), 4.0);
-				      weight *= Clamp01(1.0 - abs(sampleDepth - linearDepth));
+				ivec2 sampleFragCoord = fragCoord + offset;
 
-				result += weight * texelFetch(colortex7, clamp(fragCoord + offset, ivec2(0), res) + ivec2(res.x, 0), 0).rgb;
-				weightAccum += weight;
+				if (sampleFragCoord.x < 0 || sampleFragCoord.y < 0) { continue; }
+				if (sampleFragCoord.x >= res.x || sampleFragCoord.y >= res.y) { continue; }
+
+				vec2 sampleCoord = vec2(fragCoord + offset) * viewPixelSize * 2.0;
+
+				vec3 sampleNormal = DecodeNormal(Unpack2x8(texelFetch(colortex1, sampleFragCoord * 2, 0).a) * 2.0 - 1.0);
+				vec3 samplePosition  = GetViewDirection(sampleCoord, gbufferProjectionInverse);
+				     samplePosition *= GetLinearDepth(depthtex1, sampleCoord) / samplePosition.z;
+
+				float weight = CalculateSampleWeight(normalFlat, sampleNormal, mat3(gbufferModelViewInverse) * (samplePosition - position));
+
+				vec3 rsmSample = texelFetch(colortex7, sampleFragCoord + ivec2(res.x, 0), 0).rgb;
+
+				result += rsmSample * weight;
+				weightSum += weight;
 			}
 		}
 
-		return result / weightAccum;
+		return result / weightSum;
 	}
 
 	// --
@@ -432,7 +454,7 @@ uniform vec3 shadowLightVector;
 
 			// Lighting
 			#if AO_METHOD == AO_HBAO
-				vec4 hbao = FilterAo(normalFlat, position[1].z);
+				vec4 hbao = FilterAo(normalFlat, position[1]);
 				vec3 skyConeVector = hbao.xyz;
 				float ao = hbao.w;
 			#else // AO_METHOD == AO_VERTEX
@@ -461,7 +483,7 @@ uniform vec3 shadowLightVector;
 					}
 
 					#ifdef RSM
-						bounce = FilterRSM(normalFlat, position[1].z) * RSM_BRIGHTNESS;
+						bounce = FilterRSM(normalFlat, position[1]) * RSM_BRIGHTNESS;
 					#else
 						bounce  = CalculateFakeBouncedLight(skyConeVector, shadowLightVector);
 						bounce *= lightmap.y * lightmap.y * lightmap.y;
@@ -478,7 +500,7 @@ uniform vec3 shadowLightVector;
 				}
 
 				#ifdef RSM
-					bounce = FilterRSM(normalFlat, position[1].z) * RSM_BRIGHTNESS;
+					bounce = FilterRSM(normalFlat, position[1]) * RSM_BRIGHTNESS;
 				#else
 					bounce  = CalculateFakeBouncedLight(skyConeVector, shadowLightVector);
 					bounce *= lightmap.y * lightmap.y * lightmap.y;
