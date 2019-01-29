@@ -70,9 +70,8 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 	const float K = 14.0;
 	const float calibration = exp2(CAMERA_EXPOSURE_BIAS) * K / 100.0;
 
-	// 18% albedo is common as reference
-	const float minExposure = calibration / (dot(lumacoeff_rec709, sunIlluminance ) * (0.18 / pi));
-	const float maxExposure = calibration / (dot(lumacoeff_rec709, moonIlluminance) * (0.18 / pi) * NIGHT_SKY_BRIGHTNESS);
+	const float minExposure = exp2(CAMERA_EXPOSURE_BIAS) * pi /  dot(lumacoeff_rec709, sunIlluminance);
+	const float maxExposure = exp2(CAMERA_EXPOSURE_BIAS) * pi / (dot(lumacoeff_rec709, moonIlluminance) * NIGHT_SKY_BRIGHTNESS);
 
 	#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_HISTOGRAM
 		float CalculateHistogramExposure() {
