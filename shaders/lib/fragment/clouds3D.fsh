@@ -22,7 +22,7 @@
 
 #define CLOUDS3D_ALTITUDE 500 // [300 400 500 600 700 800 900 1000]
 #define CLOUDS3D_THICKNESS_MULT 1 // [0.5 0.6 0.7 0.8 0.9 1 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2]
-#define CLOUDS3D_SCALE 0.5
+#define CLOUDS3D_SCALE 2.0 // [1.0 1.2 1.4 1.7 2.0 2.4 2.8 3.4 4.0]
 
 #define CLOUDS3D_THICKNESS (CLOUDS3D_ALTITUDE * CLOUDS3D_THICKNESS_MULT)
 #define CLOUDS3D_ALTITUDE_MIN CLOUDS3D_ALTITUDE
@@ -69,7 +69,7 @@ float Get3DCloudDensity(vec3 position, float coreDistance, float coverage, const
 
 	//--// Noise
 
-	position = position * (CLOUDS3D_SCALE / CLOUDS3D_ALTITUDE_MIN) + cloudsTime;
+	position = position * (1.0 / (CLOUDS3D_SCALE * CLOUDS3D_ALTITUDE_MIN)) + cloudsTime;
 
 	#ifdef CLOUDS3D_NOISE_SMOOTH
 		#define GetClouds3DNoise(pos) GetNoiseSmooth(pos)

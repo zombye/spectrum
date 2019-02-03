@@ -311,6 +311,11 @@ option.CLOUDS3D_USE_WORLD_TIME=Use World Time
 option.CLOUDS3D_SPEED=Speed
 value.CLOUDS3D_SPEED.0=Static
 
+option.CLOUDS3D_ALTITUDE=Altitude
+suffix.CLOUDS3D_ALTITUDE=m
+option.CLOUDS3D_THICKNESS_MULT=Thickness
+option.CLOUDS3D_SCALE=Scale
+
 ##--## Screen-Space Reflections ##--------------------------------------------##
 
 screen.ssr=Screen-Space Reflections
