@@ -161,9 +161,9 @@ uniform vec3 shadowLightVector;
 		/* DRAWBUFFERS:346 */
 	#endif
 
-	layout (location = 0) out vec4 cloudTransmittance_ao;
-	layout (location = 1) out vec4 scatteringEncode;
-	layout (location = 2) out vec4 skyImage_cloudShadow;
+	layout (location = 0) out float cloudTransmittance;
+	layout (location = 1) out vec4  scatteringEncode;
+	layout (location = 2) out vec4  skyImage_cloudShadow;
 
 	//--// Fragment Libraries
 
@@ -481,76 +481,119 @@ uniform vec3 shadowLightVector;
 		}
 	#endif
 
+	void DitherTiles(ivec2 fragCoord, int patternSize, float scale, out ivec2 tile, out ivec2 tileFragCoord, out vec2 tileScreenCoord) {
+		ivec2 quadResolution      = ivec2(ceil(viewResolution / scale));
+		ivec2 floorTileResolution = ivec2(floor(vec2(quadResolution) / float(patternSize)));
+		ivec2 ceilTileResolution  = ivec2( ceil(vec2(quadResolution) / float(patternSize)));
+
+		fragCoord = fragCoord % quadResolution;
+
+		ivec2 ceilTiles         = quadResolution % patternSize;
+		ivec2 tileSizeThreshold = ceilTileResolution * ceilTiles;
+		bvec2 belowThreshold;
+		belowThreshold.x = fragCoord.x < tileSizeThreshold.x;
+		belowThreshold.y = fragCoord.y < tileSizeThreshold.y;
+
+		ivec2 tileResolution;
+		tileResolution.x = belowThreshold.x ? ceilTileResolution.x : floorTileResolution.x;
+		tileResolution.y = belowThreshold.y ? ceilTileResolution.y : floorTileResolution.y;
+
+		tileFragCoord.x = belowThreshold.x ? fragCoord.x : fragCoord.x - tileSizeThreshold.x;
+		tileFragCoord.y = belowThreshold.y ? fragCoord.y : fragCoord.y - tileSizeThreshold.y;
+
+		tile = tileFragCoord / tileResolution;
+		tile.x += belowThreshold.x ? 0 : ceilTiles.x;
+		tile.y += belowThreshold.y ? 0 : ceilTiles.y;
+		tileFragCoord = tileFragCoord % tileResolution;
+
+		tileFragCoord = tileFragCoord * patternSize + tile;
+		tileScreenCoord = (tileFragCoord + 0.5) * scale / viewResolution;
+	}
+
 	void main() {
+		ivec2 fragCoord = ivec2(gl_FragCoord.xy);
+
 		//--// AO & RSM //----------------------------------------------------//
 
 		#if AO_METHOD != AO_VERTEX || defined RSM
-			{
-				halfres = vec4(0.0);
+			halfres = vec4(0.0);
+		#endif
+
+		#ifdef RSM
+			if (screenCoord.x > 0.5 && screenCoord.y < 0.5) {
+				ivec2 tile, tileFragCoord; vec2 tileScreenCoord;
+				DitherTiles(fragCoord, 8, 2.0, tile, tileFragCoord, tileScreenCoord);
+				//tile = fragCoord % 8; tileFragCoord = fragCoord % ivec2(viewResolution / 2); tileScreenCoord = screenCoord * 2.0;
 
 				mat3 position;
-				position[0].xy = fract(screenCoord * 2.0);
+				position[0].xy = tileScreenCoord;
 				position[1]    = GetViewDirection(position[0].xy, gbufferProjectionInverse);
 				position[1]   *= GetLinearDepth(depthtex1, position[0].xy) / position[1].z;
 				position[0].z  = ViewSpaceToScreenSpace(position[1].z, gbufferProjection);
-				position[2]    = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
 
-				vec3 normal = DecodeNormal(Unpack2x8(texelFetch(colortex1, ivec2(gl_FragCoord.st * 2.0) % ivec2(viewResolution), 0).a) * 2.0 - 1.0);
-				float skylight = Unpack2x8Y(texelFetch(colortex0, ivec2(gl_FragCoord.st * 2.0) % ivec2(viewResolution), 0).b);
+				if (position[0].z < 1.0) {
+					position[2] = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
 
-				vec4 prevFrame = texelFetch(colortex7, ivec2(gl_FragCoord.st), 0);
+					vec3 normal = DecodeNormal(Unpack2x8(texelFetch(colortex1, tileFragCoord * 2, 0).a) * 2.0 - 1.0);
+					float skylight = Unpack2x8Y(texelFetch(colortex0, tileFragCoord * 2, 0).b);
 
-				#if AO_METHOD != AO_VERTEX
-					if (screenCoord.x < 0.5 && screenCoord.y < 0.5) {
-						if (position[0].z < 1.0) {
-							const float ditherSize = 4.0 * 4.0;
-							float dither = Bayer4(gl_FragCoord.st);
-							dither = fract(dither + LinearBayer8(frameCounter));
+					const float ditherSize = 8.0 * 8.0;
+					float dither = Bayer8(tile);
+					dither = fract(dither + LinearBayer8(frameCounter));
 
-							#if AO_METHOD == AO_HBAO
-								vec3 velocity = GetVelocity(position[0]);
-								vec3 reprojPos = position[0] - velocity;
-								bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
+					vec3 velocity = GetVelocity(position[0]);
+					vec3 reprojPos = position[0] - velocity;
+					bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
 
-								vec4 hbaoCurr = CalculateHBAO(position[1], -normalize(position[1]), mat3(gbufferModelView) * normal, dither, ditherSize);
-								hbaoCurr.xyz = mat3(gbufferModelViewInverse) * hbaoCurr.xyz;
-								vec4 hbaoPrev = textureLod(colortex7, reprojPos.xy * 0.5, 0.0);
-								if (hbaoPrev.xyz == vec3(0.0)) {
-									hbaoPrev = vec4(normal, 1.0);
-								} else {
-									hbaoPrev.xyz = hbaoPrev.xyz * 2.0 - 1.0;
-								}
+					vec3 rsmCurr = ReflectiveShadowMaps(position[2], normal, skylight, dither, ditherSize);
+					vec3 rsmPrev = textureLod(colortex7, reprojPos.xy * 0.5 + vec2(0.5, 0.0), 0.0).rgb;
 
-								halfres = mix(hbaoCurr, hbaoPrev, reprojValid ? 0.8 : 0.0);
-								halfres.xyz = normalize(halfres.xyz) * 0.5 + 0.5;
-							#endif
+					halfres.rgb = mix(rsmCurr, rsmPrev, reprojValid ? 0.8 : 0.0);
+					halfres.a = 1.0;
+				} else {
+					halfres = vec4(0.0, 0.0, 0.0, 1.0);
+				}
+			}
+		#endif
+
+		#if AO_METHOD != AO_VERTEX
+			if (screenCoord.x < 0.5 && screenCoord.y < 0.5) {
+				mat3 position;
+				position[0].xy = screenCoord * 2.0;
+				position[1]    = GetViewDirection(position[0].xy, gbufferProjectionInverse);
+				position[1]   *= GetLinearDepth(depthtex1, position[0].xy) / position[1].z;
+				position[0].z  = ViewSpaceToScreenSpace(position[1].z, gbufferProjection);
+
+				if (position[0].z < 1.0) {
+					position[2] = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
+
+					vec3 normal = DecodeNormal(Unpack2x8(texelFetch(colortex1, fragCoord * 2, 0).a) * 2.0 - 1.0);
+					float skylight = Unpack2x8Y(texelFetch(colortex0, fragCoord * 2, 0).b);
+
+					const float ditherSize = 4.0 * 4.0;
+					float dither = Bayer4(fragCoord);
+					dither = fract(dither + LinearBayer8(frameCounter));
+
+					#if AO_METHOD == AO_HBAO
+						vec3 velocity = GetVelocity(position[0]);
+						vec3 reprojPos = position[0] - velocity;
+						bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
+
+						vec4 hbaoCurr = CalculateHBAO(position[1], -normalize(position[1]), mat3(gbufferModelView) * normal, dither, ditherSize);
+						hbaoCurr.xyz = mat3(gbufferModelViewInverse) * hbaoCurr.xyz;
+						vec4 hbaoPrev = textureLod(colortex7, reprojPos.xy * 0.5, 0.0);
+						if (hbaoPrev.xyz == vec3(0.0)) {
+							hbaoPrev = vec4(normal, 1.0);
 						} else {
-							halfres = vec4(0.5, 0.5, 0.5, 1.0);
+							hbaoPrev.xyz = hbaoPrev.xyz * 2.0 - 1.0;
 						}
-					}
-				#endif
 
-				#ifdef RSM
-					if (screenCoord.x > 0.5 && screenCoord.y < 0.5) {
-						if (position[0].z < 1.0) {
-							const float ditherSize = 8.0 * 8.0;
-							float dither = Bayer8(gl_FragCoord.st);
-							      dither = fract(dither + LinearBayer8(frameCounter));
-
-							vec3 velocity = GetVelocity(position[0]);
-							vec3 reprojPos = position[0] - velocity;
-							bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
-
-							vec3 rsmCurr = ReflectiveShadowMaps(position[2], normal, skylight, dither, ditherSize);
-							vec3 rsmPrev = textureLod(colortex7, reprojPos.xy * 0.5 + vec2(0.5, 0.0), 0.0).rgb;
-
-							halfres.rgb = mix(rsmCurr, rsmPrev, reprojValid ? 0.8 : 0.0);
-							halfres.a = 1.0;
-						} else {
-							halfres = vec4(0.0, 0.0, 0.0, 1.0);
-						}
-					}
-				#endif
+						halfres = mix(hbaoCurr, hbaoPrev, reprojValid ? 0.8 : 0.0);
+						halfres.xyz = normalize(halfres.xyz) * 0.5 + 0.5;
+					#endif
+				} else {
+					halfres = vec4(0.5, 0.5, 0.5, 1.0);
+				}
 			}
 		#endif
 
@@ -573,7 +616,7 @@ uniform vec3 shadowLightVector;
 			position[2] = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
 			vec3 viewVector = normalize(position[2] - gbufferModelViewInverse[3].xyz);
 
-			cloudTransmittance_ao.r = 1.0;
+			cloudTransmittance = 1.0;
 			#ifdef CLOUDS3D
 				vec3 scattering = vec3(0.0);
 
@@ -618,7 +661,7 @@ uniform vec3 shadowLightVector;
 
 						vec4 clouds3D = Calculate3DClouds(viewVector, dither);
 						scattering += clouds3D.rgb * transmittance; transmittance *= clouds3D.a;
-						cloudTransmittance_ao.r *= clouds3D.a;
+						cloudTransmittance *= clouds3D.a;
 
 						scattering += atmosphereScattering * transmittance;
 					#endif
@@ -653,7 +696,7 @@ uniform vec3 shadowLightVector;
 
 			scatteringEncode = EncodeRGBE8(scattering);
 		} else {
-			cloudTransmittance_ao.r = 1.0;
+			cloudTransmittance = 1.0;
 			scatteringEncode = vec4(0.0);
 		}
 
