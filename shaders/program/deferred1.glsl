@@ -29,7 +29,7 @@ uniform vec2 viewPixelSize;
 
 	//--// Fragment Functions
 
-	void UnditherTiles(ivec2 fragCoord, int patternSize, float scale, out ivec2 tile, out ivec2 tileFragCoord, out vec2 tileScreenCoord) {
+	void UnditherTiles(ivec2 fragCoord, int patternSize, float scale, out ivec2 tile, out ivec2 tileFragCoord) {
 		ivec2 quadResolution      = ivec2(ceil(viewResolution / scale));
 		ivec2 floorTileResolution = ivec2(floor(vec2(quadResolution) / float(patternSize)));
 		ivec2 ceilTileResolution  = ivec2( ceil(vec2(quadResolution) / float(patternSize)));
@@ -55,7 +55,7 @@ uniform vec2 viewPixelSize;
 		#ifdef RSM
 			if (screenCoord.x > 0.5 && screenCoord.y < 0.5) { // RSM
 				ivec2 tile, tileFragCoord; vec2 tileScreenCoord;
-				UnditherTiles(fragCoord, 8, 2.0, tile, tileFragCoord, tileScreenCoord);
+				UnditherTiles(fragCoord, 4, 2.0, tile, tileFragCoord);
 
 				ivec2 quadResolution = ivec2(ceil(viewResolution / 2.0));
 				tileFragCoord.x += quadResolution.x;

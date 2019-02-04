@@ -522,7 +522,7 @@ uniform vec3 shadowLightVector;
 		#ifdef RSM
 			if (screenCoord.x > 0.5 && screenCoord.y < 0.5) {
 				ivec2 tile, tileFragCoord; vec2 tileScreenCoord;
-				DitherTiles(fragCoord, 8, 2.0, tile, tileFragCoord, tileScreenCoord);
+				DitherTiles(fragCoord, 4, 2.0, tile, tileFragCoord, tileScreenCoord);
 				//tile = fragCoord % 8; tileFragCoord = fragCoord % ivec2(viewResolution / 2); tileScreenCoord = screenCoord * 2.0;
 
 				mat3 position;
@@ -537,8 +537,8 @@ uniform vec3 shadowLightVector;
 					vec3 normal = DecodeNormal(Unpack2x8(texelFetch(colortex1, tileFragCoord * 2, 0).a) * 2.0 - 1.0);
 					float skylight = Unpack2x8Y(texelFetch(colortex0, tileFragCoord * 2, 0).b);
 
-					const float ditherSize = 8.0 * 8.0;
-					float dither = Bayer8(tile);
+					const float ditherSize = 4.0 * 4.0;
+					float dither = Bayer4(tile);
 					dither = fract(dither + LinearBayer8(frameCounter));
 
 					vec3 velocity = GetVelocity(position[0]);

@@ -286,8 +286,8 @@ uniform vec3 shadowLightVector;
 		vec3 result = texelFetch(colortex7, fragCoord + ivec2(res.x, 0), 0).rgb;
 		float weightSum = 1.0;
 
-		for (int x = -4; x < 4; ++x) {
-			for (int y = -4; y < 4; ++y) {
+		for (int x = -2; x < 2; ++x) {
+			for (int y = -2; y < 2; ++y) {
 				ivec2 offset = ivec2(x, y) + shift;
 				if (offset.x == 0 && offset.y == 0) { continue; }
 
