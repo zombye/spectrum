@@ -2,7 +2,7 @@
 #define INCLUDE_SHARED_ATMOSPHERE_LOOKUP
 
 /*\
- * Many of these fucnctions are based on the ones from here:
+ * Most of these functions are based on the ones from here:
  * https://ebruneton.github.io/precomputed_atmospheric_scattering/atmosphere/functions.glsl.html
 \*/
 
@@ -101,7 +101,10 @@ vec4 AtmosphereScatteringLookupUv(float R, float Mu, float MuS, float V) {
 	float uvMuS = AddUvMargin(Max0(1.0 - a / A) / (1.0 + a), resMuS);
 	      uvMuS = clamp(uvMuS, 1.5 / resMuS, 1.0);
 
-	float uvV = AddUvMargin((V + 1.0) / 2.0, resV);
+	float halfRangeV = sqrt((1.0 - Mu * Mu) * (1.0 - MuS * MuS));
+	float maxV = Mu * MuS + halfRangeV;
+	float minV = Mu * MuS - halfRangeV;
+	float uvV = AddUvMargin((maxV - minV) == 0.0 ? 0.0 : Clamp01((V - minV) / (maxV - minV)), resV);
 
 	return vec4(uvMu, uvV, uvR, uvMuS);
 }
@@ -135,7 +138,10 @@ void AtmosphereScatteringLookupUvReverse(vec4 coord, out float R, out float Mu, 
 	float d = dMin + min(a, A) * (dMax - dMin);
 	MuS = d == 0.0 ? 1.0 : (H * H - d * d) / (2.0 * atmosphere_lowerLimitRadius * d);
 
-	V = uvV * 2.0 - 1.0;
+	float halfRangeV = sqrt((1.0 - Mu * Mu) * (1.0 - MuS * MuS));
+	float maxV = Mu * MuS + halfRangeV;
+	float minV = Mu * MuS - halfRangeV;
+	V = uvV * (maxV - minV) + minV;
 }
 
 #endif
