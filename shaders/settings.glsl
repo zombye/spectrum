@@ -222,7 +222,7 @@ const int shadowMapResolution = 2048; // Default if not set: 1024 [512 768 1024 
 
 //--// Screen-Space Contact Shadows
 
-#if PROGRAM == PROGRAM_DEFERRED1
+#if PROGRAM == PROGRAM_DEFERRED2
 	#define SSCS
 	#define SSCS_MODE 1
 	#define SSCS_SAMPLES 16
