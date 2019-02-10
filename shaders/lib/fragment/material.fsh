@@ -39,10 +39,11 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 	Material material;
 
 	#if   RESOURCE_FORMAT == RESOURCE_FORMAT_GREYSCALE
-		material.albedo       = baseTex;
+		bool isMetal = (id == 41 || id == 42) && specTex.r > 0.5;
+		material.albedo       = isMetal ? vec3(0.0) : baseTex;
 		material.roughness    = Pow2(1.0 - specTex.r);
 		material.porosity     = 0.0;
-		material.n            = airMaterial.n * F0ToIor(Pow4(specTex.r));
+		material.n            = airMaterial.n * (isMetal ? F0ToIor(baseTex) : vec3(F0ToIor(Pow4(specTex.r))));
 		material.k            = vec3(0.0);
 		material.emission     = vec3(0.0);
 		material.translucency = vec3(id == 18 || id == 31 || id == 38 || id == 78 || id == 175);
@@ -71,19 +72,17 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 			material.translucency = vec3(0.0);
 		}
 	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_WIP
-		float sqrtReflectance = specTex.r; // Stored sqrt'd to have more of the smaller values.
-		float metalness       = specTex.g; // Linear
-		float sqrtRoughness   = specTex.b; // Stored sqrt'd
-		float porosity        = specTex.a; // Probably going to be hard-coded by ID or something until _s alpha is properly defaulted by OptiFine.
+		float metalness = specTex.g; // Linear blend
 
 		material.albedo       = baseTex - baseTex * metalness;
-		material.roughness    = Pow2(sqrtRoughness);
-		material.porosity     = porosity;
+		material.roughness    = Pow2(1.0 - specTex.b); // Stored as 1.0 - sqrt(roughness)
+		material.porosity     = specTex.a; // Probably going to be hard-coded by ID or something until _s alpha is properly defaulted by OptiFine.
 		material.emission     = vec3(0.0); //emisTex.rgb * emisTex.a * ARTIFICIAL_LIGHT_LUMINANCE;
 		material.translucency = vec3(0.0);
 
 		if (metalness < 1.0) {
-			material.n = F0ToIor(mix(vec3(Pow2(sqrtReflectance)), baseTex, metalness)) * airMaterial.n;
+			float reflectance = specTex.r * specTex.r; // Stored sqrt'd to have more of the smaller values.
+			material.n = F0ToIor(mix(vec3(reflectance), baseTex, metalness)) * airMaterial.n;
 			material.k = vec3(0.0);
 		} else { // metalness == 1
 			// If specTex.r is 0, calculate n with f0 = baseTex and set k to 0.

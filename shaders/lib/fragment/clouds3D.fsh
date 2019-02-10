@@ -188,7 +188,7 @@ float Calculate3DCloudsOpticalDepthUp(vec3 position, float coverage) { // Simple
 	}
 
 	float Calculate3DCloudsSunlight(vec3 position, float coverage, float phase) {
-		float opticalDepth = Calculate3DCloudsOpticalDepth(position, shadowLightVector, coverage, CLOUDS3D_SELFSHADOW_RANGE_SUN, CLOUDS3D_SELFSHADOW_STEPS_SUN);
+		float opticalDepth = Calculate3DCloudsOpticalDepth(position, shadowLightVector, coverage, CLOUDS3D_SELFSHADOW_RANGE_SUN * CLOUDS3D_THICKNESS_MULT, CLOUDS3D_SELFSHADOW_STEPS_SUN);
 
 		// TODO: Merge single & multiple scattering, and blend phase function towards isotropic based on optical depth (and scattering albedo)
 		float single = phase * exp(-opticalDepth);
