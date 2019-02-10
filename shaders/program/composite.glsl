@@ -302,8 +302,9 @@ uniform vec3 shadowLightVector;
 	#endif
 
 	vec3 CalculateWaterFog(vec3 background, vec3 startPosition, vec3 endPosition, vec3 viewVector, float LoV, float skylight, float dither, bool sky) {
-		vec3 waterScatteringAlbedo = SrgbToLinear(vec3(WATER_FOG_R, WATER_FOG_G, WATER_FOG_B) / 255.0);
-		const vec3 baseAttenuationCoefficient = vec3(WATER_ATTENUATION_R, WATER_ATTENUATION_G, WATER_ATTENUATION_B);
+		vec3 waterScatteringAlbedo = SrgbToLinear(vec3(WATER_SCATTERING_R, WATER_SCATTERING_G, WATER_SCATTERING_B) / 255.0);
+		vec3 baseAttenuationCoefficient = -log(SrgbToLinear(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
+
 		const float isotropicPhase = 0.25 / pi;
 
 		//#define sunlightPhase isotropicPhase

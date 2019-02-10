@@ -89,10 +89,23 @@ option.VL_AIR=Volumetric Lighting (Air)
 option.DISTANT_VL=Distant VL
 option.FOG_AIR_DENSITY=Fog Density
 suffix.FOG_AIR_DENSITY=x
-option.VL_WATER=Volumetric Lighting (Water)
-option.VL_WATER_CAUSTICS=Volumetric Underwater Caustics
+
+##--## Water fog
+
+screen.waterFog=Water Fog
+option.VL_WATER=Volumetric Lighting
+option.VL_WATER_CAUSTICS=Volumetric Caustics
 option.VL_WATER_CAUSTICS.comment=Slow!
 option.UNDERWATER_ADAPTATION=Underwater Adaptation
+
+option.WATER_SCATTERING_R=Scattering R
+option.WATER_SCATTERING_G=Scattering G
+option.WATER_SCATTERING_B=Scattering B
+option.WATER_TRANSMISSION_R=Transmission R
+option.WATER_TRANSMISSION_G=Transmission G
+option.WATER_TRANSMISSION_B=Transmission B
+option.WATER_REFERENCE_DEPTH=Reference Depth
+suffix.WATER_REFERENCE_DEPTH=m
 
 ##--## Materials ##-----------------------------------------------------------##
 
@@ -108,10 +121,6 @@ option.USE_WATER_TEXTURE=Use Water Texture
 option.SMOOTH_ALBEDO=Smooth Albedo
 option.SMOOTH_NORMALS=Smooth Normals
 option.SMOOTH_SPECULAR=Smooth Specular
-
-option.WATER_FOG_R=Water Fog Color R
-option.WATER_FOG_G=Water Fog Color G
-option.WATER_FOG_B=Water Fog Color B
 
 ##--## Parallax Mapping
 

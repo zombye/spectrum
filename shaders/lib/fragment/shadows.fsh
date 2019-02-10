@@ -560,7 +560,8 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 		#else
 			const float fogDensity = 0.1;
 		#endif
-		vec3 waterShadow = exp(-vec3(WATER_ATTENUATION_R, WATER_ATTENUATION_G, WATER_ATTENUATION_B) * fogDensity * waterDepth);
+		vec3 attenuationCoefficient = -log(SrgbToLinear(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
+		vec3 waterShadow = exp(-attenuationCoefficient * fogDensity * waterDepth);
 
 		#ifdef CAUSTICS
 			waterShadow *= CalculateCaustics(position[2], waterDepth, dither, ditherSize) * waterFraction + (1.0 - waterFraction);
