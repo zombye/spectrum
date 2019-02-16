@@ -16,10 +16,27 @@
 
 //--// Shape //---------------------------------------------------------------//
 
+vec2 GetDistortionNoise2(vec2 position) {
+	vec2 noise = GetNoise2HQ(position);
+	return SinCos(noise.x * tau) * (1.0 - noise.y * noise.y);
+}
+
 float Get2DCloudsDensity(vec2 position, float cloudsTime) {
 	//--// Main Noise
 
-	vec2 mainPosition = position * 4e-5 + cloudsTime;
+	vec2 distortionPosition = position * 8e-6 + cloudsTime * 0.1;
+
+	const int distortionOctaves = 10;
+	vec2 distortionNoise = GetDistortionNoise2(distortionPosition);
+	for (int i = 1; i < distortionOctaves; ++i) {
+		distortionPosition *= rotateGoldenAngle;
+		distortionPosition  = distortionPosition * 2.0 + cloudsTime * 0.1;
+		distortionNoise += GetDistortionNoise2(distortionPosition) * exp2(log2(0.52) * i);
+	}
+
+	//--// Distorted "main" noise
+
+	vec2 mainPosition  = (position + distortionNoise * 0.15 / 8e-6) * 4e-5 + cloudsTime;
 
 	const int mainOctaves = 6;
 
@@ -34,15 +51,7 @@ float Get2DCloudsDensity(vec2 position, float cloudsTime) {
 
 	float density  = Clamp01(mainNoise + CLOUDS2D_COVERAGE - 1.0);
 	      density *= density * (3.0 - 2.0 * density);
-
-	//--// Modulate based on cell noise
-
-	if (density > 0.0) {
-		// TODO: Small-scale distortion?
-		// TODO: Modulate strength based on more noise.
-		float cellNoise = CellNoise1(position * 1e-3 + cloudsTime);
-		density -= clamp(density, 0.0, 0.04) * Clamp01(cellNoise * cellNoise * (3.0 - 2.0 * cellNoise));
-	}
+	      density  = 1.0 - Pow2(1.0 - density);
 
 	return density;
 }

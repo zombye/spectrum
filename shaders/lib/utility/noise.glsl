@@ -4,7 +4,20 @@
 //--// Texture noise //-------------------------------------------------------//
 
 float GetNoise(sampler2D noiseSampler, vec2 position) {
-	return texture(noiseSampler, 0.015625 * position.xy).x;
+	return texture(noiseSampler, 0.015625 * position).x;
+}
+vec2 GetNoise2HQ(sampler2D noiseSampler, vec2 position) {
+	vec2  f = fract(position);
+	ivec2 i = ivec2(position - f);
+
+	vec4 samples0 = textureGather(noiseSampler, 0.015625 * i, 0);
+	vec4 samples1 = textureGather(noiseSampler, 0.015625 * i, 1);
+
+	vec4 w = f.xxyy;
+	w.yw = 1.0 - w.yw;
+	w = w.yxxy * w.zzww;
+
+	return vec2(dot(samples0, w), dot(samples1, w));
 }
 float GetNoise(sampler2D noiseSampler, vec3 position) {
 	float flr = floor(position.z);
@@ -36,6 +49,7 @@ float GetNoiseSmooth(sampler2D noiseSampler, vec3 position) {
 
 // Using defines so noisetex isn't a required uniform
 #define GetNoise(pos) GetNoise(noisetex, pos)
+#define GetNoise2HQ(pos) GetNoise2HQ(noisetex, pos)
 #define GetNoiseSmooth(pos) GetNoiseSmooth(noisetex, pos)
 
 //----------------------------------------------------------------------------//
@@ -153,7 +167,7 @@ float ValueNoise1(float c, uint seed) {
 
 float CellNoise1(vec2 position) {
 	// Might be worth looking into making a hexagonal grid.
-	// Would in theory be more efficient (7 cells to calculate vs 9). - Zombye
+	// Would in theory be more efficient (7 cells to calculate vs 9).
 
 	ivec2 i = ivec2(floor(position));
 	vec2  f = fract(position);
