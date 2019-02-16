@@ -82,31 +82,6 @@ option.CAMERA_IRIS_BLADE_ROTATION=Blade Rotation
 suffix.CAMERA_IRIS_BLADE_ROTATION=°
 option.CAMERA_IRIS_BLADE_ROUNDING=Blade Rounding
 
-##--## Fog ##-----------------------------------------------------------------##
-
-screen.fog=Fog
-option.VL_AIR=Volumetric Lighting (Air)
-option.DISTANT_VL=Distant VL
-option.FOG_AIR_DENSITY=Fog Density
-suffix.FOG_AIR_DENSITY=x
-
-##--## Water fog
-
-screen.waterFog=Water Fog
-option.VL_WATER=Volumetric Lighting
-option.VL_WATER_CAUSTICS=Volumetric Caustics
-option.VL_WATER_CAUSTICS.comment=Slow!
-option.UNDERWATER_ADAPTATION=Underwater Adaptation
-
-option.WATER_SCATTERING_R=Scattering R
-option.WATER_SCATTERING_G=Scattering G
-option.WATER_SCATTERING_B=Scattering B
-option.WATER_TRANSMISSION_R=Transmission R
-option.WATER_TRANSMISSION_G=Transmission G
-option.WATER_TRANSMISSION_B=Transmission B
-option.WATER_REFERENCE_DEPTH=Reference Depth
-suffix.WATER_REFERENCE_DEPTH=m
-
 ##--## Materials ##-----------------------------------------------------------##
 
 screen.material=Materials
@@ -116,7 +91,6 @@ value.RESOURCE_FORMAT.RESOURCE_FORMAT_GREYSCALE=Grayscale
 value.RESOURCE_FORMAT.RESOURCE_FORMAT_OPBR=Old "PBR"
 value.RESOURCE_FORMAT.RESOURCE_FORMAT_NPBR=New PBR
 value.RESOURCE_FORMAT.RESOURCE_FORMAT_WIP=WIP format
-option.USE_WATER_TEXTURE=Use Water Texture
 
 option.SMOOTH_ALBEDO=Smooth Albedo
 option.SMOOTH_NORMALS=Smooth Normals
@@ -134,26 +108,6 @@ option.PARALLAX_DEPTH=Depth
 suffix.PARALLAX_DEPTH=m
 option.PARALLAX_QUALITY=Quality
 option.PARALLAX_QUALITY.comment=Does not affect Smart Parallax.
-
-option.WATER_PARALLAX=Water Parallax
-option.WATER_PARALLAX_DEPTH_MULTIPLIER=Water Parallax Depth
-suffix.WATER_PARALLAX_DEPTH_MULTIPLIER=x
-option.WATER_PARALLAX_STEPS=Water Parallax Steps
-
-##--## Procedural Waves
-
-screen.waves=Procedural Waves
-
-option.WATER_WAVES_COUNT=Waves
-option.WATER_WAVES_SPEED=Speed
-value.WATER_WAVES_SPEED.0=Static
-
-option.WATER_WAVES_WAVELENGTH=Wavelength
-suffix.WATER_WAVES_WAVELENGTH=m
-option.WATER_WAVES_WAVE_HEIGHT=Wave Height
-suffix.WATER_WAVES_WAVE_HEIGHT=m
-option.WATER_WAVES_WAVELENGTH_GAIN=Wavelength Gain
-option.WATER_WAVES_WAVE_HEIGHT_GAIN=Wave Height Gain
 
 ##--## Post-Processing ##-----------------------------------------------------##
 
@@ -276,31 +230,20 @@ option.SSCS_MODE=Mode
 option.SSCS_SAMPLES=Samples
 option.SSCS_STRIDE=Stride
 
-##--## Caustics
+##--## Sky & Atmosphere ##----------------------------------------------------##
 
-screen.caustics=Underwater Caustics
-option.CAUSTICS=Underwater Caustics
-option.CAUSTICS_DITHERED=Use Dithering
-option.CAUSTICS_DITHERED.comment=Dithering should usually be used unless focus is set to 0.5 or less.
-
-option.CAUSTICS_SAMPLES=Samples
-option.CAUSITCS_SAMPLES.comment=Determines the overall quality of caustics. More samples give sharper caustics, or if combined with a lower value for focus, less noise when dithering is enabled.
-option.CAUSTICS_FOCUS=Focus
-option.CAUSTICS_FOCUS.comment=Determine the overall amount of noise, if dithering is enabled. If dithering is not used, this should usually be set to 0.5 or less to prevent certain artifacts.
-option.CAUSTICS_POWER=Contrast
-
-option.CAUSTICS_DISPERSION=Chromatic Dispersion
-option.CAUSTICS_DISPERSION.comment=Adds (greatly exaggerated) chromatic dispersion. Without exaggeration it'd be nearly unnoticable.
-
-##--## Sky ##-----------------------------------------------------------------##
-
-screen.sky=Sky
+screen.sky_atmosphere=Sky & Atmosphere
 option.SKY_RENDER_LOD=Rendering LOD
 option.SKY_RENDER_LOD.comment=Higher values are less detailed.
 option.SKY_IMAGE_LOD=Cubemap LOD
 option.SKY_IMAGE_LOG.comment=Primarily affects reflections. Higher values are less detailed.
 
-##--## Clouds
+option.VL_AIR=Volumetric Lighting (Air)
+option.DISTANT_VL=Distant VL
+option.FOG_AIR_DENSITY=Fog Density
+suffix.FOG_AIR_DENSITY=x
+
+##--## 2D clouds
 
 screen.clouds2D=2D Clouds
 option.CLOUDS2D=2D Clouds
@@ -308,6 +251,8 @@ option.CLOUDS2D_SELFSHADOW_QUALITY=Self-Shadowing Quality
 
 option.CLOUDS2D_COVERAGE=Coverage
 option.CLOUDS2D_USE_WORLD_TIME=Use World Time
+
+##--## 3D clouds
 
 screen.clouds3D=3D Clouds
 option.CLOUDS3D=3D Clouds
@@ -336,3 +281,62 @@ value.SSR_TAIL_CLAMP.0=Off
 
 option.RAYTRACER_HQ=High-Quality Raytracer
 option.RAYTRACER_HQ.comment=Minimizes certain issues.
+
+##--## Water ##---------------------------------------------------------------##
+
+screen.water=Water
+
+option.USE_WATER_TEXTURE=Use Water Texture
+
+##--## Procedural Waves
+
+screen.proceduralWaves=Procedural Waves
+
+option.WATER_WAVES_COUNT=Waves
+option.WATER_WAVES_SPEED=Speed
+value.WATER_WAVES_SPEED.0=Static
+
+option.WATER_WAVES_WAVELENGTH=Wavelength
+suffix.WATER_WAVES_WAVELENGTH=m
+option.WATER_WAVES_WAVE_HEIGHT=Wave Height
+suffix.WATER_WAVES_WAVE_HEIGHT=m
+option.WATER_WAVES_WAVELENGTH_GAIN=Wavelength Gain
+option.WATER_WAVES_WAVE_HEIGHT_GAIN=Wave Height Gain
+
+option.WATER_PARALLAX=Water Parallax
+option.WATER_PARALLAX_DEPTH_MULTIPLIER=Water Parallax Depth
+suffix.WATER_PARALLAX_DEPTH_MULTIPLIER=x
+option.WATER_PARALLAX_STEPS=Water Parallax Steps
+
+##--## Water fog
+
+screen.waterFog=Water Fog
+option.VL_WATER=Volumetric Lighting
+option.VL_WATER_CAUSTICS=Volumetric Caustics
+option.VL_WATER_CAUSTICS.comment=Slow!
+option.UNDERWATER_ADAPTATION=Underwater Adaptation
+
+option.WATER_SCATTERING_R=Scattering R
+option.WATER_SCATTERING_G=Scattering G
+option.WATER_SCATTERING_B=Scattering B
+option.WATER_TRANSMISSION_R=Transmission R
+option.WATER_TRANSMISSION_G=Transmission G
+option.WATER_TRANSMISSION_B=Transmission B
+option.WATER_REFERENCE_DEPTH=Reference Depth
+suffix.WATER_REFERENCE_DEPTH=m
+
+##--## Caustics
+
+screen.caustics=Underwater Caustics
+option.CAUSTICS=Underwater Caustics
+option.CAUSTICS_DITHERED=Use Dithering
+option.CAUSTICS_DITHERED.comment=Dithering should usually be used unless focus is set to 0.5 or less.
+
+option.CAUSTICS_SAMPLES=Samples
+option.CAUSITCS_SAMPLES.comment=Determines the overall quality of caustics. More samples give sharper caustics, or if combined with a lower value for focus, less noise when dithering is enabled.
+option.CAUSTICS_FOCUS=Focus
+option.CAUSTICS_FOCUS.comment=Determine the overall amount of noise, if dithering is enabled. If dithering is not used, this should usually be set to 0.5 or less to prevent certain artifacts.
+option.CAUSTICS_POWER=Contrast
+
+option.CAUSTICS_DISPERSION=Chromatic Dispersion
+option.CAUSTICS_DISPERSION.comment=Adds (greatly exaggerated) chromatic dispersion. Without exaggeration it'd be nearly unnoticable.
