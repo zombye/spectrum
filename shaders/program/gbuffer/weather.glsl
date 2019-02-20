@@ -44,7 +44,7 @@ uniform vec3 shadowLightVector;
 
 //--// Shared Functions
 
-#if STAGE == STAGE_VERTEX
+#if defined STAGE_VERTEX
 	//--// Vertex Inputs
 
 	attribute vec4 at_tangent;
@@ -126,7 +126,7 @@ uniform vec3 shadowLightVector;
 			gl_Position.xy += taaOffset * gl_Position.w;
 		#endif
 	}
-#elif STAGE == STAGE_FRAGMENT
+#elif defined STAGE_FRAGMENT
 	//--// Fragment Inputs
 
 	// Interpolated

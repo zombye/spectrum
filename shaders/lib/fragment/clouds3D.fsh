@@ -175,7 +175,7 @@ float Calculate3DCloudsOpticalDepthUp(vec3 position, float coverage) { // Simple
 
 //--// Lighting //------------------------------------------------------------//
 
-#if PROGRAM == PROGRAM_DEFERRED
+#if defined PROGRAM_DEFERRED
 	float CloudsPhase(float cosTheta, vec3 g, vec3 w) {
 		vec3 gmn2 = -2.0 * g;
 		vec3 gg   = g * g;

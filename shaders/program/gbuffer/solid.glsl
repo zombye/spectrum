@@ -10,7 +10,7 @@
 
 //--// Uniforms
 
-#if PROGRAM == PROGRAM_HAND || PROGRAM == PROGRAM_HAND_WATER
+#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
 	uniform int heldItemId;
 	uniform int heldItemId2;
 #endif
@@ -23,7 +23,7 @@ uniform float frameTime;
 uniform float frameTimeCounter;
 
 // Gbuffer uniforms
-#if PROGRAM == PROGRAM_ENTITIES
+#if defined PROGRAM_ENTITIES
 	uniform vec4 entityColor;
 #endif
 
@@ -53,7 +53,7 @@ uniform vec3 shadowLightVector;
 
 //--// Shared Functions
 
-#if STAGE == STAGE_VERTEX
+#if defined STAGE_VERTEX
 	//--// Vertex Inputs
 
 	attribute vec4 at_tangent;
@@ -151,7 +151,7 @@ uniform vec3 shadowLightVector;
 		#endif
 
 		#if defined MOTION_BLUR || defined TAA // Previous frame position
-			#if PROGRAM == PROGRAM_HAND || PROGRAM == PROGRAM_HAND_WATER
+			#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
 				vec3 previousScenePosition = scenePosition;
 			#else
 				vec3 previousScenePosition = scenePosition + cameraPosition - previousCameraPosition;
@@ -161,14 +161,14 @@ uniform vec3 shadowLightVector;
 				previousScenePosition += AnimateVertex(previousScenePosition, previousScenePosition + previousCameraPosition, blockId, frameTimeCounter - frameTime);
 			#endif
 
-			#if PROGRAM == PROGRAM_HAND || PROGRAM == PROGRAM_HAND_WATER
+			#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
 				// No correct previous matrix for hand rotation, but the current frame rotation + previous frame motion is close.
 				vec3 previousViewPosition = mat3(gbufferModelView) * previousScenePosition + gbufferPreviousModelView[3].xyz;
 			#else
 				vec3 previousViewPosition = mat3(gbufferPreviousModelView) * previousScenePosition + gbufferPreviousModelView[3].xyz;
 			#endif
 
-			#if PROGRAM == PROGRAM_HAND || PROGRAM == PROGRAM_HAND_WATER
+			#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
 				//float projectionScalePrevious = (gbufferPreviousProjection[1].y / gl_ProjectionMatrix[1].y) * tan((HAND_FOV / 70.0) * atan(gl_ProjectionMatrixInverse[1].y / gbufferPreviousProjection[1].y));
 				//previousScreenPosition = vec4(vec2(gbufferPreviousProjection[0].x, gbufferPreviousProjection[1].y) / projectionScalePrevious, gbufferPreviousProjection[2].zw) * previousViewPosition.xyzz + gbufferPreviousProjection[3];
 				float projectionScalePrevious = gl_ProjectionMatrix[1].y * tan((HAND_FOV / 70.0) * atan(gl_ProjectionMatrixInverse[1].y));
@@ -184,7 +184,7 @@ uniform vec3 shadowLightVector;
 			viewPosition = mat3(gbufferModelView) * scenePosition + gbufferModelView[3].xyz;
 		#endif
 
-		#if PROGRAM == PROGRAM_HAND || PROGRAM == PROGRAM_HAND_WATER
+		#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
 			float projectionScale = gl_ProjectionMatrix[1].y * tan((HAND_FOV / 70.0) * atan(gl_ProjectionMatrixInverse[1].y));
 			gl_Position = vec4(vec2(gl_ProjectionMatrix[0].x, gl_ProjectionMatrix[1].y) / projectionScale, gl_ProjectionMatrix[2].zw) * viewPosition.xyzz + gl_ProjectionMatrix[3];
 		#else
@@ -199,7 +199,7 @@ uniform vec3 shadowLightVector;
 			tangentViewVector = (mat3(gbufferModelViewInverse) * viewPosition) * tbn;
 		#endif
 	}
-#elif STAGE == STAGE_FRAGMENT
+#elif defined STAGE_FRAGMENT
 	//--// Fragment Inputs
 
 	// Interpolated
@@ -341,11 +341,11 @@ uniform vec3 shadowLightVector;
 		#endif
 		if (baseTex.a < 0.102) { discard; }
 		baseTex.rgb *= tint;
-		#if PROGRAM == PROGRAM_ENTITIES
+		#if defined PROGRAM_ENTITIES
 			baseTex.rgb = mix(baseTex.rgb, entityColor.rgb, entityColor.a);
 		#endif
 
-		#if PROGRAM != PROGRAM_TEXTURED
+		#if !defined PROGRAM_TEXTURED
 			#ifdef SMOOTH_SPECULAR
 				vec4 specTex = ReadTextureSmooth(specular);
 			#else
@@ -355,7 +355,7 @@ uniform vec3 shadowLightVector;
 			vec4 specTex = vec4(0.0);
 		#endif
 
-		#if PROGRAM != PROGRAM_BLOCK && PROGRAM != PROGRAM_ENTITIES
+		#if !defined PROGRAM_BLOCK && !defined PROGRAM_ENTITIES
 			#ifdef SMOOTH_NORMALS
 				vec3 normal = ReadTextureSmooth(normals).rgb;
 			#else
@@ -373,7 +373,7 @@ uniform vec3 shadowLightVector;
 			#define parallaxShadow 1.0
 		#endif
 
-		#if PROGRAM == PROGRAM_TERRAIN && defined ARTIFICIAL_LIGHT_DIRECTIONAL
+		#if defined PROGRAM_TERRAIN && defined ARTIFICIAL_LIGHT_DIRECTIONAL
 			vec3 blocklightVector = CalculateBlocklightVector(tbn[2]);
 			float blocklightShading = CalculateBlocklightShading(normal, blocklightVector);
 		#else

@@ -13,7 +13,7 @@ uniform vec2 viewPixelSize;
 
 //--// Shared Functions
 
-#if STAGE == STAGE_VERTEX
+#if defined STAGE_VERTEX
 	//--// Vertex Inputs
 
 	//--// Vertex Outputs
@@ -29,7 +29,7 @@ uniform vec2 viewPixelSize;
 
 		screenCoord = gl_Vertex.xy;
 	}
-#elif STAGE == STAGE_FRAGMENT
+#elif defined STAGE_FRAGMENT
 	//--// Fragment Inputs
 
 	in vec2 screenCoord;

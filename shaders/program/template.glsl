@@ -10,7 +10,7 @@
 
 //--// Shared Functions
 
-#if STAGE == STAGE_VERTEX
+#if defined STAGE_VERTEX
 	//--// Vertex Inputs
 
 	//--// Vertex Outputs
@@ -22,7 +22,7 @@
 	void main() {
 		return;
 	}
-#elif STAGE == STAGE_GEOMETRY
+#elif definedSTAGE_GEOMETRY
 	//--// Geometry Inputs
 
 	//--// Geometry Outputs
@@ -34,7 +34,7 @@
 	void main() {
 		return;
 	}
-#elif STAGE == STAGE_FRAGMENT
+#elif defined STAGE_FRAGMENT
 	//--// Fragment Inputs
 
 	//--// Fragment Outputs

@@ -87,7 +87,7 @@
 
 //--// Materials //-----------------------------------------------------------//
 
-#if PROGRAM == PROGRAM_TERRAIN || PROGRAM == PROGRAM_WATER || PROGRAM == PROGRAM_HAND || PROGRAM == PROGRAM_HAND_WATER
+#if defined PROGRAM_TERRAIN || defined PROGRAM_WATER || defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
 	//#define SMOOTH_ALBEDO
 	//#define SMOOTH_NORMALS
 	//#define SMOOTH_SPECULAR
@@ -106,7 +106,7 @@
 
 //--// Parallax
 
-#if PROGRAM == PROGRAM_TERRAIN || PROGRAM == PROGRAM_WATER || PROGRAM == PROGRAM_HAND || PROGRAM == PROGRAM_HAND_WATER
+#if defined PROGRAM_TERRAIN || defined PROGRAM_WATER || defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
 	//#define PARALLAX
 	#define PARALLAX_SHADOWS
 	//#define SMOOTH_PARALLAX
@@ -223,7 +223,7 @@ const int shadowMapResolution = 2048; // Default if not set: 1024 [512 768 1024 
 
 //--// Screen-Space Contact Shadows
 
-#if PROGRAM == PROGRAM_DEFERRED2
+#if defined PROGRAM_DEFERRED2
 	#define SSCS
 	#define SSCS_MODE 1
 	#define SSCS_SAMPLES 16

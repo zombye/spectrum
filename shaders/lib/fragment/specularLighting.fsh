@@ -81,7 +81,7 @@ vec3 CalculateSpecularHighlight(float NoL, float NoV, float LoV, float VoH, floa
 
 //--//
 
-#if PROGRAM == PROGRAM_COMPOSITE1
+#if defined PROGRAM_COMPOSITE1
 	#define SSR_RAY_COUNT       1   // [1 2 3 4 5 6 7 8]
 	#define SSR_RAY_STEPS       12  // [4 6 8 12 16 24 32]
 	#define SSR_RAY_REFINEMENTS 4   // [0 1 2 3 4 5 6 7 8]

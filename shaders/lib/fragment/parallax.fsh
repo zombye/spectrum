@@ -62,7 +62,7 @@
 		// Refine intersection location
 		for (int i = 0; i < 8; ++i, increment *= 0.5, position += increment * sign(position.z - ReadHeight(fract(position.xy), textureResolution, lod)));
 
-		#if PROGRAM == PROGRAM_HAND || PROGRAM == PROGRAM_ENTITIES
+		#if defined PROGRAM_HAND || defined PROGRAM_ENTITIES
 			// For entities and held blocks, discard when off the edge
 			if (clamp(position.xy, 0.0, 1.0) != position.xy) discard;
 		#endif
@@ -114,7 +114,7 @@
 			position += 0.5 * (distanceToNextTexel + distanceToNextTexel2) * tangentViewVector;
 		}
 
-		#if PROGRAM == PROGRAM_HAND || PROGRAM == PROGRAM_ENTITIES
+		#if defined PROGRAM_HAND || defined PROGRAM_ENTITIES
 			// For entities and held blocks, discard when off the edge
 			if (Clamp01(position.xy) != position.xy) discard;
 		#endif
@@ -138,14 +138,14 @@
 				endPosition += tangentViewVector * distanceToPlaneIntersect;
 			}
 
-			#if PROGRAM != PROGRAM_HAND && PROGRAM != PROGRAM_ENTITIES
+			#if !defined PROGRAM_HAND && !defined PROGRAM_ENTITIES
 				endPosition.xy = fract(endPosition.xy);
 			#endif
 
 			endPosition.xy = endPosition.xy * atlasTileSize + atlasTileOffset;
 		#endif
 
-		#if PROGRAM != PROGRAM_HAND && PROGRAM != PROGRAM_ENTITIES
+		#if !defined PROGRAM_HAND && !defined PROGRAM_ENTITIES
 			position.xy = fract(position.xy);
 		#endif
 

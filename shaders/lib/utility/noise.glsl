@@ -65,16 +65,12 @@ uint Hash(uint x) {
 }
 
 // The following are originally by Dave Hoskins (https://www.shadertoy.com/view/4djSRW, license: https://creativecommons.org/licenses/by-sa/4.0/)
-//*
 #define HASHSCALE1 443.8975
 #define HASHSCALE3 vec3(443.897, 441.423, 437.195)
 #define HASHSCALE4 vec4(443.897, 441.423, 437.195, 444.129)
-//*/
-/*
-#define HASHSCALE1 .1031
-#define HASHSCALE3 vec3(.1031, .1030, .0973)
-#define HASHSCALE4 vec4(.1031, .1030, .0973, .1099)
-//*/
+//#define HASHSCALE1 .1031
+//#define HASHSCALE3 vec3(.1031, .1030, .0973)
+//#define HASHSCALE4 vec4(.1031, .1030, .0973, .1099)
 
 float Hash1(float p) {
 	vec3 p3 = fract(vec3(p) * HASHSCALE1);

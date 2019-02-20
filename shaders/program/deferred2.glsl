@@ -94,7 +94,7 @@ uniform vec3 shadowLightVector;
 
 //--// Shared Functions
 
-#if STAGE == STAGE_VERTEX
+#if defined STAGE_VERTEX
 	//--// Vertex Outputs
 
 	out vec2 screenCoord;
@@ -153,7 +153,7 @@ uniform vec3 shadowLightVector;
 		luminanceShadowlight   = (sunAngle < 0.5 ? sunLuminance   : moonLuminance)   * shadowlightTransmittance;
 		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : moonIlluminance) * shadowlightTransmittance;
 	}
-#elif STAGE == STAGE_FRAGMENT
+#elif defined STAGE_FRAGMENT
 	//--// Fragment Inputs
 
 	in vec2 screenCoord;

@@ -38,7 +38,7 @@ uniform vec3 shadowLightVector;
 
 //--// Shared Functions
 
-#if STAGE == STAGE_VERTEX
+#if defined STAGE_VERTEX
 	//--// Vertex Inputs
 
 	attribute vec2 mc_Entity;
@@ -104,7 +104,7 @@ uniform vec3 shadowLightVector;
 		gl_Position.z  /= SHADOW_DEPTH_SCALE;
 		gl_Position.w   = 1.0;
 	}
-#elif STAGE == STAGE_FRAGMENT
+#elif defined STAGE_FRAGMENT
 	//--// Fragment Inputs
 
 	// Interpolated

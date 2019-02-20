@@ -18,7 +18,7 @@ uniform sampler2D depthtex2;
 
 //--// Shared Functions
 
-#if STAGE == STAGE_VERTEX
+#if defined STAGE_VERTEX
 	//--// Vertex Outputs
 
 	out vec2 screenCoord;
@@ -30,7 +30,7 @@ uniform sampler2D depthtex2;
 		gl_Position.xy = gl_Vertex.xy * 2.0 - 1.0;
 		gl_Position.zw = vec2(1.0);
 	}
-#elif STAGE == STAGE_FRAGMENT
+#elif defined STAGE_FRAGMENT
 	//--// Fragment Inputs
 
 	in vec2 screenCoord;
