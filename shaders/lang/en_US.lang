@@ -238,7 +238,8 @@ option.SKY_RENDER_LOD.comment=Higher values are less detailed.
 option.SKY_IMAGE_LOD=Cubemap LOD
 option.SKY_IMAGE_LOG.comment=Primarily affects reflections. Higher values are less detailed.
 
-option.VL_AIR=Volumetric Lighting (Air)
+option.VL_AIR=Volumetric Lighting
+option.VL_AIR_STEPS=VL Steps
 option.DISTANT_VL=Distant VL
 option.FOG_AIR_DENSITY=Fog Density
 suffix.FOG_AIR_DENSITY=x
@@ -312,6 +313,7 @@ option.WATER_PARALLAX_STEPS=Water Parallax Steps
 
 screen.waterFog=Water Fog
 option.VL_WATER=Volumetric Lighting
+option.VL_WATER_STEPS=VL Steps
 option.VL_WATER_CAUSTICS=Volumetric Caustics
 option.VL_WATER_CAUSTICS.comment=Slow!
 option.UNDERWATER_ADAPTATION=Underwater Adaptation

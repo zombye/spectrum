@@ -73,17 +73,19 @@
 //--// Fog //-----------------------------------------------------------------//
 
 #define VL_AIR
+#define VL_AIR_STEPS 6 // [2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30]
 #ifdef VL_AIR
 	//#define DISTANT_VL
 	#define DISTANT_VL_STEPS 15
 	#define DISTANT_VL_RANGE 15
 #endif
 
+#define FOG_AIR_DENSITY 15 // [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20]
+
 #define VL_WATER
+#define VL_WATER_STEPS 6 // [2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30]
 //#define VL_WATER_CAUSTICS
 #define UNDERWATER_ADAPTATION
-
-#define FOG_AIR_DENSITY 15 // [1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20]
 
 //--// Materials //-----------------------------------------------------------//
 

@@ -185,80 +185,32 @@ uniform vec3 shadowLightVector;
 
 	#include "/lib/shared/atmosphere/density.glsl"
 	#include "/lib/shared/atmosphere/phase.glsl"
+	float PhaseHenyeyGreenstein(float cosTheta, float g) {
+		const float norm = 0.25 / pi;
+
+		float gg = g * g;
+		return (norm - norm * gg) * pow(1.0 + gg - 2.0 * g * cosTheta, -1.5);
+	}
+
+	#ifdef VL_AIR
+		#include "/lib/fragment/fog.fsh"
+	#endif
 
 	vec3 CalculateAirFog(vec3 background, vec3 startPosition, vec3 endPosition, vec3 viewVector, float LoV, float startSkylight, float endSkylight, float dither, bool sky) {
 		float skylight = startSkylight * (1.0 - endSkylight) + endSkylight;
 
-		vec2 phaseSun = AtmospherePhases(LoV, atmosphere_mieg);
-		const vec2 phaseSky = vec2(0.25 / pi);
-
-		const vec3 baseAttenuationCoefficient = atmosphere_coefficientsAttenuation[0] + atmosphere_coefficientsAttenuation[1] + atmosphere_coefficientsAttenuation[2];
-
 		#ifdef VL_AIR
-			const int steps = 6;
-
 			if (sky) {
 				endPosition = startPosition + viewVector * far;
 			}
 
-			//--//
-
-			vec3 incrementWorld = (endPosition - startPosition) / steps;
-			vec3 worldPosition  = startPosition + incrementWorld * dither;
-
-			vec3 incrementShadow    = mat3(shadowModelView) * incrementWorld;
-			     incrementShadow   *= Diagonal(shadowProjection).xyz;
-			     incrementShadow.z /= SHADOW_DEPTH_SCALE;
-			vec3 shadowPosition     = mat3(shadowModelView) * startPosition + shadowModelView[3].xyz;
-			     shadowPosition     = Diagonal(shadowProjection).xyz * shadowPosition + shadowProjection[3].xyz;
-			     shadowPosition.z  /= SHADOW_DEPTH_SCALE;
-			     shadowPosition    += dither * incrementShadow;
-
-			float stepSize = length(incrementWorld);
-
-			//--//
-
-			vec3 scatteringSun = vec3(0.0);
-			vec3 scatteringSky = vec3(0.0);
-			vec3 transmittance = vec3(1.0);
-			for (int i = 0; i < steps; ++i, worldPosition += incrementWorld, shadowPosition += incrementShadow) {
-				vec3 density      = FOG_AIR_DENSITY * AtmosphereDensity(worldPosition.y + cameraPosition.y + atmosphere_planetRadius);
-				vec3 stepAirmass  = density * stepSize;
-				vec3 opticalDepth = atmosphere_coefficientsAttenuation * stepAirmass;
-
-				vec3 stepTransmittance       = exp(-opticalDepth);
-				vec3 stepTransmittedFraction = Clamp01((stepTransmittance - 1.0) / -opticalDepth);
-				vec3 stepVisibleFraction     = transmittance * stepTransmittedFraction;
-
-				//--//
-
-				#ifdef SHADOW_INFINITE_RENDER_DISTANCE
-					vec3 lightingSun = vec3(ReadShadowMaps(DistortShadowSpace(shadowPosition) * 0.5 + 0.5));
-				#else
-					vec3 lightingSun;
-					if (dot(shadowPosition.xy, shadowPosition.xy) < 1.0) {
-						lightingSun = vec3(ReadShadowMaps(DistortShadowSpace(shadowPosition) * 0.5 + 0.5));
-					} else {
-						lightingSun = vec3(1.0);
-					}
-				#endif
-
-				#ifdef CLOUDS3D
-					lightingSun *= GetCloudShadows(worldPosition);
-				#endif
-
-				//--//
-
-				scatteringSun += atmosphere_coefficientsScattering * (stepAirmass.xy * phaseSun) * stepVisibleFraction * lightingSun;
-				scatteringSky += atmosphere_coefficientsScattering * (stepAirmass.xy * phaseSky) * stepVisibleFraction;
-				transmittance *= stepTransmittance;
-			}
-
-			scatteringSun *= illuminanceShadowlight;
-			scatteringSky *= illuminanceSky * skylight;
-
-			vec3 scattering = scatteringSun + scatteringSky;
+			return CalculateFog(background, startPosition, endPosition, skylight, dither);
 		#else
+			vec2 phaseSun = AtmospherePhases(LoV, atmosphere_mieg);
+			const vec2 phaseSky = vec2(0.25 / pi);
+
+			const vec3 baseAttenuationCoefficient = atmosphere_coefficientsAttenuation[0] + atmosphere_coefficientsAttenuation[1] + atmosphere_coefficientsAttenuation[2];
+
 			phaseSun.y *= endSkylight;
 
 			vec3 lightingSky = illuminanceSky * startSkylight;
@@ -273,16 +225,9 @@ uniform vec3 shadowLightVector;
 			vec3 scattering  = atmosphere_coefficientsScattering * (depth * phaseSun) * lightingSun;
 			     scattering += atmosphere_coefficientsScattering * (depth * phaseSky) * lightingSky;
 			     scattering *= visibleFraction;
+
+			return background * transmittance + scattering;
 		#endif
-
-		return background * transmittance + scattering;
-	}
-
-	float PhaseHenyeyGreenstein(float cosTheta, float g) {
-		const float norm = 0.25 / pi;
-
-		float gg = g * g;
-		return (norm - norm * gg) * pow(1.0 + gg - 2.0 * g * cosTheta, -1.5);
 	}
 
 	float FournierForandPhase(float phi, float n, float mu) {
@@ -318,7 +263,7 @@ uniform vec3 shadowLightVector;
 		#endif
 
 		#ifdef VL_WATER
-			const int steps = 6;
+			const int steps = VL_WATER_STEPS;
 
 			//--//
 
