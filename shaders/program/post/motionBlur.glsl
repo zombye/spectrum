@@ -23,6 +23,12 @@ uniform sampler2D colortex3;
 uniform sampler2D colortex5;
 uniform sampler2D colortex6;
 
+#ifdef DOF
+#define colorSampler colortex6
+#else
+#define colorSampler colortex3
+#endif
+
 // Custom Uniforms
 uniform vec2 viewResolution;
 
@@ -78,7 +84,7 @@ uniform vec2 taaOffset;
 	}
 
 	void main() {
-		color.rgb = texture(colortex6, screenCoord).rgb;
+		color.rgb = texture(colorSampler, screenCoord).rgb;
 		color.a = texture(colortex3, screenCoord).a;
 
 		#ifdef MOTION_BLUR
@@ -94,7 +100,7 @@ uniform vec2 taaOffset;
 					color.rgb += texelFetch(colortex3, ivec2(clamp(c, 0.0, 1.0) * viewResolution - 0.5), 0).rgb;
 				} else
 				//*/
-				color.rgb += texture(colortex6, c).rgb;
+				color.rgb += texture(colorSampler, c).rgb;
 			}
 			color.rgb /= MOTION_BLUR_SAMPLES;
 		#endif

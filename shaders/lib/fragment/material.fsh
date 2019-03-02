@@ -53,7 +53,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 		material.porosity     = 0.0;
 		material.n            = F0ToIor(mix(vec3(specTex.r), baseTex, specTex.g)) * airMaterial.n;
 		material.k            = vec3(0.0);
-		material.emission     = baseTex * specTex.b * ARTIFICIAL_LIGHT_LUMINANCE;
+		material.emission     = baseTex * specTex.b * BLOCK_LIGHT_LUMINANCE;
 		material.translucency = vec3(id == 18 || id == 31 || id == 38 || id == 78 || id == 175);
 	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_NPBR
 		float metalness = smoothstep(0.25, 0.45, specTex.r);
@@ -68,7 +68,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 			material.emission     = vec3(0.0);
 			material.translucency = vec3(specTex.a > 0.0 ? 1.0 - specTex.a : 1.0);
 		} else {
-			material.emission     = baseTex * (1.0 - specTex.a) * float(specTex.a > 0.0) * ARTIFICIAL_LIGHT_LUMINANCE;
+			material.emission     = baseTex * (1.0 - specTex.a) * float(specTex.a > 0.0) * BLOCK_LIGHT_LUMINANCE;
 			material.translucency = vec3(0.0);
 		}
 	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_WIP
@@ -77,7 +77,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 		material.albedo       = baseTex - baseTex * metalness;
 		material.roughness    = Pow2(1.0 - specTex.b); // Stored as 1.0 - sqrt(roughness)
 		material.porosity     = specTex.a; // Probably going to be hard-coded by ID or something until _s alpha is properly defaulted by OptiFine.
-		material.emission     = vec3(0.0); //emisTex.rgb * emisTex.a * ARTIFICIAL_LIGHT_LUMINANCE;
+		material.emission     = vec3(0.0); //emisTex.rgb * emisTex.a * BLOCK_LIGHT_LUMINANCE;
 		material.translucency = vec3(0.0);
 
 		if (metalness < 1.0) {

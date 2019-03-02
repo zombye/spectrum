@@ -48,7 +48,7 @@ vec3 SubsurfaceApprox(float NoL, float LoV, vec3 albedo, vec3 translucency) {
 
 float CalculateBlocklightFalloff(float blocklight) {
 	const float lightmapRange = 15.0;
-	const float lightSize     = ARTIFICIAL_LIGHT_SIZE;
+	const float lightSize     = BLOCK_LIGHT_SIZE;
 	const float lightmapScale = lightmapRange / lightSize;
 
 	const float cmp   = lightmapScale * 0.5 - 0.5;
@@ -119,16 +119,16 @@ vec3 CalculateDiffuseLighting(
 		}
 	#endif
 
-	// Artificial light
+	// Block light
 	if (lightmap.x > 0.0) {
 		float falloff = CalculateBlocklightFalloff(lightmap.x);
-		vec3  color   = mix(Blackbody(ARTIFICIAL_LIGHT_TEMPERATURE), vec3(1.0), falloff);
+		vec3  color   = mix(Blackbody(BLOCK_LIGHT_TEMPERATURE), vec3(1.0), falloff);
 
-		#ifdef ARTIFICIAL_LIGHT_USE_AO
+		#ifdef BLOCK_LIGHT_USE_AO
 			falloff *= ao;
 		#endif
 
-		diffuseLighting += ARTIFICIAL_LIGHT_LUMINANCE * color * falloff * hemisphereDiffuse * blocklightShading / pi;
+		diffuseLighting += BLOCK_LIGHT_LUMINANCE * color * falloff * hemisphereDiffuse * blocklightShading / pi;
 	}
 
 	// Ambient light (so you can see anything at all in unlit caves caves)

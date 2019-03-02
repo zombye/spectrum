@@ -153,7 +153,7 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Outputs
 
-	#if AO_METHOD != AO_VERTEX || defined RSM
+	#if defined HBAO || defined RSM
 		/* DRAWBUFFERS:3467 */
 
 		layout (location = 3) out vec4 halfres;
@@ -181,7 +181,7 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Functions
 
-	#if AO_METHOD == AO_HBAO || defined RSM
+	#if defined HBAO || defined RSM
 		float GetLinearDepth(sampler2D depthSampler, vec2 coord) {
 			//float depth = texelFetch(depthSampler, ivec2(coord * viewResolution), 0).r + gbufferProjectionInverse[1].y*exp2(-3.0);
 			//return ScreenSpaceToViewSpace(depth, gbufferProjectionInverse);
@@ -216,7 +216,7 @@ uniform vec3 shadowLightVector;
 		}
 	#endif
 
-	#if AO_METHOD == AO_HBAO
+	#ifdef HBAO
 		float CalculateCosBaseHorizonAngle(
 			vec3  Po,   // Point on the plane
 			vec3  Td,   // Direction to get tangent vector for
@@ -236,7 +236,7 @@ uniform vec3 shadowLightVector;
 
 			for (int i = 0; i < HBAO_ANGLE_SAMPLES; ++i) {
 				float sampleRadius = Pow2(float(i) / float(HBAO_ANGLE_SAMPLES) + sampleOffset);
-				vec2 sampleCoord = ViewSpaceToScreenSpace(position + horizonDirection * sampleRadius * AO_RADIUS, gbufferProjection).xy;
+				vec2 sampleCoord = ViewSpaceToScreenSpace(position + horizonDirection * sampleRadius * HBAO_RADIUS, gbufferProjection).xy;
 
 				if (Clamp01(sampleCoord) != sampleCoord) { break; }
 
@@ -252,7 +252,7 @@ uniform vec3 shadowLightVector;
 				vec3  sampleVector          = samplePosition - position;
 				float sampleDistanceSquared = dot(sampleVector, sampleVector);
 
-				if (sampleDistanceSquared > AO_RADIUS * AO_RADIUS) { continue; }
+				if (sampleDistanceSquared > HBAO_RADIUS * HBAO_RADIUS) { continue; }
 
 				float cosSampleAngle = dot(viewVector, sampleVector) * inversesqrt(sampleDistanceSquared);
 
@@ -318,7 +318,8 @@ uniform vec3 shadowLightVector;
 
 			return result;
 		}
-	#elif AO_METHOD == AO_RTAO
+
+		/*
 		float RTAO(mat3 position, vec3 normal, float dither, out vec3 lightdir) {
 			const int rays = RTAO_RAYS;
 			normal = mat3(gbufferModelView) * normal;
@@ -334,7 +335,7 @@ uniform vec3 shadowLightVector;
 				}
 
 				vec3 hitPos = position[0];
-				if (!RaytraceIntersection(hitPos, position[1], dir, dither, AO_RADIUS, RTAO_RAY_STEPS, 4)) {
+				if (!RaytraceIntersection(hitPos, position[1], dir, dither, HBAO_RADIUS, RTAO_RAY_STEPS, 4)) {
 					lightdir += dir * NoL;
 					ao += NoL;
 				}
@@ -345,6 +346,7 @@ uniform vec3 shadowLightVector;
 
 			return ao * 2.0 / rays;
 		}
+		*/
 	#endif
 
 	#ifdef RSM
@@ -392,11 +394,11 @@ uniform vec3 shadowLightVector;
 				//float sampleIn  = 1.0; // We're sampling the lights projected area so this is just 1.
 				float sampleOut = Clamp01(dot(sampleNormal, -sampleVector)) / pi; // Divide by pi for energy conservation.
 				float bounceIn  = Clamp01(dot(shadowNormal,  sampleVector));
-				float bounceOut = 1.0 / pi; // Divide by pi for energy conservation.
+				const float bounceOut = 1.0 / pi; // Divide by pi for energy conservation.
 
 				float brdf = sampleOut * bounceIn * bounceOut;
 
-				#ifdef RSM_LEAK_FIX
+				#ifdef RSM_LEAK_PREVENTION
 					float sampleSkylight = shadowcolor0Sample.b;
 					brdf *= Clamp01(1.0 - 5.0 * abs(sampleSkylight - skylight));
 				#endif
@@ -515,7 +517,7 @@ uniform vec3 shadowLightVector;
 
 		//--// AO & RSM //----------------------------------------------------//
 
-		#if AO_METHOD != AO_VERTEX || defined RSM
+		#if defined HBAO || defined RSM
 			halfres = vec4(0.0);
 		#endif
 
@@ -556,7 +558,7 @@ uniform vec3 shadowLightVector;
 			}
 		#endif
 
-		#if AO_METHOD != AO_VERTEX
+		#ifdef HBAO
 			if (screenCoord.x < 0.5 && screenCoord.y < 0.5) {
 				mat3 position;
 				position[0].xy = screenCoord * 2.0;
@@ -574,23 +576,21 @@ uniform vec3 shadowLightVector;
 					float dither = Bayer4(fragCoord);
 					dither = fract(dither + LinearBayer8(frameCounter));
 
-					#if AO_METHOD == AO_HBAO
-						vec3 velocity = GetVelocity(position[0]);
-						vec3 reprojPos = position[0] - velocity;
-						bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
+					vec3 velocity = GetVelocity(position[0]);
+					vec3 reprojPos = position[0] - velocity;
+					bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
 
-						vec4 hbaoCurr = CalculateHBAO(position[1], -normalize(position[1]), mat3(gbufferModelView) * normal, dither, ditherSize);
-						hbaoCurr.xyz = mat3(gbufferModelViewInverse) * hbaoCurr.xyz;
-						vec4 hbaoPrev = textureLod(colortex7, reprojPos.xy * 0.5, 0.0);
-						if (hbaoPrev.xyz == vec3(0.0)) {
-							hbaoPrev = vec4(normal, 1.0);
-						} else {
-							hbaoPrev.xyz = hbaoPrev.xyz * 2.0 - 1.0;
-						}
+					vec4 hbaoCurr = CalculateHBAO(position[1], -normalize(position[1]), mat3(gbufferModelView) * normal, dither, ditherSize);
+					hbaoCurr.xyz = mat3(gbufferModelViewInverse) * hbaoCurr.xyz;
+					vec4 hbaoPrev = textureLod(colortex7, reprojPos.xy * 0.5, 0.0);
+					if (hbaoPrev.xyz == vec3(0.0)) {
+						hbaoPrev = vec4(normal, 1.0);
+					} else {
+						hbaoPrev.xyz = hbaoPrev.xyz * 2.0 - 1.0;
+					}
 
-						halfres = mix(hbaoCurr, hbaoPrev, reprojValid ? 0.8 : 0.0);
-						halfres.xyz = normalize(halfres.xyz) * 0.5 + 0.5;
-					#endif
+					halfres = mix(hbaoCurr, hbaoPrev, reprojValid ? 0.8 : 0.0);
+					halfres.xyz = normalize(halfres.xyz) * 0.5 + 0.5;
 				} else {
 					halfres = vec4(0.5, 0.5, 0.5, 1.0);
 				}

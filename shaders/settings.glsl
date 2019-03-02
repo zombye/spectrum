@@ -13,28 +13,25 @@
 
 //--// Ambient Occlusion //---------------------------------------------------//
 
-#define AO_VERTEX 0
-#define AO_SSAO 1
-#define AO_HBAO 2
-#define AO_RTAO 3
-#define AO_METHOD AO_VERTEX // [AO_VERTEX AO_HBAO]
-
-#define AO_RADIUS 4 // [1 2 4 8 16]
+//#define HBAO
+#define HBAO_RADIUS 4 // [1 2 4 8 16]
 
 #define HBAO_DIRECTIONS    2 // [1 2 3 4]
 #define HBAO_ANGLE_SAMPLES 4 // [2 3 4 6 8]
 
+/*
 #define RTAO_RAYS      4
 #define RTAO_RAY_STEPS 8
+*/
 
-//--// Artificial Lighting //-------------------------------------------------//
+//--// Block light //---------------------------------------------------------//
 
-#define ARTIFICIAL_LIGHT_LUMINANCE   500  // [50 100 150 200 250 300 400 500 600 800 1000 1200 1600 2000 2400 3200 4000 4800]
-#define ARTIFICIAL_LIGHT_SIZE        0.7  // [0.125 0.175 0.25 0.35 0.5 0.7 1 1.4 2]
-#define ARTIFICIAL_LIGHT_TEMPERATURE 2500 // [1000 1100 1200 1300 1400 1500 1600 1700 1800 1900 2000 2100 2200 2300 2400 2500 2600 2700 2800 3000 3100 3200 3300 3400 3500 3600 3700 3800 3900 4000]
+#define BLOCK_LIGHT_LUMINANCE   500  // [50 100 150 200 250 300 400 500 600 800 1000 1200 1600 2000 2400 3200 4000 4800]
+#define BLOCK_LIGHT_SIZE        0.7  // [0.125 0.175 0.25 0.35 0.5 0.7 1 1.4 2]
+#define BLOCK_LIGHT_TEMPERATURE 2500 // [1000 1100 1200 1300 1400 1500 1600 1700 1800 1900 2000 2100 2200 2300 2400 2500 2600 2700 2800 3000 3100 3200 3300 3400 3500 3600 3700 3800 3900 4000]
 
-#define ARTIFICIAL_LIGHT_DIRECTIONAL
-#define ARTIFICIAL_LIGHT_USE_AO
+#define BLOCK_LIGHT_DIRECTIONAL
+#define BLOCK_LIGHT_USE_AO
 
 //--// Camera Properties //---------------------------------------------------//
 
@@ -59,11 +56,8 @@
 #define CAMERA_IRIS_BLADE_ROTATION 10  // [0 10 20 30 40 50 60 70 80 90 100 110 120 130 140 150 160 170 180 190 200 210 220 230 240 250 260 270 280 290 300 310 320 330 340 350]
 #define CAMERA_IRIS_BLADE_ROUNDING 0.2 // [-1 -0.99 -0.98 -0.97 -0.96 -0.95 -0.94 -0.93 -0.92 -0.91 -0.9 -0.89 -0.88 -0.87 -0.86 -0.85 -0.84 -0.83 -0.82 -0.81 -0.8 -0.79 -0.78 -0.77 -0.76 -0.75 -0.74 -0.73 -0.72 -0.71 -0.7 -0.69 -0.68 -0.67 -0.66 -0.65 -0.64 -0.63 -0.62 -0.61 -0.6 -0.59 -0.58 -0.57 -0.56 -0.55 -0.54 -0.53 -0.52 -0.51 -0.5 -0.49 -0.48 -0.47 -0.46 -0.45 -0.44 -0.43 -0.42 -0.41 -0.4 -0.39 -0.38 -0.37 -0.36 -0.35 -0.34 -0.33 -0.32 -0.31 -0.3 -0.29 -0.28 -0.27 -0.26 -0.25 -0.24 -0.23 -0.22 -0.21 -0.2 -0.19 -0.18 -0.17 -0.16 -0.15 -0.14 -0.13 -0.12 -0.11 -0.1 -0.09 -0.08 -0.07 -0.06 -0.05 -0.04 -0.03 -0.02 -0.01 0 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1 0.11 0.12 0.13 0.14 0.15 0.16 0.17 0.18 0.19 0.2 0.21 0.22 0.23 0.24 0.25 0.26 0.27 0.28 0.29 0.3 0.31 0.32 0.33 0.34 0.35 0.36 0.37 0.38 0.39 0.4 0.41 0.42 0.43 0.44 0.45 0.46 0.47 0.48 0.49 0.5 0.51 0.52 0.53 0.54 0.55 0.56 0.57 0.58 0.59 0.6 0.61 0.62 0.63 0.64 0.65 0.66 0.67 0.68 0.69 0.7 0.71 0.72 0.73 0.74 0.75 0.76 0.77 0.78 0.79 0.8 0.81 0.82 0.83 0.84 0.85 0.86 0.87 0.88 0.89 0.9 0.91 0.92 0.93 0.94 0.95 0.96 0.97 0.98 0.99 1]
 
-#define DOF_OFF 0
-#define DOF_SIMPLE 1
-#define DOF_STANDARD 2
-#define DOF_COMPLEX 3
-#define DOF DOF_OFF // [DOF_OFF DOF_SIMPLE DOF_STANDARD]
+//#define DOF
+//#define DOF_SIMPLE
 #define DOF_SAMPLES 64 // [8 12 16 24 32 48 64 96 128 192 256 384 512]
 
 //#define MOTION_BLUR
@@ -184,7 +178,7 @@
 #define RSM_RADIUS 8 // [4 5 6 7 8 9 10 11 12 13 14 15 16]
 #define RSM_SAMPLES 60 // [30 40 60 80 120 160 240]
 
-#define RSM_LEAK_FIX // Minimizes light leaking from RSM. Doesn't always get it right, so in some scenes it might be better to disable it.
+#define RSM_LEAK_PREVENTION // Minimizes light leaking from RSM. Doesn't always get it right, so in some scenes it might be better to disable it.
 
 //--// Shadow Maps //---------------------------------------------------------//
 

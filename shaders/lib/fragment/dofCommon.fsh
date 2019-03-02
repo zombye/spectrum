@@ -34,7 +34,7 @@ float CalculateCircleOfConfusion(float depth, float focus, float apertureRadius,
 	return apertureRadius * focalLength * abs(depth - focus) / (depth * abs(focus - focalLength));
 }
 
-#if DOF == DOF_SIMPLE
+#ifdef DOF_SIMPLE
 	//--// Filter constants //------------------------------------------------//
 
 	/********************************************************************/

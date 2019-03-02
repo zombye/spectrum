@@ -453,11 +453,11 @@ uniform vec3 shadowLightVector;
 			float VoH = LoV * rcpLen_LV + rcpLen_LV;
 
 			// Lighting
-			#if AO_METHOD == AO_HBAO
+			#ifdef HBAO
 				vec4 hbao = FilterAo(normalFlat, position[1]);
 				vec3 skyConeVector = hbao.xyz;
 				float ao = hbao.w;
-			#else // AO_METHOD == AO_VERTEX
+			#else
 				vec3 skyConeVector = normal;
 				float ao = unpack.x;
 			#endif

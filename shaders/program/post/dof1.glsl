@@ -15,7 +15,7 @@
 
 #include "/settings.glsl"
 
-#if DOF == DOF_STANDARD || DOF == DOF_COMPLEX
+#ifndef DOF_SIMPLE
 const bool colortex0MipmapEnabled = true;
 const bool colortex3MipmapEnabled = true;
 #endif
@@ -83,8 +83,11 @@ uniform vec2 taaOffset;
 	//--// Fragment Functions
 
 	void main() {
-		#if DOF != DOF_OFF
-			#if DOF == DOF_SIMPLE || DOF == DOF_STANDARD
+		#ifdef DOF
+			#ifdef DOF_COMPLEX
+				float cocSensor = texture(colortex0, screenCoord).a;
+				float cocPixels = cocSensor * viewResolution.y;
+			#else
 				const float sensorHeight = CAMERA_SENSOR_SIZE_MM * 1e-3;
 				float focalLength = CalculateFocalLength(sensorHeight, gbufferProjection[1].y);
 				float apertureRadius = CalculateApertureRadius(focalLength, CAMERA_FSTOP);
@@ -99,12 +102,9 @@ uniform vec2 taaOffset;
 				float cocMetres = CalculateCircleOfConfusion(depth, focus, apertureRadius, focalLength);
 				float cocSensor = cocMetres / sensorHeight;
 				float cocPixels = cocSensor * viewResolution.y;
-			#elif DOF == DOF_COMPLEX
-				float cocSensor = texture(colortex0, screenCoord).a;
-				float cocPixels = cocSensor * viewResolution.y;
 			#endif
 
-			#if DOF == DOF_SIMPLE
+			#ifdef DOF_SIMPLE
 				float filterRadius = cocSensor / KERNEL_RADIUS;
 
 				vec4 valR = vec4(0), valG = vec4(0), valB = vec4(0);
@@ -167,7 +167,7 @@ uniform vec2 taaOffset;
 				//*/
 			#endif
 
-			#if DOF == DOF_STANDARD || DOF == DOF_COMPLEX
+			#ifndef DOF_SIMPLE
 				float lodSample = log2(2.0 * cocPixels * inversesqrt(DOF_SAMPLES));
 				float lodBokeh  = log2(viewResolution.y * inversesqrt(DOF_SAMPLES));
 

@@ -14,7 +14,7 @@
 
 #include "/settings.glsl"
 
-#if DOF == DOF_SIMPLE
+#ifdef DOF_SIMPLE
 const bool colortex3MipmapEnabled = true;
 #endif
 
@@ -58,12 +58,12 @@ uniform vec2 taaOffset;
 
 	//--// Fragment Outputs
 
-	#if DOF == DOF_SIMPLE
+	#ifdef DOF_SIMPLE
 		/* DRAWBUFFERS:01 */
 
 		layout (location = 0) out vec4 colortex0Write;
 		layout (location = 1) out vec4 colortex1Write;
-	#else // DOF == DOF_STANDARD || DOF == DOF_COMPLEX
+	#else
 		/* DRAWBUFFERS:0 */
 
 		layout (location = 0) out vec4 colortex0Write;
@@ -81,7 +81,7 @@ uniform vec2 taaOffset;
 	//--// Fragment Functions
 
 	void main() {
-		#if DOF == DOF_SIMPLE || DOF == DOF_COMPLEX
+		#if defined DOF_SIMPLE || defined DOF_COMPLEX
 			const float sensorHeight = CAMERA_SENSOR_SIZE_MM * 1e-3;
 			float focalLength = CalculateFocalLength(sensorHeight, gbufferProjection[1].y);
 			float apertureRadius = CalculateApertureRadius(focalLength, CAMERA_FSTOP);
@@ -98,7 +98,7 @@ uniform vec2 taaOffset;
 			float cocPixels = cocSensor * viewResolution.y;
 		#endif
 
-		#if DOF == DOF_SIMPLE
+		#ifdef DOF_SIMPLE
 			float lod = log2(2.0 * cocPixels / KERNEL_RADIUS);
 			float filterRadius = cocSensor / (KERNEL_RADIUS * aspectRatio);
 
@@ -124,7 +124,7 @@ uniform vec2 taaOffset;
 			colortex1Write = vec4(Pack2x8(texelRe1.xy), Pack2x8(texelRe1.zw), Pack2x8(texelIm1.xy), Pack2x8(texelIm1.zw));
 		#endif
 
-		#if DOF == DOF_STANDARD || DOF == DOF_COMPLEX
+		#ifndef DOF_SIMPLE
 			// Constants
 			const float bladeAngle     = tau / CAMERA_IRIS_BLADE_COUNT;
 			const float halfBladeAngle = bladeAngle / 2.0;
@@ -143,7 +143,7 @@ uniform vec2 taaOffset;
 			colortex0Write.rgb = vec3(iris);
 		#endif
 
-		#if DOF == DOF_COMPLEX
+		#ifdef DOF_COMPLEX
 			colortex0Write.a = cocSensor;
 		#endif
 	}

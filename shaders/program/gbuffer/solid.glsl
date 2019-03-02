@@ -296,7 +296,7 @@ uniform vec3 shadowLightVector;
 		}
 	#endif
 
-	#ifdef ARTIFICIAL_LIGHT_DIRECTIONAL
+	#ifdef BLOCK_LIGHT_DIRECTIONAL
 		vec3 CalculateBlocklightVector(vec3 flatNormal) {
 			#define blocklight lightmapCoordinates.x
 
@@ -373,7 +373,7 @@ uniform vec3 shadowLightVector;
 			#define parallaxShadow 1.0
 		#endif
 
-		#if defined PROGRAM_TERRAIN && defined ARTIFICIAL_LIGHT_DIRECTIONAL
+		#if defined PROGRAM_TERRAIN && defined BLOCK_LIGHT_DIRECTIONAL
 			vec3 blocklightVector = CalculateBlocklightVector(tbn[2]);
 			float blocklightShading = CalculateBlocklightShading(normal, blocklightVector);
 		#else

@@ -23,42 +23,28 @@ option.GLOBAL_LIGHT_FADE_WITH_SKYLIGHT=Fade Sunlight with Skylight
 ##--## Ambient Occlusion ##---------------------------------------------------##
 
 screen.ambientOcclusion=Ambient Occlusion
-option.AO_METHOD=Method
-value.AO_METHOD.AO_VERTEX=Vertex
-value.AO_METHOD.AO_HBAO=Horizon-Based
-option.AO_RADIUS=Radius
-suffix.AO_RADIUS=m
+option.HBAO=Horizon-Based AO
+option.HBAO_RADIUS=Radius
+suffix.HBAO_RADIUS=m
+option.HBAO_DIRECTIONS=Directions
+option.HBAO_ANGLE_SAMPLES=Angle Samples
 
-option.HBAO_DIRECTIONS=HBAO Directions
-option.HBAO_ANGLE_SAMPLES=HBAO Angle Samples
+##--## Block Light ##---------------------------------------------------------##
 
-##--## Artificial Lighting ##-------------------------------------------------##
+screen.blockLight=Block Lights
+option.BLOCK_LIGHT_LUMINANCE=Intensity
+suffix.BLOCK_LIGHT_LUMINANCE=lx
+option.BLOCK_LIGHT_SIZE=Size
+suffix.BLOCK_LIGHT_SIZE=m
+option.BLOCK_LIGHT_TEMPERATURE=Temperature
+suffix.BLOCK_LIGHT_TEMPERATURE=k
 
-screen.artificialLight=Artificial Lighting
-option.ARTIFICIAL_LIGHT_LUMINANCE=Intensity
-suffix.ARTIFICIAL_LIGHT_LUMINANCE=lx
-option.ARTIFICIAL_LIGHT_SIZE=Size
-suffix.ARTIFICIAL_LIGHT_SIZE=m
-option.ARTIFICIAL_LIGHT_TEMPERATURE=Temperature
-suffix.ARTIFICIAL_LIGHT_TEMPERATURE=k
-
-option.ARTIFICIAL_LIGHT_DIRECTIONAL=Directional Shading
-option.ARTIFICIAL_LIGHT_USE_AO=Use AO
+option.BLOCK_LIGHT_DIRECTIONAL=Directional Shading
+option.BLOCK_LIGHT_USE_AO=Use AO
 
 ##--## Camera Properties ##---------------------------------------------------##
 
-screen.camera=Camera & Lens Properties
-
-option.DOF=Depth of Field
-value.DOF.DOF_OFF=Off
-value.DOF.DOF_SIMPLE=Simple
-value.DOF.DOF_STANDARD=Standard
-value.DOF.DOF_COMPLEX=Complex
-option.DOF_SAMPLES=Depth of Field Samples
-option.DOF_SAMPLES.comment=Does not affect "Simple" DoF.
-option.MOTION_BLUR=Motion Blur
-option.MOTION_BLUR_SAMPLES=Motion Blur Samples
-option.MOTION_BLUR_INTENSITY=Motion Blur Intensity
+screen.camera=Camera & Lens
 
 option.CAMERA_AUTOEXPOSURE=Autoexposure
 value.CAMERA_AUTOEXPOSURE.CAMERA_AUTOEXPOSURE_OFF=Off
@@ -81,6 +67,17 @@ option.CAMERA_IRIS_BLADE_COUNT=Blades
 option.CAMERA_IRIS_BLADE_ROTATION=Blade Rotation
 suffix.CAMERA_IRIS_BLADE_ROTATION=°
 option.CAMERA_IRIS_BLADE_ROUNDING=Blade Rounding
+
+screen.dof=Depth of Field
+option.DOF=Depth of Field
+option.DOF_SIMPLE=Simple DoF
+option.DOF_SAMPLES=Depth of Field Samples
+option.DOF_SAMPLES.comment=Does not affect "Simple" DoF.
+
+screen.motionBlur=Motion Blur
+option.MOTION_BLUR=Motion Blur
+option.MOTION_BLUR_SAMPLES=Motion Blur Samples
+option.MOTION_BLUR_INTENSITY=Motion Blur Intensity
 
 ##--## Materials ##-----------------------------------------------------------##
 
@@ -176,7 +173,7 @@ option.RSM_RADIUS=Radius
 suffix.RSM_RADIUS=m
 option.RSM_SAMPLES=Samples
 
-option.RSM_LEAK_FIX=Light Leaking Fix
+option.RSM_LEAK_PREVENTION=Light Leaking Prevention
 
 ##--## Shadow Maps ##---------------------------------------------------------##
 
