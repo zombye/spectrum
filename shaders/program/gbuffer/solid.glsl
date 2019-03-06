@@ -282,8 +282,8 @@ uniform vec3 shadowLightVector;
 		}
 		vec4 ReadTextureSmoothGrad(sampler2D sampler, vec2 coordinates, vec2 dx, vec2 dy) {
 			ivec2 textureResolution = textureSize(sampler, 0);
-			dx *= textureResolution;
-			dy *= textureResolution;
+			dx *= textureResolution * 0.5;
+			dy *= textureResolution * 0.5;
 
 			float lod = 0.5 * log2(max(max(dot(dx, dx), dot(dy, dy)), 1.0));
 
