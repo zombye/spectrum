@@ -5,7 +5,9 @@ float CalculateDistortionFactor(vec2 position) {
 	#ifdef SHADOW_INFINITE_RENDER_DISTANCE
 		return 1.0 / (SHADOW_DISTORTION_AMOUNT_INVERSE + length(position));
 	#else
-		return 1.0 / (SHADOW_DISTORTION_AMOUNT_INVERSE + (1.0 - SHADOW_DISTORTION_AMOUNT_INVERSE) * length(position));
+		float a = exp(SHADOW_DISTORTION_AMOUNT_INVERSE);
+		float b = exp(1.0) - a;
+		return 1.0 / log(length(position) * b + a);
 	#endif
 }
 
