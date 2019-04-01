@@ -30,6 +30,8 @@ uniform int worldDay;
 uniform int worldTime;
 
 // Gbuffer Uniforms
+uniform float far;
+
 uniform mat4 gbufferModelView;
 uniform mat4 gbufferModelViewInverse;
 uniform mat4 gbufferPreviousModelView;
@@ -43,10 +45,18 @@ uniform sampler2D tex;
 uniform sampler2D normals;
 uniform sampler2D specular;
 
+#ifdef SSR_MULTILAYER
+uniform sampler2D depthtex1;
+#endif
+
 // Misc Samplers
+#ifdef SSR_MULTILAYER
+uniform sampler2D gaux1;
+#define colortex4 gaux1
+#endif
 uniform sampler2D gaux3; // Sky Scattering Image
 #define colortex6 gaux3
-uniform sampler2D gaux4; // Sky Transmittance LUT
+uniform sampler2D gaux4; // Image storing some stuff that would ideally be uniforms but currently can't be
 #define colortex7 gaux4
 
 uniform sampler2D noisetex;
@@ -205,15 +215,14 @@ uniform vec3 shadowLightVector;
 			tangentViewVector = (mat3(gbufferModelViewInverse) * viewPosition) * tbn;
 		#endif
 
-		skylightPosX = texelFetch(colortex6, ivec2(0, 0), 0).rgb;
-		skylightPosY = texelFetch(colortex6, ivec2(1, 0), 0).rgb;
-		skylightPosZ = texelFetch(colortex6, ivec2(2, 0), 0).rgb;
-		skylightNegX = texelFetch(colortex6, ivec2(3, 0), 0).rgb;
-		skylightNegY = texelFetch(colortex6, ivec2(4, 0), 0).rgb;
-		skylightNegZ = texelFetch(colortex6, ivec2(5, 0), 0).rgb;
+		skylightPosX = texelFetch(colortex7, ivec2(0, 0), 0).rgb;
+		skylightPosY = texelFetch(colortex7, ivec2(1, 0), 0).rgb;
+		skylightPosZ = texelFetch(colortex7, ivec2(2, 0), 0).rgb;
+		skylightNegX = texelFetch(colortex7, ivec2(3, 0), 0).rgb;
+		skylightNegY = texelFetch(colortex7, ivec2(4, 0), 0).rgb;
+		skylightNegZ = texelFetch(colortex7, ivec2(5, 0), 0).rgb;
 
-		vec3 shadowlightTransmittance  = AtmosphereTransmittance(colortex7, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
-		     shadowlightTransmittance *= smoothstep(0.0, 0.01, abs(shadowLightVector.y));
+		vec3 shadowlightTransmittance = texelFetch(colortex7, ivec2(0, 1), 0).rgb;
 		luminanceShadowlight   = (sunAngle < 0.5 ? sunLuminance   : moonLuminance)   * shadowlightTransmittance;
 		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : moonIlluminance) * shadowlightTransmittance;
 	}
@@ -251,6 +260,8 @@ uniform vec3 shadowLightVector;
 	flat in vec3 skylightNegY;
 	flat in vec3 skylightNegZ;
 
+	#define illuminanceSky skylightPosY // TODO: Make this the thing it's supposed to be
+
 	flat in vec3 luminanceShadowlight;
 	flat in vec3 illuminanceShadowlight;
 
@@ -277,6 +288,7 @@ uniform vec3 shadowLightVector;
 	#include "/lib/utility/math.glsl"
 	#include "/lib/utility/noise.glsl"
 	#include "/lib/utility/packing.glsl"
+	#include "/lib/utility/rotation.glsl"
 	#include "/lib/utility/spaceConversion.glsl"
 
 	#include "/lib/shared/shadowDistortion.glsl"
@@ -296,6 +308,40 @@ uniform vec3 shadowLightVector;
 	#include "/lib/fragment/shadows.fsh"
 
 	#include "/lib/fragment/clouds3D.fsh"
+
+
+	#ifdef SSR_MULTILAYER
+		/*
+		#if defined VL_AIR || defined VL_WATER
+			#ifdef SHADOW_COLORED
+				vec3 ReadShadowMaps(vec3 shadowCoord) {
+					float shadow0 = textureLod(shadowtex0, shadowCoord.st, 0.0).r;
+					      shadow0 = shadow0 < 1.0 ? step(shadowCoord.z, shadow0) : 1.0;
+					float shadow1 = textureLod(shadowtex1, shadowCoord.st, 0.0).r;
+					      shadow1 = shadow1 < 1.0 ? step(shadowCoord.z, shadow1) : 1.0;
+					vec4  shadowC = textureLod(shadowcolor1, shadowCoord.st, 0.0);
+					      shadowC.rgb = SrgbToLinear(shadowC.rgb);
+
+					// Best looking method I've found so far.
+					return (shadowC.rgb * shadowC.a - shadowC.a) * (-shadow1 * shadow0 + shadow1) + shadow1;
+				}
+			#else
+				float ReadShadowMaps(vec3 shadowCoord) {
+					float shadowSample = textureLod(shadowtex1, shadowCoord.st, 0.0).r;
+					return shadowSample < 1.0 ? step(shadowCoord.z, shadowSample) : 1.0;
+				}
+			#endif
+		#endif
+		*/
+
+		#include "/lib/shared/atmosphere/density.glsl"
+		#include "/lib/shared/atmosphere/phase.glsl"
+		#include "/lib/fragment/fog.fsh"
+
+		#include "/lib/fragment/brdf.fsh"
+		#include "/lib/fragment/raytracer.fsh"
+		#include "/lib/fragment/specularLighting.fsh"
+	#endif
 
 	//--// Fragment Functions
 
@@ -425,6 +471,11 @@ uniform vec3 shadowLightVector;
 
 		material.albedo *= baseTex.a;
 		colortex3Write.rgb  = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, bounce, skylight, lightmapCoordinates, blocklightShading, vertexAo);
+		#ifdef SSR_MULTILAYER
+		colortex3Write.rgb += CalculateSsr(colortex4, position, normal, NoV, material.roughness, material.n, material.k, 1.0, blockId == 8 || blockId == 9, dither, ditherSize);
+		//float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
+		//colortex3Write.rgb += CalculateSpecularHighlight(NoL, NoV, LoV, VoH, material.roughness, material.n, material.k, lightAngularRadius) * illuminanceShadowlight * shadows;
+		#endif
 		colortex3Write.rgb += material.emission;
 		colortex3Write.a    = totalOpacity;
 		#if defined MOTION_BLUR || defined TAA

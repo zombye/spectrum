@@ -11,9 +11,18 @@ bool RaytraceIntersection(inout vec3 position, vec3 startVS, vec3 direction, int
 		int refinementIteration = 0;
 	#endif
 
+	//*
 	vec3 increment  = direction * abs(startVS.z) + startVS;
 	     increment  = ViewSpaceToScreenSpace(increment, gbufferProjection) - position;
 	     increment *= MinOf((step(0.0, increment) - position) / increment) / steps;
+	//*/
+	/*
+	vec3 clipPlaneIntersection = vec3(direction.xy / direction.z, 1.0) * ((direction.z < 0.0 ? -far : -near) - startVS.z) + startVS;
+	     clipPlaneIntersection = ViewSpaceToScreenSpace(clipPlaneIntersection, gbufferProjection);
+	vec3 increment  = clipPlaneIntersection - position;
+	     increment *= min(MinOf((step(0.0, increment.xy) - position.xy) / increment.xy), 1.0);
+	     increment /= steps;
+	//*/
 	float stepSize = length(increment);
 
 	position += increment;

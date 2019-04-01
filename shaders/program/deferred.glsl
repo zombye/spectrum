@@ -285,16 +285,14 @@ uniform vec3 shadowLightVector;
 				float cosTheta1 = CalculateCosHorizonAngle( horizonDirection, position, viewVector, normal, NoV, sampleOffset);
 				float cosTheta2 = CalculateCosHorizonAngle(-horizonDirection, position, viewVector, normal, NoV, sampleOffset);
 
-				//--// Integrate over theta
+				//--// Integral over theta
 
 				// Parts that are reused
 				float theta1 = acos(clamp(cosTheta1, -1.0, 1.0));
 				float theta2 = acos(clamp(cosTheta2, -1.0, 1.0));
-				float sinTheta1 = sin(theta1);
-				float sinTheta2 = sin(theta2);
-				float sinThetaSq1 = sinTheta1 * sinTheta1;
-				float sinThetaSq2 = sinTheta2 * sinTheta2;
-				float cu1MinusCu2 = sinThetaSq1 * sinTheta1 - sinThetaSq2 * sinTheta2;
+				float sinThetaSq1 = 1.0 - cosTheta1 * cosTheta1;
+				float sinThetaSq2 = 1.0 - cosTheta2 * cosTheta2;
+				float cu1MinusCu2 = sinThetaSq1 * sin(theta1) - sinThetaSq2 * sin(theta2);
 
 				float temp = cos(phiN - phi) * sinThetaN;
 

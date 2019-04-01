@@ -272,6 +272,8 @@ option.CLOUDS3D_SCALE=Scale
 
 screen.ssr=Screen-Space Reflections
 option.SSR_RAY_COUNT=Ray Count
+option.SSR_MULTILAYER=Multilayer Reflections
+option.SSR_MULTILAYER.comment=Allows reflections on objects behind other transparent objects, like stained glass. Potentially very slow!. Unfinished!
 option.SSR_RAY_STEPS=Ray Steps
 option.SSR_RAY_REFINEMENTS=Ray Refinements
 option.SSR_TAIL_CLAMP=Tail Clamp

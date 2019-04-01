@@ -106,6 +106,7 @@ uniform vec3 shadowLightVector;
 	flat out vec3 skylightNegY;
 	flat out vec3 skylightNegZ;
 
+	flat out vec3 shadowlightTransmittance;
 	flat out vec3 luminanceShadowlight;
 	flat out vec3 illuminanceShadowlight;
 
@@ -148,8 +149,8 @@ uniform vec3 shadowLightVector;
 		skylightNegY *= sampleWeight;
 		skylightNegZ *= sampleWeight;
 
-		vec3 shadowlightTransmittance  = AtmosphereTransmittance(transmittanceLut, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
-		     shadowlightTransmittance *= smoothstep(0.0, 0.01, abs(shadowLightVector.y));
+		shadowlightTransmittance  = AtmosphereTransmittance(transmittanceLut, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
+		shadowlightTransmittance *= smoothstep(0.0, 0.01, abs(shadowLightVector.y));
 		luminanceShadowlight   = (sunAngle < 0.5 ? sunLuminance   : moonLuminance)   * shadowlightTransmittance;
 		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : moonIlluminance) * shadowlightTransmittance;
 	}
@@ -165,15 +166,16 @@ uniform vec3 shadowLightVector;
 	flat in vec3 skylightNegY;
 	flat in vec3 skylightNegZ;
 
+	flat in vec3 shadowlightTransmittance;
 	flat in vec3 luminanceShadowlight;
 	flat in vec3 illuminanceShadowlight;
 
 	//--// Fragment Outputs
 
-	/* DRAWBUFFERS:46 */
+	/* DRAWBUFFERS:47 */
 
 	layout (location = 0) out vec4 colortex4Write;
-	layout (location = 1) out vec4 colortex6Write;
+	layout (location = 1) out vec4 colortex7Write;
 
 	//--// Fragment Libraries
 
@@ -389,24 +391,26 @@ uniform vec3 shadowLightVector;
 	}
 
 	void main() {
-		colortex6Write.a = texelFetch(colortex6, ivec2(gl_FragCoord.st), 0).a;
 		if (gl_FragCoord.x < 6.0 && gl_FragCoord.y < 1.0) {
 			if (gl_FragCoord.x < 1.0) {
-				colortex6Write.rgb = skylightPosX;
+				colortex7Write.rgb = skylightPosX;
 			} else if (gl_FragCoord.x < 2.0) {
-				colortex6Write.rgb = skylightPosY;
+				colortex7Write.rgb = skylightPosY;
 			} else if (gl_FragCoord.x < 3.0) {
-				colortex6Write.rgb = skylightPosZ;
+				colortex7Write.rgb = skylightPosZ;
 			} else if (gl_FragCoord.x < 4.0) {
-				colortex6Write.rgb = skylightNegX;
+				colortex7Write.rgb = skylightNegX;
 			} else if (gl_FragCoord.x < 5.0) {
-				colortex6Write.rgb = skylightNegY;
+				colortex7Write.rgb = skylightNegY;
 			} else {
-				colortex6Write.rgb = skylightNegZ;
+				colortex7Write.rgb = skylightNegZ;
 			}
+		} else if (gl_FragCoord.x < 1.0 && gl_FragCoord.y < 2.0) {
+			colortex7Write.rgb = shadowlightTransmittance;
 		} else {
-			colortex6Write.rgb = vec3(0.0);
+			colortex7Write.rgb = vec3(0.0);
 		}
+		colortex7Write.a = 1.0;
 
 		mat3 position;
 		position[0] = vec3(screenCoord, texture(depthtex1, screenCoord).r);

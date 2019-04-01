@@ -1,24 +1,24 @@
 float CalculateFocalLength(float sensorHeight, float rcpTanHalfFov) {
 	/*\
-	 * Projection matrix X/Y mult from FOV on X/Y is:
-	 * proj = 1 / tan(fov / 2)
+	 * Projection mult from FOV is:
+	 * proj = 1 / tan(fieldOfView / 2)
 	 *
 	 * Therefore, FOV from the projection matrix is:
-	 * fov = 2 * atan(1 / proj)
+	 * fieldOfView = 2 * atan(1 / proj)
 	 *
-	 * FOV from focal length and sensor size is:
-	 * fov = 2 * atan(sensor / (2 * focal));
+	 * Field of view from focal length and sensor size is:
+	 * fieldOfView = 2 * atan(sensorSize / (2 * focalLength));
 	 *
 	 * Therefore, focal length from FOV and sensor height is:
-	 * focal = sensor / (2 * tan(fov / 2))
+	 * focalLength = sensorSize / (2 * tan(fieldOfView / 2))
 	 *
 	 * From this, focal length from the projection matrix and sensor size after combining and simplifying the above is:
-	 * focal = sensor * proj / 2
+	 * focalLength = sensorSize * proj / 2
 	\*/
 
 	return 0.5 * sensorHeight * rcpTanHalfFov;
 }
-float CalculateApertureRadius(float focalLength, float fStop) {
+float CalculateApertureDiameter(float focalLength, float fStop) {
 	/*\
 	 * The f-stop/f-number is defined as:
 	 * `N = ƒ/D`, with f being the focal length and D being the aperture diameter
@@ -30,8 +30,8 @@ float CalculateApertureRadius(float focalLength, float fStop) {
 	return focalLength / fStop;
 }
 
-float CalculateCircleOfConfusion(float depth, float focus, float apertureRadius, float focalLength) {
-	return apertureRadius * focalLength * abs(depth - focus) / (depth * abs(focus - focalLength));
+float CalculateCircleOfConfusion(float depth, float focus, float aperture, float focalLength) {
+	return aperture * focalLength * abs(depth - focus) / (depth * abs(focus - focalLength));
 }
 
 #ifdef DOF_SIMPLE

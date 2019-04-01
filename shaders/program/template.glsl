@@ -2,46 +2,46 @@
  * Program Description:
 \*/
 
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
-//--// Uniforms
+//--// Uniforms //------------------------------------------------------------//
 
-//--// Shared Libraries
+//--// Shared Includes //-----------------------------------------------------//
 
-//--// Shared Functions
+//--// Shared Functions //----------------------------------------------------//
 
 #if defined STAGE_VERTEX
-	//--// Vertex Inputs
+	//--// Vertex Inputs //---------------------------------------------------//
 
-	//--// Vertex Outputs
+	//--// Vertex Outputs //--------------------------------------------------//
 
-	//--// Vertex Libraries
+	//--// Vertex Includes //-------------------------------------------------//
 
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
 		return;
 	}
-#elif definedSTAGE_GEOMETRY
-	//--// Geometry Inputs
+#elif defined STAGE_GEOMETRY
+	//--// Geometry Inputs //-------------------------------------------------//
 
-	//--// Geometry Outputs
+	//--// Geometry Outputs //------------------------------------------------//
 
-	//--// Geometry Libraries
+	//--// Geometry Includes //-----------------------------------------------//
 
-	//--// Geometry Functions
+	//--// Geometry Functions //----------------------------------------------//
 
 	void main() {
 		return;
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Inputs
+	//--// Fragment Inputs //-------------------------------------------------//
 
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
-	//--// Fragment Libraries
+	//--// Fragment Includes //-----------------------------------------------//
 
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	void main() {
 		return;

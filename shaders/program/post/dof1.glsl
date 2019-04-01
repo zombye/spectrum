@@ -90,7 +90,8 @@ uniform vec2 taaOffset;
 			#else
 				const float sensorHeight = CAMERA_SENSOR_SIZE_MM * 1e-3;
 				float focalLength = CalculateFocalLength(sensorHeight, gbufferProjection[1].y);
-				float apertureRadius = CalculateApertureRadius(focalLength, CAMERA_FSTOP);
+				float apertureDiameter = CalculateApertureDiameter(focalLength, CAMERA_FSTOP);
+				float apertureRadius = apertureDiameter / 2.0;
 
 				float depth = abs(ScreenSpaceToViewSpace(texture(depthtex1, screenCoord).r, gbufferProjectionInverse));
 				#ifdef CAMERA_AUTOFOCUS
@@ -192,6 +193,5 @@ uniform vec2 taaOffset;
 		#else
 			color = texture(colortex3, screenCoord);
 		#endif
-
 	}
 #endif
