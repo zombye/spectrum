@@ -394,7 +394,11 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 			vec3 reprojectedPosition = position - velocity;
 
 			// Read needed current and previous frame color values
+			#ifdef TAA_SOFT
+			vec3 current = ReadColor(screenCoord + taaOffset * 0.5);
+			#else
 			vec3 current = ReadColor(screenCoord);
+			#endif
 			vec3 history = SampleTextureCatmullRom(colortex3, reprojectedPosition.xy, viewResolution).rgb;
 			     history = max(history / historyExposure, 0.0);
 

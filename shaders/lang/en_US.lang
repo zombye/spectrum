@@ -156,6 +156,8 @@ option.TONEMAP_SHOULDER_CURVE.comment=Determines how quickly the shoulder sectio
 
 screen.taa=Temporal Anti-Aliasing
 option.TAA=Temporal Anti-Aliasing
+option.TAA_SOFT=Soft TAA
+option.TAA_SOFT.comment=Anti-aliases better, but is slightly blurry.
 option.TAA_CLIP=Enable Clipping
 option.TAA_CLIP.comment=Prevents a lot of ghosting. Should only be disabled for screenshots!
 option.TAA_YCoCg=Use YCoCg
