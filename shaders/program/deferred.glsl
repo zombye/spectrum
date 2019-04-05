@@ -267,8 +267,8 @@ uniform vec3 shadowLightVector;
 			float NoV = dot(normal, viewVector);
 
 			vec3 normal2 = Rotate(normal, viewVector, vec3(0,0,1));
-			float phiN = atan(normal2.x, normal2.y), thetaN = acos(normal2.z);
-			float sinThetaN = sin(thetaN);
+			float phiN = atan(normal2.x, normal2.y);
+			float sinThetaN = sqrt(Clamp01(1.0 - normal2.z * normal2.z));
 			float cosThetaN = normal2.z;
 
 			vec4 result = vec4(0.0); // xyz = direction, w = angle

@@ -429,6 +429,7 @@ uniform vec3 shadowLightVector;
 
 		vec3 color = vec3(0.0);
 		if (position[0].z < 1.0 || id != 0) {
+			#ifndef BLACK_TERRAIN
 			// Gbuffer data
 			vec4 colortex1Sample = texture(colortex1, screenCoord);
 
@@ -520,6 +521,9 @@ uniform vec3 shadowLightVector;
 			color += material.emission;
 			//color = skylight * ao;
 			//color = bounce * illuminanceShadowlight;
+			#else
+			color = vec3(0.0);
+			#endif
 		} else {
 			color  = CalculateStars(vec3(0.0), viewVector);
 			color  = CalculateSun(color, viewVector, sunVector);
