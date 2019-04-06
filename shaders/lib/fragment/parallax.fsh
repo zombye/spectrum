@@ -5,7 +5,7 @@
 #endif
 
 #ifdef SMOOTH_PARALLAX
-	float ReadHeight(vec2 tileCoordinates, ivec2 textureResolution, int lod) {
+	float ReadHeight(vec2 tileCoordinates, ivec2 textureResolution, float lod) {
 		ivec2 tileResolution = ivec2(atlasTileResolution);
 		ivec2 tileOffset     = ivec2(atlasTileOffset * textureResolution);
 
@@ -24,7 +24,7 @@
 		return mix(s.x,  s.y,  f.y);
 	}
 #else
-	float ReadHeight(vec2 tileCoordinates, ivec2 textureResolution, int lod) {
+	float ReadHeight(vec2 tileCoordinates, ivec2 textureResolution, float lod) {
 		return textureLod(normals, tileCoordinates * atlasTileSize + atlasTileOffset, lod).a;
 	}
 
@@ -34,21 +34,14 @@
 #endif
 
 #if defined SMOOTH_PARALLAX || !defined SMART_PARALLAX
-	vec2 CalculateParallaxedCoordinate(vec2 textureCoordinates, mat2 textureCoordinateDerivatives, vec3 tangentViewVector, out vec3 position) {
+	vec2 CalculateParallaxedCoordinate(vec2 textureCoordinates, float mipLevel, vec3 tangentViewVector, out vec3 position, out ivec2 index) {
 		// Skip parallax for cases where it doesn't work
 		if(tangentViewVector.z >= 0.0                           // This should never be true for anything visible, but in some cases it is anyway.
 		|| abs(blockId - 9.5) < 1.6                             // Water & Lava, they could probably be fixed but I just haven't bothered trying to do so.
 		|| atlasTileResolution.x * atlasTileResolution.y == 0.0 // This is true on the side faces on held items, which shouldn't have parallax anyway.
 		) return textureCoordinates;
 
-		// Calculate LOD
 		ivec2 textureResolution = textureSize(tex, 0);
-
-		mat2 derivatives     = textureCoordinateDerivatives;
-		     derivatives[0] *= textureResolution;
-		     derivatives[1] *= textureResolution;
-
-		int lod = int(ceil(-0.5 * log2(max(max(dot(derivatives[0], derivatives[0]), dot(derivatives[1], derivatives[1])), 1.0))));
 
 		// Init
 		position = vec3((textureCoordinates - atlasTileOffset) / atlasTileSize, 1.0);
@@ -57,10 +50,10 @@
 		     increment.y *= atlasTileResolution.x / atlasTileResolution.y; // Tile aspect ratio - fixes some warping
 
 		// Loop to find approximate intersection location
-		for (int i = 0; i < 256 && position.z > ReadHeight(fract(position.xy), textureResolution, lod); ++i, position += increment);
+		for (int i = 0; i < 256 && position.z > ReadHeight(fract(position.xy), textureResolution, mipLevel); ++i, position += increment);
 
 		// Refine intersection location
-		for (int i = 0; i < 8; ++i, increment *= 0.5, position += increment * sign(position.z - ReadHeight(fract(position.xy), textureResolution, lod)));
+		for (int i = 0; i < 8; ++i, increment *= 0.5, position += increment * sign(position.z - ReadHeight(fract(position.xy), textureResolution, mipLevel)));
 
 		#if defined PROGRAM_HAND || defined PROGRAM_ENTITIES
 			// For entities and held blocks, discard when off the edge
@@ -73,91 +66,94 @@
 		return position.xy;
 	}
 #else
-	vec2 CalculateParallaxedCoordinate(vec2 textureCoordinates, mat2 textureCoordinateDerivatives, vec3 tangentViewVector, out vec3 endPosition) {
+	vec2 CalculateParallaxedCoordinate(vec2 textureCoordinates, float mipLevel, vec3 tangentViewVector, out vec3 endPosition, out ivec2 endIndex) {
 		// Skip parallax for cases where it doesn't work
 		if(tangentViewVector.z >= 0.0                           // This should never be true for anything visible, but in some cases it is anyway.
-		|| abs(blockId - 9.5) < 1.6                          // Water & Lava, they could probably be fixed but I just haven't bothered trying to do so.
+		|| abs(blockId - 9.5) < 1.6                             // Water & Lava, they could probably be fixed but I just haven't bothered trying to do so.
 		|| atlasTileResolution.x * atlasTileResolution.y == 0.0 // This is true on the side faces on held items, which shouldn't have parallax anyway.
 		) { return textureCoordinates; }
 
-		// Calculate lod
-		ivec2 textureResolution = textureSize(tex, 0);
+		// Preparation stuff
+		vec2 tileResolution = round(atlasTileResolution * exp2(-floor(mipLevel)));
 
-		mat2 derivatives = textureCoordinateDerivatives; derivatives[0] *= textureResolution; derivatives[1] *= textureResolution;
-		vec2 atlasTileResolutionLod = atlasTileResolution * exp2(ceil(-0.5 * log2(max(max(dot(derivatives[0], derivatives[0]), dot(derivatives[1], derivatives[1])), 1.0))));
+		vec2 position  = (textureCoordinates - atlasTileOffset) / atlasTileSize;
+		vec3 direction = tangentViewVector; direction.z /= PARALLAX_DEPTH;
 
-		// Init
-		tangentViewVector.xy *= PARALLAX_DEPTH;
-		tangentViewVector.y  *= atlasTileResolution.x / atlasTileResolution.y; // Tile aspect ratio - fixes some warping
-		vec2 texelDelta = tangentViewVector.xy * atlasTileResolutionLod;
-		vec2 tds = step(0.0, texelDelta);
+		position *= tileResolution;
+		direction.xy *= tileResolution;
+		ivec2 index = ivec2(floor(position));
 
-		vec3 position = vec3((textureCoordinates - atlasTileOffset) / atlasTileSize, 1.0);
-
-		// Loop until intersection
-		for (int i = 0; i < 4096; ++i) {
-			// Calculate distance to the next texel
-			// xy = closest, zw = second closest
-			vec2 texelCoordinates = fract(position.xy * atlasTileResolutionLod);
-
-			vec2  distanceToNextTexelDirectional = (tds - texelCoordinates) / texelDelta;
-			float distanceToNextTexel            = min(distanceToNextTexelDirectional.x, distanceToNextTexelDirectional.y);
-
-			// Check for intersection
-			if (tangentViewVector.z * distanceToNextTexel + position.z < ReadHeight(fract(position.xy), textureCoordinateDerivatives)) { break; }
-
-			// Distance to second closest texel
-			float distanceToNextTexel2 = max(distanceToNextTexelDirectional.x, distanceToNextTexelDirectional.y);
-			distanceToNextTexel2 = min(MinOf(((3.0 * tds - 1.0) - texelCoordinates) / (3.0 * texelDelta)), distanceToNextTexel2);
-
-			// Move to halfway trough next texel
-			position += 0.5 * (distanceToNextTexel + distanceToNextTexel2) * tangentViewVector;
+		vec2 next;
+		vec2 deltaDist;
+		ivec2 deltaSign;
+		for (int axis = 0; axis < 2; ++axis) {
+			deltaDist[axis] = abs(1.0 / direction[axis]);
+			if (direction[axis] < 0.0) {
+				deltaSign[axis] = -1;
+				next[axis] = (position[axis] - index[axis]) * deltaDist[axis];
+			} else {
+				deltaSign[axis] = 1;
+				next[axis] = (1.0 + index[axis] - position[axis]) * deltaDist[axis];
+			}
 		}
 
-		#if defined PROGRAM_HAND || defined PROGRAM_ENTITIES
-			// For entities and held blocks, discard when off the edge
-			if (Clamp01(position.xy) != position.xy) discard;
-		#endif
+		// First step
+		float tPrev = 0.0;
+		float height = textureLod(normals, fract((index + 0.5) / tileResolution) * atlasTileSize + atlasTileOffset, mipLevel).a;
 
-		// Find exact intersection location, for self-shadows or when writing depth. Need to make sure this is actually correct
-		#if defined PARALLAX_SHADOWS || defined PARALLAX_DEPTH_WRITE
-			endPosition = position;
+		endIndex = index;
 
-			float height = textureGrad(normals, fract(endPosition.xy) * atlasTileSize + atlasTileOffset, textureCoordinateDerivatives[0], textureCoordinateDerivatives[1]).a;
-			float distanceToPlaneIntersect = (height - endPosition.z) / tangentViewVector.z;
+		float tNext;
+		if (next.x < next.y) {
+			tNext    = next.x;
+			next.x  += deltaDist.x;
+			index.x += deltaSign.x;
+		} else {
+			tNext    = next.y;
+			next.y  += deltaDist.y;
+			index.y += deltaSign.y;
+		}
 
-			if (endPosition.z < height) {
-				// May need to hit texel edge if below the heightmap value
-				vec2 texelCoordinates = fract(endPosition.xy * atlasTileResolutionLod);
+		// Loop for remaining steps
+		for (int i = 0; i < 4096 && 1.0 + direction.z * tNext > height; ++i) {
+			height = textureLod(normals, fract((index + 0.5) / tileResolution) * atlasTileSize + atlasTileOffset, mipLevel).a;
 
-				vec2  distanceToPreviousTexelDirectional = ((1.0 - tds) - texelCoordinates) / -texelDelta;
-				float distanceToPreviousTexel            = min(distanceToPreviousTexelDirectional.x, distanceToPreviousTexelDirectional.y);
+			endIndex = index;
 
-				endPosition += tangentViewVector * max(-distanceToPreviousTexel, distanceToPlaneIntersect);
+			tPrev = tNext;
+			if (next.x < next.y) {
+				tNext    = next.x;
+				next.x  += deltaDist.x;
+				index.x += deltaSign.x;
 			} else {
-				endPosition += tangentViewVector * distanceToPlaneIntersect;
+				tNext    = next.y;
+				next.y  += deltaDist.y;
+				index.y += deltaSign.y;
 			}
+		}
 
-			#if !defined PROGRAM_HAND && !defined PROGRAM_ENTITIES
-				endPosition.xy = fract(endPosition.xy);
-			#endif
-
-			endPosition.xy = endPosition.xy * atlasTileSize + atlasTileOffset;
+		// Final intersection
+		#if defined PARALLAX_SHADOWS || defined PARALLAX_DEPTH_WRITE
+		float tIntersectionExact = 1.0 + direction.z * tPrev <= height ? tPrev : (height - 1.0) / direction.z;
+		endPosition = vec3(position, 1.0) + direction * tIntersectionExact;
+		endPosition.xy = (endPosition.xy / tileResolution) * atlasTileSize + atlasTileOffset;
 		#endif
 
-		#if !defined PROGRAM_HAND && !defined PROGRAM_ENTITIES
-			position.xy = fract(position.xy);
+		float tIntersection = (tPrev + tNext) / 2.0;
+		position += direction.xy * tIntersection;
+		position /= tileResolution;
+
+		#if defined PROGRAM_HAND || defined PROGRAM_ENTITIES
+		if (Clamp01(position) != position) { discard; }
 		#endif
 
-		position.xy = position.xy * atlasTileSize + atlasTileOffset;
-
-		return position.xy;
+		return fract(position) * atlasTileSize + atlasTileOffset;
 	}
 #endif
 
 #ifdef PARALLAX_SHADOWS
 	#if defined SMOOTH_PARALLAX || !defined SMART_PARALLAX
-		float CalculateParallaxSelfShadow(vec2 hitTextureCoordinates, vec3 coord, mat2 textureCoordinateDerivatives, vec3 tangentLightVector) {
+		float CalculateParallaxSelfShadow(vec3 coord, ivec2 index, float mipLevel, vec3 tangentLightVector) {
 			if(tangentLightVector.z <= 0.0
 			|| abs(blockId - 9.5) < 1.6
 			) { return 1.0; }
@@ -171,65 +167,71 @@
 			for (int i = 0; i < 256 && offset.z < 1.0; i++) {
 				offset += increment;
 
-				float foundHeight = ReadHeight(fract(coord.xy + offset.xy), textureSize(tex, 0), 0);
+				float foundHeight = ReadHeight(fract(coord.xy + offset.xy), textureSize(tex, 0), mipLevel);
 				if (offset.z < foundHeight) { return 0.0; }
 			}
 
 			return 1.0;
 		}
 	#else
-		float CalculateParallaxSelfShadow(vec2 hitTextureCoordinates, vec3 textureCoordinates, mat2 textureCoordinateDerivatives, vec3 tangentLightVector) {
+		float CalculateParallaxSelfShadow(vec3 position, ivec2 index, float mipLevel, vec3 tangentLightVector) {
 			if(tangentLightVector.z <= 0.0
-			|| abs(blockId - 9.5) < 1.6
-			) { return 1.0; }
+			|| abs(blockId - 9.5) < 1.6) { return 1.0; }
 
-			// Calculate lod
-			ivec2 textureResolution = textureSize(tex, 0);
+			// Preparation stuff
+			vec2 tileResolution = round(atlasTileResolution * exp2(-floor(mipLevel)));
 
-			mat2 derivatives = textureCoordinateDerivatives; derivatives[0] *= textureResolution; derivatives[1] *= textureResolution;
-			vec2 atlasTileResolutionLod = atlasTileResolution * exp2(ceil(-0.5 * log2(max(max(dot(derivatives[0], derivatives[0]), dot(derivatives[1], derivatives[1])), 1.0))));
+			position.xy = (position.xy - atlasTileOffset) / atlasTileSize;
+			vec3 direction = tangentLightVector; direction.z /= PARALLAX_DEPTH;
 
-			// Init
-			tangentLightVector.z /= PARALLAX_DEPTH;
-			tangentLightVector.y *= atlasTileResolution.x / atlasTileResolution.y; // Tile aspect ratio - fixes some warping
-			vec2 texelDelta = tangentLightVector.xy * atlasTileResolutionLod;
-			vec2 tds = step(0.0, texelDelta);
+			position.xy *= tileResolution;
+			direction.xy *= tileResolution;
 
-			vec3 position = vec3((textureCoordinates.xy - atlasTileOffset) / atlasTileSize, textureCoordinates.z);
-			vec2 hitPosition = (hitTextureCoordinates - atlasTileOffset) / atlasTileSize;
+			// Self-occlusion for initial texel
+			float height = textureLod(normals, fract((index + 0.5) / tileResolution) * atlasTileSize + atlasTileOffset, mipLevel).a;
 
-			// small margin to avoid issues cause by rounding errors
-			if (position.z + exp2(-17.0) < ReadHeight(fract(hitPosition), textureCoordinateDerivatives)) {
-				vec2 hitTexel = (floor(hitPosition * atlasTileResolutionLod) + 0.5) / atlasTileResolutionLod;
-
-				vec2 texelCenterVec = hitTexel - position.xy;
-				if (abs(texelCenterVec.x) > abs(texelCenterVec.y)) {
-					if (tds.x == step(0.0, texelCenterVec.x)) { return 0.0; }
+			if (position.z + 1e-5 < height) {
+				vec2 v = position.xy - index - 0.5;
+				if (abs(v.x) > abs(v.y)) {
+					if ((direction.x > 0.0) != (v.x > 0.0)) { return 0.0; }
 				} else {
-					if (tds.y == step(0.0, texelCenterVec.y)) { return 0.0; }
+					if ((direction.y > 0.0) != (v.y > 0.0)) { return 0.0; }
 				}
 			}
 
-			// Loop until intersection
-			for (int i = 0; i < 4096; ++i) {
-				vec2 texelCoordinates = fract(position.xy * atlasTileResolutionLod);
+			// More preparation stuff
+			vec2 next;
+			vec2 deltaDist;
+			ivec2 deltaSign;
+			for (int axis = 0; axis < 2; ++axis) {
+				deltaDist[axis] = abs(1.0 / direction[axis]);
+				if (direction[axis] < 0.0) {
+					deltaSign[axis] = -1;
+					next[axis] = (position[axis] - index[axis]) * deltaDist[axis];
+				} else {
+					deltaSign[axis] = 1;
+					next[axis] = (1.0 + index[axis] - position[axis]) * deltaDist[axis];
+				}
+			}
 
-				// Distance to closest texel along ray, check if leaving heightfield
-				vec2  distanceToNextTexelDirectional = (tds - texelCoordinates) / texelDelta;
-				float distanceToNextTexel            = min(distanceToNextTexelDirectional.x, distanceToNextTexelDirectional.y);
+			// Loop
+			float tPrev = 0.0;
+			float tNext = 0.0;
+			for (int i = 0; i < 4096 && position.z + direction.z * tPrev < 1.0; ++i) {
+				tPrev = tNext;
+				if (next.x < next.y) {
+					tNext    = next.x;
+					next.x  += deltaDist.x;
+					index.x += deltaSign.x;
+				} else {
+					tNext    = next.y;
+					next.y  += deltaDist.y;
+					index.y += deltaSign.y;
+				}
 
-				float exitHeight = tangentLightVector.z * distanceToNextTexel + position.z;
-				if (exitHeight >= 1.0) { return 1.0; }
+				height = textureLod(normals, fract((index + 0.5) / tileResolution) * atlasTileSize + atlasTileOffset, mipLevel).a;
 
-				// Distance to second closest texel
-				float distanceToNextTexel2 = max(distanceToNextTexelDirectional.x, distanceToNextTexelDirectional.y);
-				distanceToNextTexel2 = min(MinOf(((3.0 * tds - 1.0) - texelCoordinates) / (3.0 * texelDelta)), distanceToNextTexel2);
-
-				// Move to halfway trough next texel
-				position += 0.5 * (distanceToNextTexel + distanceToNextTexel2) * tangentLightVector;
-
-				// Check for intersection
-				if (exitHeight <= ReadHeight(fract(position.xy), textureCoordinateDerivatives)) { return 0.0; }
+				if (tNext * direction.z + position.z < height) { return 0.0; }
 			}
 
 			return 1.0;

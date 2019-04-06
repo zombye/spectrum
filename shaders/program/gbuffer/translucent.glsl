@@ -373,11 +373,11 @@ uniform vec3 shadowLightVector;
 		vec3 normal;
 
 		#ifdef PARALLAX
-			mat2 textureCoordinateDerivatives = mat2(dFdx(textureCoordinates), dFdy(textureCoordinates));
-			vec3 parallaxEndPosition;
-			vec2 parallaxedCoordinates = CalculateParallaxedCoordinate(textureCoordinates, textureCoordinateDerivatives, tangentViewVector, parallaxEndPosition);
+			float mipLevel = textureQueryLod(normals, textureCoordinates).x;
+			vec3 parallaxEndPosition; ivec2 parallaxEndIndex;
+			vec2 parallaxedCoordinates = CalculateParallaxedCoordinate(textureCoordinates, mipLevel, tangentViewVector, parallaxEndPosition, parallaxEndIndex);
 
-			#define ReadTexture(sampler) textureGrad(sampler, parallaxedCoordinates, textureCoordinateDerivatives[0], textureCoordinateDerivatives[1])
+			#define ReadTexture(sampler) textureLod(sampler, parallaxedCoordinates, mipLevel)
 		#else
 			#define ReadTexture(sampler) texture(sampler, textureCoordinates)
 		#endif
@@ -427,7 +427,7 @@ uniform vec3 shadowLightVector;
 		float totalOpacity = baseTex.a * (1.0 - fresnel) + fresnel;
 
 		#if defined PARALLAX && defined PARALLAX_SHADOWS
-			float parallaxShadow = CalculateParallaxSelfShadow(parallaxedCoordinates, parallaxEndPosition, textureCoordinateDerivatives, shadowLightVector * tbn);
+			float parallaxShadow = CalculateParallaxSelfShadow(parallaxEndPosition, parallaxEndIndex, mipLevel, shadowLightVector * tbn);
 		#else
 			#define parallaxShadow 1.0
 		#endif

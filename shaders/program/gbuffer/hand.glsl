@@ -300,19 +300,20 @@ uniform vec3 shadowLightVector;
 		bool renderingHand = textureSize(normals, 0).x == 64 && (textureSize(normals, 0).y == 64 || textureSize(normals, 0).y == 32);
 
 		#ifdef PARALLAX
-			mat2 textureCoordinateDerivatives = mat2(dFdx(textureCoordinates), dFdy(textureCoordinates));
+			float mipLevel = textureQueryLod(normals, textureCoordinates).x;
 			vec3 parallaxEndPosition;
+			ivec2 parallaxEndIndex;
 			vec2 parallaxedCoordinates;
 			if (!renderingHand) {
-				parallaxedCoordinates = CalculateParallaxedCoordinate(textureCoordinates, textureCoordinateDerivatives, tangentViewVector, parallaxEndPosition);
+				parallaxedCoordinates = CalculateParallaxedCoordinate(textureCoordinates, mipLevel, tangentViewVector, parallaxEndPosition, parallaxEndIndex);
 			} else {
 				parallaxedCoordinates = textureCoordinates;
 				parallaxEndPosition = vec3(textureCoordinates, 1.0);
 			}
 
-			#define ReadTexture(sampler) textureGrad(sampler, parallaxedCoordinates, textureCoordinateDerivatives[0], textureCoordinateDerivatives[1])
+			#define ReadTexture(sampler) textureLod(sampler, parallaxedCoordinates, mipLevel)
 			#if defined SMOOTH_ALBEDO || defined SMOOTH_NORMALS || defined SMOOTH_SPECULAR
-				#define ReadTextureSmooth(sampler) ReadTextureSmoothGrad(sampler, parallaxedCoordinates, textureCoordinateDerivatives[0], textureCoordinateDerivatives[1])
+				#define ReadTextureSmooth(sampler) ReadTextureSmoothLod(sampler, parallaxedCoordinates, mipLevel)
 			#endif
 		#else
 			#define ReadTexture(sampler) texture(sampler, textureCoordinates)
@@ -358,7 +359,7 @@ uniform vec3 shadowLightVector;
 		#if defined PARALLAX && defined PARALLAX_SHADOWS
 			float parallaxShadow;
 			if (!renderingHand) {
-				parallaxShadow = CalculateParallaxSelfShadow(parallaxedCoordinates, parallaxEndPosition, textureCoordinateDerivatives, shadowLightVector * tbn);
+				parallaxShadow = CalculateParallaxSelfShadow(parallaxEndPosition, parallaxEndIndex, mipLevel, shadowLightVector * tbn);
 			} else {
 				parallaxShadow = 1.0;
 			}
