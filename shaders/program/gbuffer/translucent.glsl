@@ -407,7 +407,7 @@ uniform vec3 shadowLightVector;
 
 		normal = normalize(tbn * normal);
 
-		colortex0Write = vec4(Pack2x8(baseTex.rg), Pack2x8(baseTex.b, blockId / 255.0), Pack2x8Dithered(lightmapCoordinates, dither), 1.0);
+		colortex0Write = vec4(Pack2x8(baseTex.rg), Pack2x8(baseTex.b, Clamp01(blockId / 255.0)), Pack2x8Dithered(lightmapCoordinates, dither), 1.0);
 		colortex1Write = vec4(Pack2x8(specTex.rg), Pack2x8(specTex.ba), Pack2x8(EncodeNormal(normal) * 0.5 + 0.5), 1.0);
 
 		Material material = MaterialFromTex(baseTex.rgb, specTex, blockId);
