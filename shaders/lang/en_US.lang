@@ -300,10 +300,11 @@ value.WATER_WAVES_SPEED.0=Static
 
 option.WATER_WAVES_WAVELENGTH=Wavelength
 suffix.WATER_WAVES_WAVELENGTH=m
-option.WATER_WAVES_WAVE_HEIGHT=Wave Height
-suffix.WATER_WAVES_WAVE_HEIGHT=m
+option.WATER_WAVES_WAVE_HEIGHT_RATIO=Wave Height Ratio
 option.WATER_WAVES_WAVELENGTH_GAIN=Wavelength Gain
 option.WATER_WAVES_WAVE_HEIGHT_GAIN=Wave Height Gain
+option.WATER_WAVES_SHARPENING=Wave Sharpening
+option.WATER_WAVES_SHARPENING.comment=Sharpens the crests of waves.
 
 option.WATER_PARALLAX=Water Parallax
 option.WATER_PARALLAX_DEPTH_MULTIPLIER=Water Parallax Depth

@@ -43,7 +43,7 @@ float CalculateWaterWaves(vec3 position) {
 	const float g          = WATER_WAVES_G;
 	      float wavelength = WATER_WAVES_WAVELENGTH;
 	const float wlGain     = WATER_WAVES_WAVELENGTH_GAIN;
-	      float height     = WATER_WAVES_WAVE_HEIGHT;
+	      float height     = WATER_WAVES_WAVELENGTH * WATER_WAVES_WAVE_HEIGHT_RATIO / pi;
 	const float gain       = WATER_WAVES_WAVE_HEIGHT_GAIN * WATER_WAVES_WAVELENGTH_GAIN;
 
 	const float angle = 2.6;
@@ -57,7 +57,7 @@ float CalculateWaterWaves(vec3 position) {
 		float phaseNoise = GetSmoothNoise(vec2(position.x, position.z - w * waveTime * 0.7) / wavelength) * wavelength * 0.8;
 		float phase = k * (position.z + phaseNoise) - w * waveTime;
 
-		float sharpness = pow(pi * height / wavelength, 1.0 / 3.0);
+		float sharpness = pow(pi * height / wavelength, 1.0 - WATER_WAVES_SHARPENING);
 		float wave = CalculateWaterWave(phase, height, sharpness);
 
 		waves -= wave;
