@@ -7,7 +7,6 @@
 
 #define WATER_WAVES_SPEED 1 // [0 0.5 1 2]
 
-//#define GLOBAL_LIGHT_USE_AO
 //#define GLOBAL_LIGHT_FADE_WITH_SKYLIGHT
 
 #define NIGHT_SKY_BRIGHTNESS 5 // [1 2 3 4 5]
@@ -27,6 +26,7 @@
 #define HBAO_DIRECTIONS    4 // [1 2 3 4 6 8]
 #define HBAO_ANGLE_SAMPLES 2 // [1 2 3 4 6 8]
 
+#define GLOBAL_LIGHT_USE_AO
 
 //--// Block light //---------------------------------------------------------//
 
