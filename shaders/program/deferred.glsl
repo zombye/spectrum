@@ -572,22 +572,14 @@ uniform vec3 shadowLightVector;
 
 					const float ditherSize = 4.0 * 4.0;
 					float dither = Bayer4(fragCoord);
-					dither = fract(dither + LinearBayer8(frameCounter));
 
 					vec3 velocity = GetVelocity(position[0]);
 					vec3 reprojPos = position[0] - velocity;
 					bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
 
-					vec4 hbaoCurr = CalculateHBAO(position[1], -normalize(position[1]), mat3(gbufferModelView) * normal, dither, ditherSize);
-					hbaoCurr.xyz = mat3(gbufferModelViewInverse) * hbaoCurr.xyz;
-					vec4 hbaoPrev = textureLod(colortex7, reprojPos.xy * 0.5, 0.0);
-					if (hbaoPrev.xyz == vec3(0.0)) {
-						hbaoPrev = vec4(normal, 1.0);
-					} else {
-						hbaoPrev.xyz = hbaoPrev.xyz * 2.0 - 1.0;
-					}
+					halfres = CalculateHBAO(position[1], -normalize(position[1]), mat3(gbufferModelView) * normal, dither, ditherSize);
+					halfres.xyz = mat3(gbufferModelViewInverse) * halfres.xyz;
 
-					halfres = mix(hbaoCurr, hbaoPrev, reprojValid ? 0.8 : 0.0);
 					halfres.xyz = normalize(halfres.xyz) * 0.5 + 0.5;
 				} else {
 					halfres = vec4(0.5, 0.5, 0.5, 1.0);

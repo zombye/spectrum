@@ -236,23 +236,28 @@ uniform vec3 shadowLightVector;
 		hbao.xyz = hbao.xyz * 2.0 - 1.0;
 
 		float weightSum = 1.0;
-		for (int x = -2; x < 2; ++x) {
-			for (int y = -2; y < 2; ++y) {
+		for (int x = -4; x < 4; ++x) {
+			for (int y = -4; y < 4; ++y) {
 				ivec2 offset = ivec2(x, y) + shift;
 				if (offset.x == 0 && offset.y == 0) { continue; }
 
 				ivec2 sampleFragCoord = fragCoord + offset;
 
-				if (sampleFragCoord.x < 0 || sampleFragCoord.y < 0) { continue; }
-				if (sampleFragCoord.x >= res.x || sampleFragCoord.y >= res.y) { continue; }
+				if(sampleFragCoord.x < 0
+				|| sampleFragCoord.y < 0
+				|| sampleFragCoord.x >= res.x
+				|| sampleFragCoord.y >= res.y
+				) {
+					continue;
+				}
 
 				vec2 sampleCoord = vec2(fragCoord + offset) * viewPixelSize * 2.0;
 
 				vec3 sampleNormal = DecodeNormal(Unpack2x8(texelFetch(colortex1, sampleFragCoord * 2, 0).a) * 2.0 - 1.0);
-				vec3 samplePosition  = GetViewDirection(sampleCoord, gbufferProjectionInverse);
-				     samplePosition *= GetLinearDepth(depthtex1, sampleCoord) / samplePosition.z;
+				vec3 samplePosition = ScreenSpaceToViewSpace(vec3(sampleCoord, texture(depthtex1, sampleCoord).r), gbufferProjectionInverse);
 
-				float weight = CalculateSampleWeight(flatNormal, sampleNormal, mat3(gbufferModelViewInverse) * (samplePosition - position));
+				float weight  = CalculateSampleWeight(flatNormal, sampleNormal, mat3(gbufferModelViewInverse) * (samplePosition - position));
+				      weight *= (1.0 - 0.25 * abs(x)) * (1.0 - 0.25 * abs(y));
 
 				vec4 hbaoSample = texelFetch(colortex7, sampleFragCoord, 0);
 				hbaoSample.xyz = hbaoSample.xyz * 2.0 - 1.0;

@@ -22,15 +22,11 @@
 //--// Ambient Occlusion //---------------------------------------------------//
 
 //#define HBAO
-#define HBAO_RADIUS 4 // [1 2 4 8 16]
+#define HBAO_RADIUS 2 // [1 2 4 8 16]
 
-#define HBAO_DIRECTIONS    2 // [1 2 3 4]
-#define HBAO_ANGLE_SAMPLES 4 // [2 3 4 6 8]
+#define HBAO_DIRECTIONS    4 // [1 2 3 4 6 8]
+#define HBAO_ANGLE_SAMPLES 2 // [1 2 3 4 6 8]
 
-/*
-#define RTAO_RAYS      4
-#define RTAO_RAY_STEPS 8
-*/
 
 //--// Block light //---------------------------------------------------------//
 
