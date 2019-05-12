@@ -365,7 +365,17 @@ uniform vec3 shadowLightVector;
 		#else
 			vec3 normal = vec3(0,0,1);
 		#endif
-		normal = normalize(tbn * normal);
+		float normalLength = length(normal);
+		normal = tbn * normal / normalLength;
+
+		#if RESOURCE_FORMAT == RESOURCE_FORMAT_LAB
+			float textureAo = (Clamp01(normalLength) * (255.0 / 238.0)) - (17.0 / 238.0);
+			      textureAo = textureAo * textureAo;
+		#elif RESOURCE_FORMAT == RESOURCE_FORMAT_CONTINUUM2
+			float textureAo = Clamp01(normalLength);
+		#else
+			const float textureAo = 1.0;
+		#endif
 
 		#if defined PARALLAX && defined PARALLAX_SHADOWS
 			float parallaxShadow = CalculateParallaxSelfShadow(parallaxEndPosition, parallaxEndIndex, mipLevel, shadowLightVector * tbn);
@@ -382,7 +392,7 @@ uniform vec3 shadowLightVector;
 
 		float dither = Bayer4(gl_FragCoord.xy);
 
-		colortex0Write = vec4(Pack2x8(baseTex.rg), Pack2x8(baseTex.b, Clamp01(blockId / 255.0)), Pack2x8Dithered(lightmapCoordinates, dither), float(PackUnormArbitrary(vec4(vertexAo + dither / 255.0, parallaxShadow, blocklightShading + dither / 127.0, 0.0), uvec4(8, 1, 7, 0))) / 65535.0);
+		colortex0Write = vec4(Pack2x8(baseTex.rg), Pack2x8(baseTex.b, Clamp01(blockId / 255.0)), Pack2x8Dithered(lightmapCoordinates, dither), float(PackUnormArbitrary(vec4((vertexAo * textureAo) + dither / 255.0, parallaxShadow, blocklightShading + dither / 127.0, 0.0), uvec4(8, 1, 7, 0))) / 65535.0);
 		colortex1Write = vec4(Pack2x8(specTex.rg), Pack2x8(specTex.ba), Pack2x8(EncodeNormal(normal) * 0.5 + 0.5), Pack2x8(EncodeNormal(tbn[2]) * 0.5 + 0.5));
 
 		#if defined MOTION_BLUR || defined TAA

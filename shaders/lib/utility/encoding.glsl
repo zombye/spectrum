@@ -28,7 +28,7 @@ vec4 EncodeRGBE8(vec3 rgb) {
 	return vec4(mantissaPart, exponentPart);
 }
 vec3 DecodeRGBE8(vec4 rgbe) {
-	const float add = log2(510.0 / 256.0) - 127.0;
+	const float add = log2(255.0 / 128.0) - 127.0;
 	return exp2(rgbe.a * 255.0 + add) * rgbe.rgb;
 }
 

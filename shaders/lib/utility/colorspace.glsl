@@ -26,8 +26,14 @@ vec3 XyzToRgb(vec3 xyz) {
 	return xyz * mat;
 }
 
+float LinearToSrgb(float color) {
+	return mix(1.055 * pow(color, 1.0 / 2.4) - 0.055, color * 12.92, step(color, 0.0031308));
+}
 vec3 LinearToSrgb(vec3 color) {
 	return mix(1.055 * pow(color, vec3(1.0 / 2.4)) - 0.055, color * 12.92, step(color, vec3(0.0031308)));
+}
+float SrgbToLinear(float color) {
+	return mix(pow(color / 1.055 + (0.055 / 1.055), 2.4), color / 12.92, step(color, 0.04045));
 }
 vec3 SrgbToLinear(vec3 color) {
 	return mix(pow(color / 1.055 + (0.055 / 1.055), vec3(2.4)), color / 12.92, step(color, vec3(0.04045)));
