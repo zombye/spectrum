@@ -62,7 +62,7 @@ vec2 G1G2SmithGGX(float NdotV, float NdotL, float alpha2) {
 	     delta = abs(sqrt((delta - delta * alpha2) * delta + alpha2) / delta);
 	return Clamp01(2.0 / (delta.x + vec2(1.0, delta.y)));
 }
-float G2OverG1SmithGGX(float NdotL, float NdotV, float alpha2) {
+float G2OverG1SmithGGX(float NdotV, float NdotL, float alpha2) {
 	float a = sqrt(alpha2 + (NdotV - NdotV * alpha2) * NdotV);
 	float b = sqrt(alpha2 + (NdotL - NdotL * alpha2) * NdotL);
 	return Clamp01((NdotV + a) * NdotL / (NdotL * a + NdotV * b));
