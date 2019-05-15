@@ -116,6 +116,7 @@ option.GAMMA_CHROMINANCE=Chrominance Gamma
 option.LUT=Lookup Table
 
 option.BLOOM=Bloom
+option.BLOOM_AMOUNT=Bloom Amount
 
 option.LOWLIGHT_NOISE=Lowlight Noise
 option.LOWLIGHT_DESATURATION=Lowlight Desaturation

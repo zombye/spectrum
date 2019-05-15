@@ -80,7 +80,7 @@ uniform vec2 viewPixelSize;
 		float exposure = colorsample.a;
 
 		#ifdef BLOOM
-			color = mix(color, GetBloom(screenCoord), 0.1);
+			color = mix(GetBloom(screenCoord), color, 1.0 / (1.0 + BLOOM_AMOUNT));
 		#endif
 
 		#ifdef LOWLIGHT_NOISE
