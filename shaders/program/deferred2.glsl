@@ -129,6 +129,7 @@ uniform vec3 shadowLightVector;
 		for (int x = 0; x < samples.x; ++x) {
 			for (int y = 0; y < samples.y; ++y) {
 				vec3 dir = GenerateUnitVector((vec2(x, y) + 0.5) / samples);
+				if (dir.y < 0.0) { dir.y = -dir.y; }
 
 				vec3 skySample = texture(colortex6, ProjectSky(dir)).rgb;
 
@@ -136,18 +137,24 @@ uniform vec3 shadowLightVector;
 				skylightPosY += skySample * Clamp01( dir.y);
 				skylightPosZ += skySample * Clamp01( dir.z);
 				skylightNegX += skySample * Clamp01(-dir.x);
-				skylightNegY += skySample * Clamp01(-dir.y);
 				skylightNegZ += skySample * Clamp01(-dir.z);
 			}
 		}
 
-		const float sampleWeight = 4.0 / (samples.x * samples.y);
+		const float sampleWeight = 2.0 / (samples.x * samples.y);
 		skylightPosX *= sampleWeight;
 		skylightPosY *= sampleWeight;
 		skylightPosZ *= sampleWeight;
 		skylightNegX *= sampleWeight;
-		skylightNegY *= sampleWeight;
 		skylightNegZ *= sampleWeight;
+
+		// super simple fake skylight bounce
+		const float fakeBounceAlbedo = 0.2;
+		skylightPosX += skylightPosY * fakeBounceAlbedo * 0.5;
+		skylightPosZ += skylightPosY * fakeBounceAlbedo * 0.5;
+		skylightNegX += skylightPosY * fakeBounceAlbedo * 0.5;
+		skylightNegY += skylightPosY * fakeBounceAlbedo;
+		skylightNegZ += skylightPosY * fakeBounceAlbedo * 0.5;
 
 		shadowlightTransmittance  = AtmosphereTransmittance(transmittanceLut, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
 		shadowlightTransmittance *= smoothstep(0.0, 0.01, abs(shadowLightVector.y));
