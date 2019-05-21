@@ -321,6 +321,8 @@ option.VL_WATER_STEPS=VL Steps
 option.VL_WATER_CAUSTICS=Volumetric Caustics
 option.VL_WATER_CAUSTICS.comment=Slow!
 option.UNDERWATER_ADAPTATION=Underwater Adaptation
+option.WATER_REALISTIC_PHASE_FUNCTION=Realistic Phase Function
+option.WATER_REALISTIC_PHASE_FUNCTION.comment=Use a more realistic phase function for water. Not recommended if VL is disabled. Currently causes some artifacts!
 
 option.WATER_SCATTERING_R=Scattering R
 option.WATER_SCATTERING_G=Scattering G

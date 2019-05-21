@@ -369,7 +369,7 @@ uniform vec3 shadowLightVector;
 		normal = tbn * normal / normalLength;
 
 		#if RESOURCE_FORMAT == RESOURCE_FORMAT_LAB
-			float textureAo = (Clamp01(normalLength) * (255.0 / 238.0)) - (17.0 / 238.0);
+			float textureAo = Clamp01(normalLength) * (255.0 / 238.0) - (17.0 / 238.0);
 			      textureAo = textureAo * textureAo;
 		#elif RESOURCE_FORMAT == RESOURCE_FORMAT_CONTINUUM2
 			float textureAo = Clamp01(normalLength);

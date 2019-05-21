@@ -140,7 +140,7 @@ vec3 CalculateFog(vec3 background, vec3 startPosition, vec3 endPosition, float s
 		shadowPosition += shadowIncrement;
 	}
 
-	scatteringSun *= illuminanceShadowlight;
+	scatteringSun *= illuminanceShadowlight * skylight;
 	scatteringSky *= illuminanceSky * skylight;
 
 	//--//
@@ -188,15 +188,17 @@ vec3 CalculateAirFog(vec3 background, vec3 startPosition, vec3 endPosition, vec3
 	#endif
 }
 
-float FournierForandPhase(float phi, float n, float mu) {
+float FournierForandPhase(float cosPhi, float n, float mu) {
+	float phi = acos(cosPhi);
+
 	// Not sure if this is correct.
 	float v = (3.0 - mu) / 2.0;
 	float delta = (4.0 / (3.0 * Pow2(n - 1))) * Pow2(sin(phi / 2.0));
-	float delta180 = (4.0 / (3.0 * Pow2(n - 1))) * Pow2(sin(pi / 2.0));
+	float delta180 = 4.0 / (3.0 * Pow2(n - 1));
 
 	float p1 = 1.0 / (4.0 * pi * Pow2(1.0 - delta) * pow(delta, v));
-	float p2 = v * (1.0 - delta) - (1.0 - pow(delta, v)) + (delta * (1.0 - pow(delta, v)) - v * (1.0 - delta)) * pow(sin(phi / 2.0), -2.0);
-	float p3 = ((1.0 - pow(delta180, v)) / (16.0 * pi * (delta180 - 1.0) * pow(delta180, v))) * (3.0 * Pow2(cos(phi)) - 1.0);
+	float p2 = v * (1.0 - delta) - (1.0 - pow(delta, v)) + (delta * (1.0 - pow(delta, v)) - v * (1.0 - delta)) / Pow2(sin(phi / 2.0));
+	float p3 = ((1.0 - pow(delta180, v)) / (16.0 * pi * (delta180 - 1.0) * pow(delta180, v))) * (3.0 * cosPhi * cosPhi - 1.0);
 	return p1 * p2 + p3;
 }
 
@@ -207,8 +209,11 @@ vec3 CalculateWaterFog(vec3 background, vec3 startPosition, vec3 endPosition, ve
 	const float isotropicPhase = 0.25 / pi;
 
 	//#define sunlightPhase isotropicPhase
+	#ifdef WATER_REALISTIC_PHASE_FUNCTION
+	float sunlightPhase = FournierForandPhase(LoV, 1.4, 4.4); // Accurate-ish for water
+	#else
 	float sunlightPhase = PhaseHenyeyGreenstein(LoV, 0.5);
-	//float sunlightPhase = FournierForandPhase(acos(LoV), 1.1, 3.5835); // Accurate-ish for water
+	#endif
 
 	#ifdef UNDERWATER_ADAPTATION
 		float fogDensity = isEyeInWater == 1 ? fogDensity : 0.1;
@@ -283,14 +288,14 @@ vec3 CalculateWaterFog(vec3 background, vec3 startPosition, vec3 endPosition, ve
 
 		vec3 stepTransmittedFraction = Clamp01((stepTransmittance - 1.0) / -stepOpticalDepth);
 
-		vec3 scattering  = scatteringSun * sunlightPhase * illuminanceShadowlight;
+		vec3 scattering  = scatteringSun * sunlightPhase * illuminanceShadowlight * skylight;
 			 scattering += scatteringSky * isotropicPhase * illuminanceSky * skylight;
 			 scattering *= waterScatteringAlbedo * stepOpticalDepth * stepTransmittedFraction;
 
 		//--//
 
 		if (sky) {
-			vec3 lighting = illuminanceShadowlight * sunlightPhase;
+			vec3 lighting = illuminanceShadowlight * sunlightPhase * skylight;
 			#ifdef CLOUDS3D
 				if (isEyeInWater == 1) {
 					lighting *= GetCloudShadows(gbufferModelViewInverse[3].xyz);

@@ -84,7 +84,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 		material.albedo       = isMetal ? vec3(0.0) : baseTex;
 		material.roughness    = Pow2(1.0 - specTex.r);
 		material.porosity     = 1.0;
-		material.n            = F0ToIor(isMetal ? baseTex : vec3(SrgbToLinear(specTex.r))) * airMaterial.n;
+		material.n            = F0ToIor(isMetal ? baseTex : vec3(SrgbToLinear(specTex.g))) * airMaterial.n;
 		material.k            = vec3(0.0);
 		material.emission     = vec3(0.0); //emisTex.rgb * BLOCK_LIGHT_LUMINANCE;
 		material.translucency = vec3(0.0);
