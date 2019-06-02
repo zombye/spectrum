@@ -52,12 +52,14 @@ uniform mat4 shadowProjectionInverse;
 // Misc samplers
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
-uniform sampler2D colortex5; // Sky Scattering LUT
+uniform sampler2D colortex5; // Velocity buffer
 uniform sampler2D colortex7; // Previous frame data
 uniform sampler2D noisetex;
 
 uniform sampler2D depthtex0; // Sky Transmittance LUT
+uniform sampler2D depthtex2; // Sky Scattering LUT
 #define transmittanceLut depthtex0
+#define scatteringLut depthtex2
 
 // Custom Uniforms
 uniform vec2 viewResolution;
@@ -122,8 +124,8 @@ uniform vec3 shadowLightVector;
 			for (int y = 0; y < samples.y; ++y) {
 				vec3 dir = GenerateUnitVector((vec2(x, y) + 0.5) / samples);
 
-				vec3 skySample  = AtmosphereScattering(colortex5, vec3(0.0, atmosphere_planetRadius, 0.0), dir, sunVector ) * sunIlluminance;
-				     skySample += AtmosphereScattering(colortex5, vec3(0.0, atmosphere_planetRadius, 0.0), dir, moonVector) * moonIlluminance;
+				vec3 skySample  = AtmosphereScattering(scatteringLut, vec3(0.0, atmosphere_planetRadius, 0.0), dir, sunVector ) * sunIlluminance;
+				     skySample += AtmosphereScattering(scatteringLut, vec3(0.0, atmosphere_planetRadius, 0.0), dir, moonVector) * moonIlluminance;
 
 				skyAmbient += skySample;
 				skyAmbientUp += skySample * Clamp01(dir.y);
@@ -197,22 +199,6 @@ uniform vec3 shadowLightVector;
 
 			s.xy = mix(s.wx, s.zy, f.x);
 			return mix(s.x,  s.y,  f.y) * gbufferProjectionInverse[3].z;
-		}
-
-		vec3 GetVelocity(vec3 position) {
-			//if (position.z >= 1.0) { // Sky doesn't write to the velocity buffer
-				vec3 currentPosition = position;
-
-				position = ScreenSpaceToViewSpace(position, gbufferProjectionInverse);
-				position = mat3(gbufferModelViewInverse) * position + gbufferModelViewInverse[3].xyz;
-				position = position + cameraPosition - previousCameraPosition;
-				position = mat3(gbufferPreviousModelView) * position + gbufferPreviousModelView[3].xyz;
-				position = ViewSpaceToScreenSpace(position, gbufferPreviousProjection);
-
-				return currentPosition - position;
-			//}
-
-			//return texture(colortex5, position.xy).rgb;
 		}
 	#endif
 
@@ -421,12 +407,12 @@ uniform vec3 shadowLightVector;
 			vec3 scattering = vec3(0.0);
 			vec3 transmittance = vec3(1.0);
 
-			scattering += AtmosphereScatteringMulti(colortex5, position, viewVector, sunVector ) * sunIlluminance;
-			scattering += AtmosphereScatteringMulti(colortex5, position, viewVector, moonVector) * moonIlluminance;
+			scattering += AtmosphereScatteringMulti(scatteringLut, position, viewVector, sunVector ) * sunIlluminance;
+			scattering += AtmosphereScatteringMulti(scatteringLut, position, viewVector, moonVector) * moonIlluminance;
 			scattering *= averageCloudTransmittance;
 
-			vec3 sun  = AtmosphereScatteringSingle(colortex5, position, viewVector, sunVector ) * sunIlluminance;
-			vec3 moon = AtmosphereScatteringSingle(colortex5, position, viewVector, moonVector) * moonIlluminance;
+			vec3 sun  = AtmosphereScatteringSingle(scatteringLut, position, viewVector, sunVector ) * sunIlluminance;
+			vec3 moon = AtmosphereScatteringSingle(scatteringLut, position, viewVector, moonVector) * moonIlluminance;
 			for (int i = 0; i < steps; ++i) {
 				float cloudShadow = Calculate3DCloudShadows(position + vec3(cameraPosition.x, -atmosphere_planetRadius, cameraPosition.z), cloudCoverage, 3);
 				if (sunAngle < 0.5) {
@@ -445,8 +431,8 @@ uniform vec3 shadowLightVector;
 
 				position += increment;
 
-				sun  = Max0(AtmosphereScatteringSingle(colortex5, position, viewVector, sunVector )) * sunIlluminance;
-				moon = Max0(AtmosphereScatteringSingle(colortex5, position, viewVector, moonVector)) * moonIlluminance;
+				sun  = Max0(AtmosphereScatteringSingle(scatteringLut, position, viewVector, sunVector )) * sunIlluminance;
+				moon = Max0(AtmosphereScatteringSingle(scatteringLut, position, viewVector, moonVector)) * moonIlluminance;
 				if (sunAngle < 0.5) {
 					scattering -= (sun * cloudShadow + moon) * transmittance;
 				} else {
@@ -539,16 +525,8 @@ uniform vec3 shadowLightVector;
 
 					const float ditherSize = 4.0 * 4.0;
 					float dither = Bayer4(tile);
-					dither = fract(dither + LinearBayer8(frameCounter));
 
-					vec3 velocity = GetVelocity(position[0]);
-					vec3 reprojPos = position[0] - velocity;
-					bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
-
-					vec3 rsmCurr = ReflectiveShadowMaps(position[2], normal, skylight, dither, ditherSize);
-					vec3 rsmPrev = textureLod(colortex7, reprojPos.xy * 0.5 + vec2(0.5, 0.0), 0.0).rgb;
-
-					halfres.rgb = mix(rsmCurr, rsmPrev, reprojValid ? 0.8 : 0.0);
+					halfres.rgb = ReflectiveShadowMaps(position[2], normal, skylight, dither, ditherSize);
 					halfres.a = 1.0;
 				} else {
 					halfres = vec4(0.0, 0.0, 0.0, 1.0);
@@ -573,16 +551,12 @@ uniform vec3 shadowLightVector;
 					const float ditherSize = 4.0 * 4.0;
 					float dither = Bayer4(fragCoord);
 
-					vec3 velocity = GetVelocity(position[0]);
-					vec3 reprojPos = position[0] - velocity;
-					bool reprojValid = clamp(reprojPos.xy, viewPixelSize, 1.0 - viewPixelSize) == reprojPos.xy;
-
 					halfres = CalculateHBAO(position[1], -normalize(position[1]), mat3(gbufferModelView) * normal, dither, ditherSize);
 					halfres.xyz = mat3(gbufferModelViewInverse) * halfres.xyz;
 
-					halfres.xyz = normalize(halfres.xyz) * 0.5 + 0.5;
+					halfres.xyz = normalize(halfres.xyz);
 				} else {
-					halfres = vec4(0.5, 0.5, 0.5, 1.0);
+					halfres = vec4(0.0, 0.0, 0.0, 1.0);
 				}
 			}
 		#endif
@@ -625,12 +599,12 @@ uniform vec3 shadowLightVector;
 						vec3 transmittance = distantVl[1];
 
 						vec3 vlEndPosition = vlEndDistance * viewVector + viewPosition;
-						vec3 atmosphereScattering  = AtmosphereScattering(colortex5, vlEndPosition, viewVector, sunVector ) * sunIlluminance;
-						     atmosphereScattering += AtmosphereScattering(colortex5, vlEndPosition, viewVector, moonVector) * moonIlluminance;
+						vec3 atmosphereScattering  = AtmosphereScattering(scatteringLut, vlEndPosition, viewVector, sunVector ) * sunIlluminance;
+						     atmosphereScattering += AtmosphereScattering(scatteringLut, vlEndPosition, viewVector, moonVector) * moonIlluminance;
 						scattering += atmosphereScattering * transmittance * averageCloudTransmittance;
 					#else
-						scattering  = AtmosphereScattering(colortex5, viewPosition, viewVector, sunVector ) * sunIlluminance;
-						scattering += AtmosphereScattering(colortex5, viewPosition, viewVector, moonVector) * moonIlluminance;
+						scattering  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
+						scattering += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
 					#endif
 
 					#ifdef CLOUDS3D
@@ -645,8 +619,8 @@ uniform vec3 shadowLightVector;
 						#endif
 
 						vec3 clouds3DPosition = clouds3DDistance * viewVector + viewPosition;
-						atmosphereScattering  = AtmosphereScattering(colortex5, clouds3DPosition, viewVector, sunVector ) * sunIlluminance;
-						atmosphereScattering += AtmosphereScattering(colortex5, clouds3DPosition, viewVector, moonVector) * moonIlluminance;
+						atmosphereScattering  = AtmosphereScattering(scatteringLut, clouds3DPosition, viewVector, sunVector ) * sunIlluminance;
+						atmosphereScattering += AtmosphereScattering(scatteringLut, clouds3DPosition, viewVector, moonVector) * moonIlluminance;
 						scattering -= atmosphereScattering * transmittance * averageCloudTransmittance;
 
 						vec4 clouds3D = Calculate3DClouds(viewVector, dither);
@@ -668,20 +642,20 @@ uniform vec3 shadowLightVector;
 						vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, vlEndDistance);
 
 						vec3 vlEndPosition = vlEndDistance * viewVector + viewPosition;
-						vec3 atmosphereScattering  = AtmosphereScattering(colortex5, vlEndPosition, viewVector, sunVector ) * sunIlluminance;
-						     atmosphereScattering += AtmosphereScattering(colortex5, vlEndPosition, viewVector, moonVector) * moonIlluminance;
+						vec3 atmosphereScattering  = AtmosphereScattering(scatteringLut, vlEndPosition, viewVector, sunVector ) * sunIlluminance;
+						     atmosphereScattering += AtmosphereScattering(scatteringLut, vlEndPosition, viewVector, moonVector) * moonIlluminance;
 						scattering += atmosphereScattering * transmittance * averageCloudTransmittance;
 					#else
-						scattering  = AtmosphereScattering(colortex5, viewPosition, viewVector, sunVector ) * sunIlluminance;
-						scattering += AtmosphereScattering(colortex5, viewPosition, viewVector, moonVector) * moonIlluminance;
+						scattering  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
+						scattering += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
 
 						scattering *= averageCloudTransmittance;
 					#endif
 				}
 			#else
 				// Atmosphere
-				vec3 scattering  = AtmosphereScattering(colortex5, viewPosition, viewVector, sunVector ) * sunIlluminance;
-				     scattering += AtmosphereScattering(colortex5, viewPosition, viewVector, moonVector) * moonIlluminance;
+				vec3 scattering  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
+				     scattering += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
 			#endif
 
 			scatteringEncode = EncodeRGBE8(scattering);
@@ -699,8 +673,8 @@ uniform vec3 shadowLightVector;
 			#if defined CLOUDS2D || defined CLOUDS3D
 				float lowerLimitDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_lowerLimitRadius).x;
 				if (lowerLimitDistance < 0.0) {
-					skyImage  = AtmosphereScattering(colortex5, viewPosition, viewVector, sunVector ) * sunIlluminance;
-					skyImage += AtmosphereScattering(colortex5, viewPosition, viewVector, moonVector) * moonIlluminance;
+					skyImage  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
+					skyImage += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
 
 					#ifdef CLOUDS3D
 						skyImage *= averageCloudTransmittance;
@@ -711,8 +685,8 @@ uniform vec3 shadowLightVector;
 						vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, clouds3DDistance);
 						vec3 atmosphereScattering;
 
-						atmosphereScattering  = AtmosphereScattering(colortex5, clouds3DPosition, viewVector, sunVector ) * sunIlluminance;
-						atmosphereScattering += AtmosphereScattering(colortex5, clouds3DPosition, viewVector, moonVector) * moonIlluminance;
+						atmosphereScattering  = AtmosphereScattering(scatteringLut, clouds3DPosition, viewVector, sunVector ) * sunIlluminance;
+						atmosphereScattering += AtmosphereScattering(scatteringLut, clouds3DPosition, viewVector, moonVector) * moonIlluminance;
 						skyImage -= atmosphereScattering * transmittance * averageCloudTransmittance;
 
 						vec4 clouds3D = Calculate3DClouds(viewVector, 0.5);
@@ -732,8 +706,8 @@ uniform vec3 shadowLightVector;
 							vec3 atmosphereScattering;
 						#endif
 
-						atmosphereScattering  = AtmosphereScattering(colortex5, clouds2DPosition, viewVector, sunVector ) * sunIlluminance;
-						atmosphereScattering += AtmosphereScattering(colortex5, clouds2DPosition, viewVector, moonVector) * moonIlluminance;
+						atmosphereScattering  = AtmosphereScattering(scatteringLut, clouds2DPosition, viewVector, sunVector ) * sunIlluminance;
+						atmosphereScattering += AtmosphereScattering(scatteringLut, clouds2DPosition, viewVector, moonVector) * moonIlluminance;
 						skyImage -= atmosphereScattering * transmittance;
 
 						vec4 clouds2D = Calculate2DClouds(viewVector, 0.5);
@@ -742,16 +716,16 @@ uniform vec3 shadowLightVector;
 						skyImage += atmosphereScattering * transmittance;
 					#endif
 				} else {
-					skyImage  = AtmosphereScattering(colortex5, viewPosition, viewVector, sunVector ) * sunIlluminance;
-					skyImage += AtmosphereScattering(colortex5, viewPosition, viewVector, moonVector) * moonIlluminance;
+					skyImage  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
+					skyImage += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
 
 					#ifdef CLOUDS3D
 						skyImage *= averageCloudTransmittance;
 					#endif
 				}
 			#else
-				skyImage  = AtmosphereScattering(colortex5, viewPosition, viewVector, sunVector ) * sunIlluminance;
-				skyImage += AtmosphereScattering(colortex5, viewPosition, viewVector, moonVector) * moonIlluminance;
+				skyImage  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
+				skyImage += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
 			#endif
 		} else {
 			skyImage = vec3(0.0);

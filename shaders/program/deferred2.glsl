@@ -56,12 +56,13 @@ uniform sampler2D colortex0;
 uniform sampler2D colortex1;
 uniform sampler2D colortex3; // Clouds Transmittance
 uniform sampler2D colortex4; // Sky Encode
-uniform sampler2D colortex5; // Sky Scattering LUT
 uniform sampler2D colortex6; // Sky Scattering Image
 uniform sampler2D colortex7; // Misc encoded stuff
 
 uniform sampler2D depthtex0; // Sky Transmittance LUT
+uniform sampler2D depthtex2; // Sky Scattering LUT
 #define transmittanceLut depthtex0
+#define scatteringLut depthtex2
 
 uniform sampler2D noisetex;
 
@@ -234,13 +235,18 @@ uniform vec3 shadowLightVector;
 		return Clamp01(dot(centerNormal, sampleNormal)) * LinearStep(0.05, 0.0, planeDist);
 	}
 
-	vec4 FilterAo(vec3 flatNormal, vec3 position) {
+	void Filter(vec3 flatNormal, vec3 position, out vec4 hbao, out vec3 rsm) {
 		ivec2 res       = ivec2(viewResolution) / 2;
 		ivec2 fragCoord = ivec2(gl_FragCoord.st) / 2;
 		ivec2 shift     = ivec2(gl_FragCoord.st) % 2;
 
-		vec4 hbao = texelFetch(colortex7, fragCoord, 0);
-		hbao.xyz = hbao.xyz * 2.0 - 1.0;
+		#ifdef HBAO
+		hbao = texelFetch(colortex7, fragCoord, 0);
+		#endif
+
+		#ifdef RSM
+		rsm = texelFetch(colortex7, fragCoord + ivec2(res.x, 0), 0).rgb;
+		#endif
 
 		float weightSum = 1.0;
 		for (int x = -4; x < 4; ++x) {
@@ -261,22 +267,34 @@ uniform vec3 shadowLightVector;
 				vec2 sampleCoord = vec2(fragCoord + offset) * viewPixelSize * 2.0;
 
 				vec3 sampleNormal = DecodeNormal(Unpack2x8(texelFetch(colortex1, sampleFragCoord * 2, 0).a) * 2.0 - 1.0);
-				vec3 samplePosition = ScreenSpaceToViewSpace(vec3(sampleCoord, texture(depthtex1, sampleCoord).r), gbufferProjectionInverse);
+				vec3 samplePosition  = GetViewDirection(sampleCoord, gbufferProjectionInverse);
+				     samplePosition *= GetLinearDepth(depthtex1, sampleCoord) / samplePosition.z;
 
 				float weight  = CalculateSampleWeight(flatNormal, sampleNormal, mat3(gbufferModelViewInverse) * (samplePosition - position));
 				      weight *= (1.0 - 0.25 * abs(x)) * (1.0 - 0.25 * abs(y));
 
+				#ifdef HBAO
 				vec4 hbaoSample = texelFetch(colortex7, sampleFragCoord, 0);
-				hbaoSample.xyz = hbaoSample.xyz * 2.0 - 1.0;
-
 				hbao += hbaoSample * weight;
+				#endif
+
+				#ifdef RSM
+				vec3 rsmSample = texelFetch(colortex7, sampleFragCoord + ivec2(res.x, 0), 0).rgb;
+				rsm += rsmSample * weight;
+				#endif
+
 				weightSum += weight;
 			}
 		}
 
 		hbao.xyz = normalize(hbao.xyz);
 		hbao.w /= weightSum;
+		rsm /= weightSum;
+	}
 
+	vec4 FilterAo(vec3 flatNormal, vec3 position) {
+		vec4 hbao; vec3 rsm;
+		Filter(flatNormal, position, hbao, rsm);
 		return hbao;
 	}
 
@@ -292,40 +310,10 @@ uniform vec3 shadowLightVector;
 		return groundAlbedo * bounceIntensity;
 	}
 
-	vec3 FilterRSM(vec3 normalFlat, vec3 position) {
-		ivec2 res       = ivec2(viewResolution / 2);
-		ivec2 fragCoord = ivec2(gl_FragCoord.st) / 2;
-		ivec2 shift     = ivec2(gl_FragCoord.st) % 2;
-
-		vec3 result = texelFetch(colortex7, fragCoord + ivec2(res.x, 0), 0).rgb;
-		float weightSum = 1.0;
-
-		for (int x = -2; x < 2; ++x) {
-			for (int y = -2; y < 2; ++y) {
-				ivec2 offset = ivec2(x, y) + shift;
-				if (offset.x == 0 && offset.y == 0) { continue; }
-
-				ivec2 sampleFragCoord = fragCoord + offset;
-
-				if (sampleFragCoord.x < 0 || sampleFragCoord.y < 0) { continue; }
-				if (sampleFragCoord.x >= res.x || sampleFragCoord.y >= res.y) { continue; }
-
-				vec2 sampleCoord = vec2(fragCoord + offset) * viewPixelSize * 2.0;
-
-				vec3 sampleNormal = DecodeNormal(Unpack2x8(texelFetch(colortex1, sampleFragCoord * 2, 0).a) * 2.0 - 1.0);
-				vec3 samplePosition  = GetViewDirection(sampleCoord, gbufferProjectionInverse);
-				     samplePosition *= GetLinearDepth(depthtex1, sampleCoord) / samplePosition.z;
-
-				float weight = CalculateSampleWeight(normalFlat, sampleNormal, mat3(gbufferModelViewInverse) * (samplePosition - position));
-
-				vec3 rsmSample = texelFetch(colortex7, sampleFragCoord + ivec2(res.x, 0), 0).rgb;
-
-				result += rsmSample * weight;
-				weightSum += weight;
-			}
-		}
-
-		return result / weightSum;
+	vec3 FilterRSM(vec3 flatNormal, vec3 position) {
+		vec4 hbao; vec3 rsm;
+		Filter(flatNormal, position, hbao, rsm);
+		return rsm;
 	}
 
 	// --
@@ -470,8 +458,12 @@ uniform vec3 shadowLightVector;
 			float VoH = LoV * rcpLen_LV + rcpLen_LV;
 
 			// Lighting
+			#if defined HBAO || defined RSM
+			vec4 hbao; vec3 rsm;
+			Filter(normalFlat, position[1], hbao, rsm);
+			#endif
+
 			#ifdef HBAO
-				vec4 hbao = FilterAo(normalFlat, position[1]);
 				vec3 skyConeVector = hbao.xyz;
 				float ao = hbao.w;
 			#else
@@ -500,7 +492,7 @@ uniform vec3 shadowLightVector;
 					}
 
 					#ifdef RSM
-						bounce = FilterRSM(normalFlat, position[1]) * RSM_BRIGHTNESS;
+						bounce = rsm * RSM_BRIGHTNESS;
 					#else
 						bounce  = CalculateFakeBouncedLight(skyConeVector, shadowLightVector);
 						bounce *= lightmap.y * lightmap.y * lightmap.y;
@@ -517,7 +509,7 @@ uniform vec3 shadowLightVector;
 				}
 
 				#ifdef RSM
-					bounce = FilterRSM(normalFlat, position[1]) * RSM_BRIGHTNESS;
+					bounce = rsm * RSM_BRIGHTNESS;
 				#else
 					bounce  = CalculateFakeBouncedLight(skyConeVector, shadowLightVector);
 					bounce *= lightmap.y * lightmap.y * lightmap.y;
@@ -531,6 +523,7 @@ uniform vec3 shadowLightVector;
 			color  = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, bounce, skylight, lightmap, blocklightShading, ao);
 			color += CalculateSpecularHighlight(NoL, NoV, LoV, VoH, material.roughness, material.n, material.k, lightAngularRadius) * illuminanceShadowlight * shadows;
 			color += material.emission;
+
 			//color = skylight * ao;
 			//color = bounce * illuminanceShadowlight;
 			#else
@@ -555,8 +548,8 @@ uniform vec3 shadowLightVector;
 				vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, clouds2DDistance) * sky.a;
 
 				vec3 clouds2DPosition = clouds2DDistance * viewVector + viewPosition;
-				vec3 atmosphereScattering  = AtmosphereScattering(colortex5, clouds2DPosition, viewVector, sunVector ) * sunIlluminance;
-				     atmosphereScattering += AtmosphereScattering(colortex5, clouds2DPosition, viewVector, moonVector) * moonIlluminance;
+				vec3 atmosphereScattering  = AtmosphereScattering(scatteringLut, clouds2DPosition, viewVector, sunVector ) * sunIlluminance;
+				     atmosphereScattering += AtmosphereScattering(scatteringLut, clouds2DPosition, viewVector, moonVector) * moonIlluminance;
 				color -= atmosphereScattering * transmittance;
 
 				vec4 clouds2D = Calculate2DClouds(viewVector, dither);

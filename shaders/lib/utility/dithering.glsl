@@ -10,7 +10,7 @@ float Bayer64 (vec2 c) { return 0.25 * Bayer32(0.5 * c) + Bayer2(c); }
 float Bayer128(vec2 c) { return 0.25 * Bayer64(0.5 * c) + Bayer2(c); }
 
 // 1D "bayer" functions
-float LinearBayer2  (float c) { return fract(c * 0.5); }
+float LinearBayer2  (float c) { return fract(floor(c) * 0.5); }
 float LinearBayer4  (float c) { return 0.5 * LinearBayer2 (c * 0.5) + LinearBayer2(c); }
 float LinearBayer8  (float c) { return 0.5 * LinearBayer4 (c * 0.5) + LinearBayer2(c); }
 float LinearBayer16 (float c) { return 0.5 * LinearBayer8 (c * 0.5) + LinearBayer2(c); }
