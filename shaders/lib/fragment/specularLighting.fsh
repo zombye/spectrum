@@ -17,36 +17,40 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 //--//
 
 #if defined PROGRAM_COMPOSITE1 || defined PROGRAM_WATER || defined PROGRAM_HAND_WATER
-	// From https://hal.archives-ouvertes.fr/hal-01509746/document
-	// Had some minor tweaks to fit in spectrum but otherwise essentially copy-pasted
-	// Will probably create my own impmenentation at some point that lets me do tail clamping.
-	vec3 sampleGGXVNDF(vec3 V_, float alpha_x, float alpha_y, float U1, float U2)
-	{
-		// stretch view
-		vec3 V = normalize(vec3(alpha_x * V_.x, alpha_y * V_.y, V_.z));
+	vec3 GetFacetGGX(
+		vec3 viewDirection,
+		vec2 roughness, // along x and y axis of input space used for the view direction
+		vec2 xy // uniform random numbers from 0 to 1 - x can be limited to < 1 to clamp tail
+	) {
+		// GGX VNDF sampling
+		// http://www.jcgt.org/published/0007/04/01/
 
-		// orthonormal basis
-		vec3 T1 = (V.z < 0.9999) ? normalize(cross(V, vec3(0,0,1))) : vec3(1,0,0);
-		vec3 T2 = cross(T1, V);
+		// transform view direction to hemisphere (section 3.2)
+		viewDirection = normalize(vec3(roughness * viewDirection.xy, viewDirection.z));
 
-		// sample point with polar coordinates (r, phi)
-		float a = 1.0 / (1.0 + V.z);
-		float r = sqrt(U1);
-		float phi = (U2<a) ? U2/a * pi : pi + (U2-a)/(1.0-a) * pi;
-		float P1 = r*cos(phi);
-		float P2 = r*sin(phi)*((U2<a) ? 1.0 : V.z);
+		// orthonrmal basis (section 4.1)
+		float clsq = dot(viewDirection.yx, viewDirection.yx);
+		vec3 T1 = vec3(clsq > 0.0 ? vec2(-viewDirection.y, viewDirection.x) * inversesqrt(clsq) : vec2(1.0, 0.0), 0.0);
+		vec3 T2 = vec3(-T1.y * viewDirection.z, viewDirection.z * T1.x, viewDirection.x * T1.y - T1.x * viewDirection.y);
 
-		// compute normal
-		vec3 N = P1*T1 + P2*T2 + sqrt(max(0.0, 1.0 - P1*P1 - P2*P2))*V;
+		// parameterization of the projected area (section 4.2)
+		float r = sqrt(xy.x);
+		float phi = tau * xy.y;
 
-		// unstretch
-		N = normalize(vec3(alpha_x*N.x, alpha_y*N.y, max(0.0, N.z)));
-		return N;
+		float t1 = r * cos(phi);
+		float tmp = clamp(1.0 - t1 * t1, 0.0, 1.0);
+		float t2 = mix(sqrt(tmp), r * sin(phi), 0.5 + 0.5 * viewDirection.z);
+
+		// reprojection onto hemisphere (section 4.3)
+		vec3 normalH = t1 * T1 + t2 * T2 + sqrt(clamp(tmp - t2 * t2, 0.0, 1.0)) * viewDirection;
+
+		// transform normal back to ellipsoid (sectrion 3.4)
+		return normalize(vec3(roughness * normalH.xy, normalH.z));
 	}
 
-	vec3 GenerateSsrFacet(vec3 tangentView, vec3 normal, float roughness, float alpha2, float index, const float ditherSize) {
-		vec2 hash = vec2(fract(index * ditherSize * phi), index / SSR_RAY_COUNT); // forms a lattice
-		vec3 facet = sampleGGXVNDF(-tangentView, roughness, roughness, hash.x, hash.y);
+	vec3 GenerateSsrFacet(vec3 tangentView, vec3 normal, float roughness, float index, const float ditherSize) {
+		vec2 xy = vec2(fract(index * ditherSize * phi) * (1.0 - SSR_TAIL_CLAMP), index / SSR_RAY_COUNT); // forms a lattice
+		vec3 facet = GetFacetGGX(-tangentView, vec2(roughness), xy);
 
 		vec2 axis = normalize(vec2(-normal.y, normal.x));
 		vec3 p1 = normal.z * facet;
@@ -108,7 +112,7 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 
 		vec3 reflection = vec3(0.0);
 		for (int i = 0; i < SSR_RAY_COUNT; ++i) {
-			vec3 facetNormal = GenerateSsrFacet(tangentView, normal, roughness, roughnessSquared, i + dither, ditherSize);
+			vec3 facetNormal = GenerateSsrFacet(tangentView, normal, roughness, i + dither, ditherSize);
 
 			float MdotV /* = MdotL */ = dot(facetNormal, -viewDirection);
 			#define MdotL MdotV // MdotL and MdotV are identical for specular

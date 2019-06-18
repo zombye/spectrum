@@ -281,6 +281,7 @@ option.SSR_MULTILAYER.comment=Allows reflections on objects behind other transpa
 option.SSR_RAY_STEPS=Ray Steps
 option.SSR_RAY_REFINEMENTS=Ray Refinements
 option.SSR_TAIL_CLAMP=Tail Clamp
+option.SSR_TAIL_CLAMP.comment=Reduces noise at the cost of some accuracy
 value.SSR_TAIL_CLAMP.0=Off
 
 option.RAYTRACER_HQ=High-Quality Raytracer
