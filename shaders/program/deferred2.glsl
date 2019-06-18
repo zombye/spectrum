@@ -260,27 +260,23 @@ uniform vec3 shadowLightVector;
 				|| sampleFragCoord.y < 0
 				|| sampleFragCoord.x >= res.x
 				|| sampleFragCoord.y >= res.y
-				) {
-					continue;
-				}
+				) { continue; }
 
-				vec2 sampleCoord = vec2(fragCoord + offset) * viewPixelSize * 2.0;
+				vec2 sampleCoord = vec2(sampleFragCoord) * viewPixelSize * 2.0;
 
 				vec3 sampleNormal = DecodeNormal(Unpack2x8(texelFetch(colortex1, sampleFragCoord * 2, 0).a) * 2.0 - 1.0);
 				vec3 samplePosition  = GetViewDirection(sampleCoord, gbufferProjectionInverse);
 				     samplePosition *= GetLinearDepth(depthtex1, sampleCoord) / samplePosition.z;
 
 				float weight  = CalculateSampleWeight(flatNormal, sampleNormal, mat3(gbufferModelViewInverse) * (samplePosition - position));
-				      weight *= (1.0 - 0.25 * abs(x)) * (1.0 - 0.25 * abs(y));
+				      weight *= (1.0 - 0.2 * abs(offset.x)) * (1.0 - 0.2 * abs(offset.y));
 
 				#ifdef HBAO
-				vec4 hbaoSample = texelFetch(colortex7, sampleFragCoord, 0);
-				hbao += hbaoSample * weight;
+				hbao += texelFetch(colortex7, sampleFragCoord, 0) * weight;
 				#endif
 
 				#ifdef RSM
-				vec3 rsmSample = texelFetch(colortex7, sampleFragCoord + ivec2(res.x, 0), 0).rgb;
-				rsm += rsmSample * weight;
+				rsm += texelFetch(colortex7, sampleFragCoord + ivec2(res.x, 0), 0).rgb * weight;
 				#endif
 
 				weightSum += weight;
@@ -290,12 +286,6 @@ uniform vec3 shadowLightVector;
 		hbao.xyz = normalize(hbao.xyz);
 		hbao.w /= weightSum;
 		rsm /= weightSum;
-	}
-
-	vec4 FilterAo(vec3 flatNormal, vec3 position) {
-		vec4 hbao; vec3 rsm;
-		Filter(flatNormal, position, hbao, rsm);
-		return hbao;
 	}
 
 	// --
@@ -308,12 +298,6 @@ uniform vec3 shadowLightVector;
 		float bounceIntensity = dot(abs(lightVector) * (-sign(lightVector) * normal * 0.5 + 0.5), weight / (pi * pi));
 
 		return groundAlbedo * bounceIntensity;
-	}
-
-	vec3 FilterRSM(vec3 flatNormal, vec3 position) {
-		vec4 hbao; vec3 rsm;
-		Filter(flatNormal, position, hbao, rsm);
-		return rsm;
 	}
 
 	// --
