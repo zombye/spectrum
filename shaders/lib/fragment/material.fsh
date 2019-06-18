@@ -68,16 +68,16 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 			material.translucency = vec3(0.0);
 		}
 	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_LAB
-		bool isMetal = specTex.g > sqrt(0.9);
-		bool isEmissive = specTex.a > 0.5;
+		bool isMetal = specTex.g > (229.5 / 255.0);
+		bool isPorous = specTex.b < (64.5 / 255.0);
 
 		material.albedo       = isMetal ? vec3(0.0) : baseTex.rgb;
 		material.roughness    = Pow2(1.0 - specTex.r);
-		material.porosity     = isMetal ? 0.0 : specTex.b;
+		material.porosity     = !isMetal && isPorous ? specTex.b * (255.0 / 64.0) : 0.0;
 		material.n            = F0ToIor(isMetal ? baseTex.rgb : vec3(specTex.g * specTex.g)) * airMaterial.n;
 		material.k            = vec3(0.0);
-		material.emission     = isEmissive && specTex.a < (254.5 / 255.0) ? baseTex * (specTex.a * (255.0 / 126.0) - (128.0 / 126.0)) * BLOCK_LIGHT_LUMINANCE : vec3(0.0);
-		material.translucency = vec3(!isEmissive && !isMetal && specTex.a > (0.5 / 255.0) ? specTex.a * (255.0 / 126.0) - (1.0 / 126.0) : float(isFoliage));
+		material.translucency = vec3(!isMetal && !isPorous ? specTex.b * (255.0 / 190.0) - (65.0 / 190.0) : float(isFoliage));
+		material.emission     = specTex.a < (254.5 / 255.0) ? baseTex * specTex.a * (255.0 / 254.0) * BLOCK_LIGHT_LUMINANCE : vec3(0.0);
 	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_WIP
 		bool isMetal = specTex.g > (254.5 / 255.0);
 
