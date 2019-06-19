@@ -45,7 +45,7 @@ mat3 GetRotationMatrix(vec3 unitAxis, float angle) {
 }
 mat3 GetRotationMatrix(vec3 from, vec3 to) {
 	float cosine = dot(from, to);
-	vec3 axis = cross(from, to);
+	vec3 axis = cross(to, from);
 
 	vec3 unitAxis = axis * inversesqrt(dot(axis, axis));
 	vec3 tmp = unitAxis - unitAxis * cosine;
