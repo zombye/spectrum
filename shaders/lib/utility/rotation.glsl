@@ -31,5 +31,30 @@ mat2 GetRotationMatrix(float angle) {
 	float sine = sin(angle);
 	return mat2(cosine, -sine, sine, cosine);
 }
+mat3 GetRotationMatrix(vec3 unitAxis, float angle) {
+	float cosine = cos(angle);
+
+	vec3 axis = unitAxis * sin(angle);
+	vec3 tmp = unitAxis - unitAxis * cosine;
+
+	return mat3(
+		unitAxis.x * tmp.x + cosine, unitAxis.x * tmp.y - axis.z, unitAxis.x * tmp.z + axis.y,
+		unitAxis.y * tmp.x + axis.z, unitAxis.y * tmp.y + cosine, unitAxis.y * tmp.z - axis.x,
+		unitAxis.z * tmp.x - axis.y, unitAxis.z * tmp.y + axis.x, unitAxis.z * tmp.z + cosine
+	);
+}
+mat3 GetRotationMatrix(vec3 from, vec3 to) {
+	float cosine = dot(from, to);
+	vec3 axis = cross(from, to);
+
+	vec3 unitAxis = axis * inversesqrt(dot(axis, axis));
+	vec3 tmp = unitAxis - unitAxis * cosine;
+
+	return mat3(
+		unitAxis.x * tmp.x + cosine, unitAxis.x * tmp.y - axis.z, unitAxis.x * tmp.z + axis.y,
+		unitAxis.y * tmp.x + axis.z, unitAxis.y * tmp.y + cosine, unitAxis.y * tmp.z - axis.x,
+		unitAxis.z * tmp.x - axis.y, unitAxis.z * tmp.y + axis.x, unitAxis.z * tmp.z + cosine
+	);
+}
 
 #endif
