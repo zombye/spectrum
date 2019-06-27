@@ -1,32 +1,48 @@
 /*\
  * Program Description:
- * Renders clouds
+ * Renders HBAO, RSM, clouds, and the sky "cubemap"
 \*/
 
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 
-//--// Uniforms
-
-uniform float far;
+//--// Uniforms //------------------------------------------------------------//
 
 uniform float sunAngle;
 
 uniform float wetness;
 
-uniform float eyeAltitude;
-uniform vec3 cameraPosition;
-uniform vec3 previousCameraPosition;
+uniform sampler2D depthtex1;
 
-// Time
+uniform sampler2D colortex0;
+uniform sampler2D colortex1;
+uniform sampler2D colortex2; // Velocity buffer
+uniform sampler2D colortex5; // Previous frame data
+uniform sampler2D noisetex;
+
+uniform sampler2D depthtex0; // Sky Transmittance LUT
+uniform sampler2D depthtex2; // Sky Scattering LUT
+#define transmittanceLut depthtex0
+#define scatteringLut depthtex2
+
+//--// Time uniforms
+
 uniform int   frameCounter;
 uniform float frameTimeCounter;
 
 uniform int worldDay;
 uniform int worldTime;
 
-// Gbuffer Uniforms
+//--// Camera uniforms
+
+uniform float eyeAltitude;
+
+uniform vec3 cameraPosition;
+uniform vec3 previousCameraPosition;
+
+uniform float far;
+
 uniform mat4 gbufferModelView;
 uniform mat4 gbufferModelViewInverse;
 uniform mat4 gbufferPreviousModelView;
@@ -34,9 +50,8 @@ uniform mat4 gbufferProjection;
 uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferPreviousProjection;
 
-uniform sampler2D depthtex1;
+//--// Shadow uniforms
 
-// Shadow uniforms
 uniform mat4 shadowModelView;
 uniform mat4 shadowModelViewInverse;
 uniform mat4 shadowProjection;
@@ -49,19 +64,8 @@ uniform mat4 shadowProjectionInverse;
 	uniform sampler2D shadowcolor1;
 #endif
 
-// Misc samplers
-uniform sampler2D colortex0;
-uniform sampler2D colortex1;
-uniform sampler2D colortex5; // Velocity buffer
-uniform sampler2D colortex7; // Previous frame data
-uniform sampler2D noisetex;
+//--// Custom uniforms
 
-uniform sampler2D depthtex0; // Sky Transmittance LUT
-uniform sampler2D depthtex2; // Sky Scattering LUT
-#define transmittanceLut depthtex0
-#define scatteringLut depthtex2
-
-// Custom Uniforms
 uniform vec2 viewResolution;
 uniform vec2 viewPixelSize;
 uniform vec2 taaOffset;
@@ -72,30 +76,28 @@ uniform vec3 moonVector;
 
 uniform vec3 shadowLightVector;
 
-//--// Shared Libraries
+//--// Shared Includes //-----------------------------------------------------//
 
-#include "/lib/utility.glsl"
-#include "/lib/utility/colorspace.glsl"
-#include "/lib/utility/encoding.glsl"
-#include "/lib/utility/math.glsl"
-#include "/lib/utility/noise.glsl"
-#include "/lib/utility/sampling.glsl"
+#include "/include/utility.glsl"
+#include "/include/utility/colorspace.glsl"
+#include "/include/utility/encoding.glsl"
+#include "/include/utility/math.glsl"
+#include "/include/utility/noise.glsl"
+#include "/include/utility/sampling.glsl"
 
-#include "/lib/shared/celestialConstants.glsl"
+#include "/include/shared/celestialConstants.glsl"
 #define moonIlluminance (moonIlluminance * NIGHT_SKY_BRIGHTNESS)
 
-#include "/lib/shared/atmosphere/constants.glsl"
-#include "/lib/shared/atmosphere/lookup.glsl"
-#include "/lib/shared/atmosphere/transmittance.glsl"
-#include "/lib/shared/atmosphere/phase.glsl"
-#include "/lib/shared/atmosphere/scattering.glsl"
+#include "/include/shared/atmosphere/constants.glsl"
+#include "/include/shared/atmosphere/lookup.glsl"
+#include "/include/shared/atmosphere/transmittance.glsl"
+#include "/include/shared/atmosphere/phase.glsl"
+#include "/include/shared/atmosphere/scattering.glsl"
 
-#include "/lib/shared/skyProjection.glsl"
-
-//--// Shared Functions
+#include "/include/shared/skyProjection.glsl"
 
 #if defined STAGE_VERTEX
-	//--// Vertex Outputs
+	//--// Vertex Outputs //--------------------------------------------------//
 
 	out vec2 screenCoord;
 
@@ -105,16 +107,15 @@ uniform vec3 shadowLightVector;
 
 	out float averageCloudTransmittance;
 
-	//--// Vertex Libraries
+	//--// Vertex Includes //-------------------------------------------------//
 
-	#include "/lib/fragment/clouds3D.fsh"
+	#include "/include/fragment/clouds3D.fsh"
 
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
-		screenCoord    = gl_Vertex.xy;
-		gl_Position.xy = gl_Vertex.xy * 2.0 - 1.0;
-		gl_Position.zw = vec2(1.0);
+		screenCoord = gl_Vertex.xy;
+		gl_Position = vec4(gl_Vertex.xy * 2.0 - 1.0, 1.0, 1.0);
 
 		const ivec2 samples = ivec2(16, 8);
 
@@ -143,7 +144,7 @@ uniform vec3 shadowLightVector;
 		averageCloudTransmittance = CalculateAverageCloudTransmittance(GetCloudCoverage());
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Inputs
+	//--// Fragment Inputs //-------------------------------------------------//
 
 	in vec2 screenCoord;
 
@@ -153,10 +154,10 @@ uniform vec3 shadowLightVector;
 
 	in float averageCloudTransmittance;
 
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
 	#if defined HBAO || defined RSM
-		/* DRAWBUFFERS:3467 */
+		/* DRAWBUFFERS:3465 */
 
 		layout (location = 3) out vec4 halfres;
 	#else
@@ -167,21 +168,21 @@ uniform vec3 shadowLightVector;
 	layout (location = 1) out vec4  scatteringEncode;
 	layout (location = 2) out vec4  skyImage_cloudShadow;
 
-	//--// Fragment Libraries
+	//--// Fragment Includes //-----------------------------------------------//
 
-	#include "/lib/utility/dithering.glsl"
-	#include "/lib/utility/packing.glsl"
-	#include "/lib/utility/rotation.glsl"
-	#include "/lib/utility/spaceConversion.glsl"
+	#include "/include/utility/dithering.glsl"
+	#include "/include/utility/packing.glsl"
+	#include "/include/utility/rotation.glsl"
+	#include "/include/utility/spaceConversion.glsl"
 
-	#include "/lib/shared/shadowDistortion.glsl"
+	#include "/include/shared/shadowDistortion.glsl"
 
-	#include "/lib/shared/atmosphere/density.glsl"
+	#include "/include/shared/atmosphere/density.glsl"
 
-	#include "/lib/fragment/clouds2D.fsh"
-	#include "/lib/fragment/clouds3D.fsh"
+	#include "/include/fragment/clouds2D.fsh"
+	#include "/include/fragment/clouds3D.fsh"
 
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	#if defined HBAO || defined RSM
 		float GetLinearDepth(sampler2D depthSampler, vec2 coord) {

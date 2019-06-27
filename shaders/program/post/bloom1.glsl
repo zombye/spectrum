@@ -3,54 +3,45 @@
  * Vertical blur for Bloom
 \*/
 
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 
-//--// Uniforms
+//--// Uniforms //------------------------------------------------------------//
 
-uniform sampler2D colortex2;
 uniform sampler2D colortex6;
 
-// Custom uniforms
+//--// Custom uniforms
+
 uniform vec2 viewPixelSize;
 
-//--// Shared Libraries
-
-//--// Shared Functions
-
 #if defined STAGE_VERTEX
-	//--// Vertex Inputs
-
-	//--// Vertex Outputs
+	//--// Vertex Outputs //--------------------------------------------------//
 
 	out vec2 screenCoord;
 
-	//--// Vertex Libraries
-
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
-		screenCoord    = gl_Vertex.xy;
-		gl_Position.xy = gl_Vertex.xy * 2.0 - 1.0;
-		gl_Position.zw = vec2(1.0);
+		screenCoord = gl_Vertex.xy;
+		gl_Position = vec4(gl_Vertex.xy * 2.0 - 1.0, 1.0, 1.0);
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Inputs
+	//--// Fragment Inputs //-------------------------------------------------//
 
 	in vec2 screenCoord;
 
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
 	/* DRAWBUFFERS:6 */
 
 	layout (location = 0) out vec3 color;
 
-	//--// Fragment Libraries
+	//--// Fragment Includes //-----------------------------------------------//
 
-	#include "/lib/utility.glsl"
+	#include "/include/utility.glsl"
 
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	float Gaussian(float x, float sigma) {
 		return exp(-(x * x) / (2.0 * sigma * sigma)) * inversesqrt(tau * sigma * sigma);

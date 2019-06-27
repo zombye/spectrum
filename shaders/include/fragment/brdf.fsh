@@ -6,8 +6,7 @@ vec3 FresnelNonpolarized(float VdotH, ComplexVec3 n1, ComplexVec3 n2) {
 	vec3        cosThetaI = vec3(VdotH);
 	float       sinThetaI = sqrt(Clamp01(1.0 - VdotH * VdotH));
 	ComplexVec3 sinThetaT = ComplexVec3(eta.r * sinThetaI, eta.i * sinThetaI);
-	ComplexVec3 cosThetaT = ComplexSqrt(ComplexSub(vec3(1.0), ComplexMul(sinThetaT, sinThetaT))); // Seems to be correct as long as Re(sinThetaT) is between -1 and 1, or Im(sinThetaT) is non-0.
-	//ComplexVec3 cosThetaT = ComplexCos(ComplexArcsin(sinThetaT));
+	ComplexVec3 cosThetaT = ComplexSqrt(ComplexSub(vec3(1.0), ComplexMul(sinThetaT, sinThetaT)));
 
 	vec3 sqrtRs = ComplexAbs(ComplexDiv(ComplexSub(ComplexMul(n1, cosThetaI), ComplexMul(n2, cosThetaT)), ComplexAdd(ComplexMul(n1, cosThetaI), ComplexMul(n2, cosThetaT))));
 	vec3 sqrtRp = ComplexAbs(ComplexDiv(ComplexSub(ComplexMul(n1, cosThetaT), ComplexMul(n2, cosThetaI)), ComplexAdd(ComplexMul(n1, cosThetaT), ComplexMul(n2, cosThetaI))));
@@ -44,7 +43,7 @@ vec3 FresnelConductor(float VdotH, vec3 n2, vec3 k2) {
 }
 
 float DistributionGGX(float NdotH, float alpha2) {
-	float p = NdotH == 1.0 ? alpha2 : (NdotH * alpha2 - NdotH) * NdotH + 1.0;
+	float p = (NdotH * alpha2 - NdotH) * NdotH + 1.0;
 	return alpha2 / (pi * p * p);
 }
 

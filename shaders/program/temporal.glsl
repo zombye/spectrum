@@ -1,4 +1,4 @@
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 
@@ -12,11 +12,20 @@
 
 const bool colortex6MipmapEnabled = true;
 
-//--// Uniforms
+//--// Uniforms //------------------------------------------------------------//
+
+uniform sampler2D depthtex0;
+
+uniform sampler2D colortex3;
+uniform sampler2D colortex2;
+uniform sampler2D colortex6;
+
+//--// Time uniforms
 
 uniform float frameTime;
 
-//
+//--// Camera uniforms
+
 uniform vec3 cameraPosition;
 uniform vec3 previousCameraPosition;
 
@@ -26,25 +35,20 @@ uniform mat4 gbufferProjection;
 uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferPreviousProjection;
 
-uniform sampler2D colortex3;
-uniform sampler2D colortex5;
-uniform sampler2D colortex6;
+//--// Custom uniforms
 
-uniform sampler2D depthtex0;
-
-// Custom Uniforms
 uniform vec2 viewResolution;
 uniform vec2 viewPixelSize;
 uniform vec2 taaOffset;
 
 uniform vec3 shadowLightVector;
 
-//--// Shared Libraries
+//--// Shared Includes //-----------------------------------------------------//
 
-#include "/lib/utility.glsl"
-#include "/lib/utility/colorspace.glsl"
+#include "/include/utility.glsl"
+#include "/include/utility/colorspace.glsl"
 
-//--// Shared Functions
+//--// Shared Functions //----------------------------------------------------//
 
 vec3 ReadColorLod(vec2 coord, float lod) {
 	vec3 color = textureLod(colortex6, coord, lod).rgb;
@@ -52,7 +56,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 }
 
 #if defined STAGE_VERTEX
-	//--// Vertex Outputs
+	//--// Vertex Outputs //--------------------------------------------------//
 
 	out vec2 screenCoord;
 	out float exposure, previousExposure;
@@ -61,11 +65,11 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 		out vec4[16] histogram;
 	#endif
 
-	//--// Vertex Libraries
+	//--// Vertex Includes //-------------------------------------------------//
 
-	#include "/lib/shared/celestialConstants.glsl"
+	#include "/include/shared/celestialConstants.glsl"
 
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	const float K = 14.0;
 	const float calibration = exp2(CAMERA_EXPOSURE_BIAS) * K / 100.0;
@@ -216,12 +220,11 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 	void main() {
 		CalculateExposure(exposure, previousExposure);
 
-		screenCoord    = gl_Vertex.xy;
-		gl_Position.xy = gl_Vertex.xy * 2.0 - 1.0;
-		gl_Position.zw = vec2(1.0);
+		screenCoord = gl_Vertex.xy;
+		gl_Position = vec4(gl_Vertex.xy * 2.0 - 1.0, 1.0, 1.0);
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Inputs
+	//--// Fragment Inputs //-------------------------------------------------//
 
 	in vec2 screenCoord;
 	in float exposure, previousExposure;
@@ -230,20 +233,20 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 		in vec4[16] histogram;
 	#endif
 
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
 	/* DRAWBUFFERS:3 */
 
 	layout (location = 0) out vec4 temporal;
 
-	//--// Fragment Libraries
+	//--// Fragment Includes //-----------------------------------------------//
 
-	#include "/lib/utility/dithering.glsl"
-	#include "/lib/utility/math.glsl"
-	#include "/lib/utility/spaceConversion.glsl"
-	#include "/lib/utility/textRendering.fsh"
+	#include "/include/utility/dithering.glsl"
+	#include "/include/utility/math.glsl"
+	#include "/include/utility/spaceConversion.glsl"
+	#include "/include/utility/textRendering.fsh"
 
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	// Original from: https://gist.github.com/TheRealMJP/c83b8c0f46b63f3a88a5986f4fa982b1
 	vec4 SampleTextureCatmullRom(sampler2D tex, vec2 uv, vec2 texSize) {
@@ -350,7 +353,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 				return currentPosition - position;
 			}
 
-			return texture(colortex5, position.xy).rgb;
+			return texture(colortex2, position.xy).rgb;
 		}
 
 		vec3 ClipAABB(vec3 col, vec3 minCol, vec3 avgCol, vec3 maxCol) {

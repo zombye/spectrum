@@ -11,7 +11,8 @@ vec3 F0ToIor(vec3 f0) {
 }
 
 struct Material {
-	vec3  albedo;       // Scattering albedo, currently only affects diffuse
+	vec3  albedo;       // Diffuse albedo
+	float metalness;    // Only used to scale down diffuse light before adding specular (so metals don't have to just be black in the reflections)
 	float roughness;    // GGX roughness
 	float porosity;     // Currently unused
 	vec3  n;            // Index of refraction
@@ -20,8 +21,8 @@ struct Material {
 	vec3  translucency; // Currently unused
 };
 
-Material airMaterial   = Material(vec3(0.0), 0.002, 0.0, vec3(1.000275), vec3(0.0), vec3(0.0), vec3(1.0));
-Material waterMaterial = Material(vec3(0.0), 0.002, 0.0, vec3(1.333000), vec3(0.0), vec3(0.0), vec3(1.0));
+Material airMaterial   = Material(vec3(0.0), 0.0, 0.002, 0.0, vec3(1.000275), vec3(0.0), vec3(0.0), vec3(1.0));
+Material waterMaterial = Material(vec3(0.0), 0.0, 0.002, 0.0, vec3(1.333000), vec3(0.0), vec3(0.0), vec3(1.0));
 
 Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 	baseTex = SrgbToLinear(baseTex);
@@ -36,7 +37,8 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 
 	#if   RESOURCE_FORMAT == RESOURCE_FORMAT_GREYSCALE
 		bool isMetal = (id == 41 || id == 42) && specTex.r > 0.5;
-		material.albedo       = isMetal ? vec3(0.0) : baseTex;
+		material.albedo       = baseTex;
+		material.metalness    = float(isMetal);
 		material.roughness    = Pow2(1.0 - specTex.r);
 		material.porosity     = 0.0;
 		material.n            = (isMetal ? F0ToIor(baseTex) : vec3(F0ToIor(Pow4(specTex.r)))) * airMaterial.n;
@@ -44,7 +46,8 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 		material.emission     = vec3(0.0);
 		material.translucency = vec3(isFoliage);
 	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_OPBR
-		material.albedo       = baseTex - baseTex * specTex.g;
+		material.albedo       = baseTex;
+		materail.metalness    = specTex.g;
 		material.roughness    = Pow2(1.0 - specTex.r);
 		material.porosity     = 0.0;
 		material.n            = F0ToIor(mix(vec3(specTex.r), baseTex, specTex.g)) * airMaterial.n;
@@ -52,12 +55,11 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 		material.emission     = baseTex * specTex.b * BLOCK_LIGHT_LUMINANCE;
 		material.translucency = vec3(isFoliage);
 	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_CONTINUUM2
-		float metalness = smoothstep(0.25, 0.45, specTex.r);
-
-		material.albedo    = baseTex - baseTex * metalness;
+		material.albedo    = baseTex;
+		material.metalness = smoothstep(0.25, 0.45, specTex.r);
 		material.roughness = Pow2(1.0 - specTex.b);
 		material.porosity  = specTex.g;
-		material.n         = F0ToIor(mix(vec3(specTex.r), baseTex, metalness)) * airMaterial.n;
+		material.n         = F0ToIor(mix(vec3(specTex.r), baseTex, material.metalness)) * airMaterial.n;
 		material.k         = vec3(0.0);
 
 		if (isFoliage) {
@@ -71,7 +73,8 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 		bool isMetal = specTex.g > (229.5 / 255.0);
 		bool isPorous = specTex.b < (64.5 / 255.0);
 
-		material.albedo       = isMetal ? vec3(0.0) : baseTex.rgb;
+		material.albedo       = baseTex.rgb;
+		material.metalness    = float(isMetal);
 		material.roughness    = Pow2(1.0 - specTex.r);
 		material.porosity     = !isMetal && isPorous ? specTex.b * (255.0 / 64.0) : 0.0;
 		material.n            = F0ToIor(isMetal ? baseTex.rgb : vec3(specTex.g * specTex.g)) * airMaterial.n;
@@ -81,7 +84,8 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_WIP
 		bool isMetal = specTex.g > (254.5 / 255.0);
 
-		material.albedo       = isMetal ? vec3(0.0) : baseTex;
+		material.albedo       = baseTex;
+		material.metalness    = float(isMetal);
 		material.roughness    = Pow2(1.0 - specTex.r);
 		material.porosity     = 1.0;
 		material.n            = F0ToIor(isMetal ? baseTex : vec3(SrgbToLinear(specTex.g))) * airMaterial.n;

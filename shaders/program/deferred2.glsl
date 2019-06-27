@@ -3,42 +3,59 @@
  * Deferred lighting pass for opaque objects.
 \*/
 
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 #include "/internalSettings.glsl"
 
-//--// Uniforms
+//--// Uniforms //------------------------------------------------------------//
 
-//
 uniform float sunAngle;
 
 uniform float wetness;
-
-uniform int isEyeInWater;
-uniform float eyeAltitude;
-uniform vec3 cameraPosition;
 
 uniform float fogDensity = 0.1;
 
 uniform float screenBrightness;
 
-// Time
+uniform sampler2D depthtex1;
+
+uniform sampler2D colortex0;
+uniform sampler2D colortex1;
+uniform sampler2D colortex3; // Clouds Transmittance
+uniform sampler2D colortex4; // Sky Encode
+uniform sampler2D colortex6; // Sky Scattering Image
+uniform sampler2D colortex5; // Misc encoded stuff
+
+uniform sampler2D depthtex0; // Sky Transmittance LUT
+uniform sampler2D depthtex2; // Sky Scattering LUT
+#define transmittanceLut depthtex0
+#define scatteringLut depthtex2
+
+uniform sampler2D noisetex;
+
+//--// Time uniforms
+
 uniform int   frameCounter;
 uniform float frameTimeCounter;
 
 uniform int worldDay;
 uniform int worldTime;
 
-// Gbuffer Uniforms
+//--// Camera uniforms
+
+uniform int isEyeInWater;
+uniform float eyeAltitude;
+
+uniform vec3 cameraPosition;
+
 uniform mat4 gbufferModelView;
 uniform mat4 gbufferModelViewInverse;
 uniform mat4 gbufferProjection;
 uniform mat4 gbufferProjectionInverse;
 
-uniform sampler2D depthtex1;
+//--// Shadow uniforms
 
-// Shadow uniforms
 uniform mat4 shadowModelView;
 uniform mat4 shadowModelViewInverse;
 uniform mat4 shadowProjection;
@@ -51,22 +68,8 @@ uniform sampler2D shadowcolor0;
 	uniform sampler2D shadowcolor1;
 #endif
 
-// Misc samplers
-uniform sampler2D colortex0;
-uniform sampler2D colortex1;
-uniform sampler2D colortex3; // Clouds Transmittance
-uniform sampler2D colortex4; // Sky Encode
-uniform sampler2D colortex6; // Sky Scattering Image
-uniform sampler2D colortex7; // Misc encoded stuff
+//--// Custom uniforms
 
-uniform sampler2D depthtex0; // Sky Transmittance LUT
-uniform sampler2D depthtex2; // Sky Scattering LUT
-#define transmittanceLut depthtex0
-#define scatteringLut depthtex2
-
-uniform sampler2D noisetex;
-
-// Custom Uniforms
 uniform vec2 viewResolution;
 uniform vec2 viewPixelSize;
 uniform vec2 taaOffset;
@@ -77,26 +80,24 @@ uniform vec3 moonVector;
 uniform vec3 shadowLightVectorView;
 uniform vec3 shadowLightVector;
 
-//--// Shared Libraries
+//--// Shared Includes //-----------------------------------------------------//
 
-#include "/lib/utility.glsl"
-#include "/lib/utility/colorspace.glsl"
-#include "/lib/utility/encoding.glsl"
-#include "/lib/utility/sampling.glsl"
+#include "/include/utility.glsl"
+#include "/include/utility/colorspace.glsl"
+#include "/include/utility/encoding.glsl"
+#include "/include/utility/sampling.glsl"
 
-#include "/lib/shared/celestialConstants.glsl"
-#include "/lib/shared/skyProjection.glsl"
+#include "/include/shared/celestialConstants.glsl"
+#include "/include/shared/skyProjection.glsl"
 
-#include "/lib/shared/atmosphere/constants.glsl"
-#include "/lib/shared/atmosphere/lookup.glsl"
-#include "/lib/shared/atmosphere/transmittance.glsl"
-#include "/lib/shared/atmosphere/phase.glsl"
-#include "/lib/shared/atmosphere/scattering.glsl"
-
-//--// Shared Functions
+#include "/include/shared/atmosphere/constants.glsl"
+#include "/include/shared/atmosphere/lookup.glsl"
+#include "/include/shared/atmosphere/transmittance.glsl"
+#include "/include/shared/atmosphere/phase.glsl"
+#include "/include/shared/atmosphere/scattering.glsl"
 
 #if defined STAGE_VERTEX
-	//--// Vertex Outputs
+	//--// Vertex Outputs //--------------------------------------------------//
 
 	out vec2 screenCoord;
 
@@ -111,12 +112,11 @@ uniform vec3 shadowLightVector;
 	flat out vec3 luminanceShadowlight;
 	flat out vec3 illuminanceShadowlight;
 
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
-		screenCoord    = gl_Vertex.xy;
-		gl_Position.xy = gl_Vertex.xy * 2.0 - 1.0;
-		gl_Position.zw = vec2(1.0);
+		screenCoord = gl_Vertex.xy;
+		gl_Position = vec4(gl_Vertex.xy * 2.0 - 1.0, 1.0, 1.0);
 
 		const ivec2 samples = ivec2(16, 8);
 
@@ -163,7 +163,7 @@ uniform vec3 shadowLightVector;
 		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : moonIlluminance) * shadowlightTransmittance;
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Inputs
+	//--// Fragment Inputs //-------------------------------------------------//
 
 	in vec2 screenCoord;
 
@@ -178,24 +178,25 @@ uniform vec3 shadowLightVector;
 	flat in vec3 luminanceShadowlight;
 	flat in vec3 illuminanceShadowlight;
 
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
-	/* DRAWBUFFERS:47 */
+	/* DRAWBUFFERS:457 */
 
 	layout (location = 0) out vec4 colortex4Write;
-	layout (location = 1) out vec4 colortex7Write;
+	layout (location = 1) out vec4 colortex5Write;
+	layout (location = 2) out vec4 shadowsOut; // shadows
 
-	//--// Fragment Libraries
+	//--// Fragment Includes //-----------------------------------------------//
 
-	#include "/lib/utility/complex.glsl"
-	#include "/lib/utility/dithering.glsl"
-	#include "/lib/utility/math.glsl"
-	#include "/lib/utility/noise.glsl"
-	#include "/lib/utility/packing.glsl"
-	#include "/lib/utility/rotation.glsl"
-	#include "/lib/utility/spaceConversion.glsl"
+	#include "/include/utility/complex.glsl"
+	#include "/include/utility/dithering.glsl"
+	#include "/include/utility/math.glsl"
+	#include "/include/utility/noise.glsl"
+	#include "/include/utility/packing.glsl"
+	#include "/include/utility/rotation.glsl"
+	#include "/include/utility/spaceConversion.glsl"
 
-	#include "/lib/shared/shadowDistortion.glsl"
+	#include "/include/shared/shadowDistortion.glsl"
 
 	float GetLinearDepth(sampler2D depthSampler, vec2 coord) {
 		//float depth = texelFetch(depthSampler, ivec2(coord * viewResolution), 0).r + gbufferProjectionInverse[1].y*exp2(-3.0);
@@ -214,21 +215,21 @@ uniform vec3 shadowLightVector;
 		return mix(s.x,  s.y,  f.y) * gbufferProjectionInverse[3].z;
 	}
 
-	#include "/lib/fragment/material.fsh"
-	#include "/lib/fragment/brdf.fsh"
-	#include "/lib/fragment/diffuseLighting.fsh"
-	#include "/lib/fragment/specularLighting.fsh"
+	#include "/include/fragment/material.fsh"
+	#include "/include/fragment/brdf.fsh"
+	#include "/include/fragment/diffuseLighting.fsh"
+	#include "/include/fragment/specularLighting.fsh"
 	#ifdef CAUSTICS
-		#include "/lib/fragment/waterCaustics.fsh"
+		#include "/include/fragment/waterCaustics.fsh"
 	#endif
-	#include "/lib/fragment/shadows.fsh"
+	#include "/include/fragment/shadows.fsh"
 
-	#include "/lib/fragment/clouds2D.fsh"
-	#include "/lib/fragment/clouds3D.fsh"
+	#include "/include/fragment/clouds2D.fsh"
+	#include "/include/fragment/clouds3D.fsh"
 
-	#include "/lib/fragment/raytracer.fsh"
+	#include "/include/fragment/raytracer.fsh"
 
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	float CalculateSampleWeight(vec3 centerNormal, vec3 sampleNormal, vec3 sampleVector) {
 		float planeDist = abs(dot(centerNormal, sampleVector));
@@ -241,11 +242,11 @@ uniform vec3 shadowLightVector;
 		ivec2 shift     = ivec2(gl_FragCoord.st) % 2;
 
 		#ifdef HBAO
-		hbao = texelFetch(colortex7, fragCoord, 0);
+		hbao = texelFetch(colortex5, fragCoord, 0);
 		#endif
 
 		#ifdef RSM
-		rsm = texelFetch(colortex7, fragCoord + ivec2(res.x, 0), 0).rgb;
+		rsm = texelFetch(colortex5, fragCoord + ivec2(res.x, 0), 0).rgb;
 		#endif
 
 		float weightSum = 1.0;
@@ -272,11 +273,11 @@ uniform vec3 shadowLightVector;
 				      weight *= (1.0 - 0.2 * abs(offset.x)) * (1.0 - 0.2 * abs(offset.y));
 
 				#ifdef HBAO
-				hbao += texelFetch(colortex7, sampleFragCoord, 0) * weight;
+				hbao += texelFetch(colortex5, sampleFragCoord, 0) * weight;
 				#endif
 
 				#ifdef RSM
-				rsm += texelFetch(colortex7, sampleFragCoord + ivec2(res.x, 0), 0).rgb * weight;
+				rsm += texelFetch(colortex5, sampleFragCoord + ivec2(res.x, 0), 0).rgb * weight;
 				#endif
 
 				weightSum += weight;
@@ -377,24 +378,24 @@ uniform vec3 shadowLightVector;
 	void main() {
 		if (gl_FragCoord.x < 6.0 && gl_FragCoord.y < 1.0) {
 			if (gl_FragCoord.x < 1.0) {
-				colortex7Write.rgb = skylightPosX;
+				colortex5Write.rgb = skylightPosX;
 			} else if (gl_FragCoord.x < 2.0) {
-				colortex7Write.rgb = skylightPosY;
+				colortex5Write.rgb = skylightPosY;
 			} else if (gl_FragCoord.x < 3.0) {
-				colortex7Write.rgb = skylightPosZ;
+				colortex5Write.rgb = skylightPosZ;
 			} else if (gl_FragCoord.x < 4.0) {
-				colortex7Write.rgb = skylightNegX;
+				colortex5Write.rgb = skylightNegX;
 			} else if (gl_FragCoord.x < 5.0) {
-				colortex7Write.rgb = skylightNegY;
+				colortex5Write.rgb = skylightNegY;
 			} else {
-				colortex7Write.rgb = skylightNegZ;
+				colortex5Write.rgb = skylightNegZ;
 			}
 		} else if (gl_FragCoord.x < 1.0 && gl_FragCoord.y < 2.0) {
-			colortex7Write.rgb = shadowlightTransmittance;
+			colortex5Write.rgb = shadowlightTransmittance;
 		} else {
-			colortex7Write.rgb = vec3(0.0);
+			colortex5Write.rgb = vec3(0.0);
 		}
-		colortex7Write.a = 1.0;
+		colortex5Write.a = 1.0;
 
 		mat3 position;
 		position[0] = vec3(screenCoord, texture(depthtex1, screenCoord).r);
@@ -439,7 +440,6 @@ uniform vec3 shadowLightVector;
 			float LoV = dot(shadowLightVector, -viewVector);
 			float rcpLen_LV = inversesqrt(2.0 * LoV + 2.0);
 			float NoH = (NoL + NoV) * rcpLen_LV;
-			float VoH = LoV * rcpLen_LV + rcpLen_LV;
 
 			// Lighting
 			#if defined HBAO || defined RSM
@@ -502,18 +502,13 @@ uniform vec3 shadowLightVector;
 				bounce *= cloudShadow * ao;
 			#endif
 
-			float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
+			color = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, bounce, skylight, lightmap, blocklightShading, ao);
 
-			color  = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, bounce, skylight, lightmap, blocklightShading, ao);
-			color += CalculateSpecularHighlight(NoL, NoV, LoV, VoH, material.roughness, material.n, material.k, lightAngularRadius) * illuminanceShadowlight * shadows;
-			color += material.emission;
-
-			//color = skylight * ao;
-			//color = bounce * illuminanceShadowlight;
-			#else
-			color = vec3(0.0);
+			shadowsOut = vec4(LinearToSrgb(shadows), 1.0);
 			#endif
 		} else {
+			shadowsOut = vec4(0.0);
+
 			color  = CalculateStars(vec3(0.0), viewVector);
 			color  = CalculateSun(color, viewVector, sunVector);
 			color  = CalculateMoon(color, viewVector, moonVector);

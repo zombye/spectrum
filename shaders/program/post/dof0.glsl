@@ -10,7 +10,7 @@
  *   Generated DoF sprite and calculates CoC
 \*/
 
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 
@@ -18,45 +18,42 @@
 const bool colortex3MipmapEnabled = true;
 #endif
 
-//--// Uniforms
+//--// Uniforms //------------------------------------------------------------//
 
 uniform float aspectRatio;
 uniform float centerDepthSmooth;
 
-// Gbuffer Uniforms
+uniform sampler2D depthtex1;
+uniform sampler2D colortex3;
+
+//--// Camera uniforms
+
 uniform mat4 gbufferProjection;
 uniform mat4 gbufferProjectionInverse;
 
-uniform sampler2D depthtex1;
+//--// Custom uniforms
 
-// Misc Samplers
-uniform sampler2D colortex3;
-
-// Custom Uniforms
 uniform vec2 viewResolution;
 
 uniform vec2 taaOffset;
 
-//--// Shared Functions
-
 #if defined STAGE_VERTEX
-	//--// Vertex Outputs
+	//--// Vertex Outputs //--------------------------------------------------//
 
 	out vec2 screenCoord;
 
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
-		screenCoord    = gl_Vertex.xy;
-		gl_Position.xy = gl_Vertex.xy * 2.0 - 1.0;
-		gl_Position.zw = vec2(1.0);
+		screenCoord = gl_Vertex.xy;
+		gl_Position = vec4(gl_Vertex.xy * 2.0 - 1.0, 1.0, 1.0);
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Inputs
+	//--// Fragment Inputs //-------------------------------------------------//
 
 	in vec2 screenCoord;
 
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
 	#ifdef DOF_SIMPLE
 		/* DRAWBUFFERS:01 */
@@ -69,16 +66,16 @@ uniform vec2 taaOffset;
 		layout (location = 0) out vec4 colortex0Write;
 	#endif
 
-	//--// Fragment Libraries
+	//--// Fragment Includes //-----------------------------------------------//
 
-	#include "/lib/utility.glsl"
-	#include "/lib/utility/encoding.glsl"
-	#include "/lib/utility/packing.glsl"
-	#include "/lib/utility/spaceConversion.glsl"
+	#include "/include/utility.glsl"
+	#include "/include/utility/encoding.glsl"
+	#include "/include/utility/packing.glsl"
+	#include "/include/utility/spaceConversion.glsl"
 
-	#include "/lib/fragment/dofCommon.fsh"
+	#include "/include/fragment/dofCommon.fsh"
 
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	void main() {
 		#if defined DOF_SIMPLE || defined DOF_COMPLEX

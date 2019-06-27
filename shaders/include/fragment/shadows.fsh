@@ -392,30 +392,46 @@
 		// approximate
 		if (depth - position.z > bias * 2.0) { return 0.0; }
 
+		// check if within cone
 		position = Diagonal(shadowProjectionInverse).xyz * position * vec3(1.0,1.0,SHADOW_DEPTH_SCALE) + shadowProjectionInverse[3].xyz;
 		vec3 coneCheckPos = vec3(clamp(position.xy, p0, p1), depthLin);
 
 		if (normalize(coneCheckPos - position).z < cos(sunAngularRadius)) { return 0.0; }
 
-		return RectangleSolidAngle(p0 - position.xy, p1 - position.xy, abs(depthLin - position.z));
+		// check if _entirely_ within cone
+		if (normalize(vec3(p0, depthLin) - position).z > cos(sunAngularRadius) && normalize(vec3(p1, depthLin) - position).z > cos(sunAngularRadius)) {
+			return RectangleSolidAngle(p0 - position.xy, p1 - position.xy, abs(depthLin - position.z));
+		}
+
+		// only partially within cone, just using numerical integration (at least for now)
+		int q = 5;
+		vec2 s = abs(p1 - p0) / q;
+
+		float res = 0.0;
+		for (float x = p0.x + s.x / 2.0; x < p1.x; x += s.x) {
+			for (float y = p0.y + s.y / 2.0; y < p1.y; y += s.y) {
+				vec3 sp = vec3(x, y, depthLin);
+				vec3 sv = sp - position;
+				float dSq = dot(sv, sv);
+
+				if (abs(sv.z * inversesqrt(dSq)) < cos(sunAngularRadius)) { continue; }
+
+				res += s.x * s.y / dSq;
+			}
+		}
+
+		return res;
 	}
 
-	vec3 ExperimentalVPS(vec3 position, float biasMul, float biasAdd, float dither, const float ditherSize, out float waterFraction) {
-		const int samples = 128;
-
+	vec3 ExperimentalVPS(vec3 position, float biasMul, float biasAdd, float dither, const float ditherSize, inout float waterFraction, inout float waterDepth) {
 		float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
-		const float maxRadius    = 0.1;
-		float weight             = pow(maxRadius / tan(lightAngularRadius), 2.0) / samples;
-
-		dither = dither * ditherSize + 0.5;
 
 		float pixelRadiusBase = 1.0 / SHADOW_RESOLUTION;
-		float radius          = maxRadius * shadowProjection[0].x;
-
-		//*
-		float lightSolidAngle = ConeAngleToSolidAngle(lightAngularRadius);
+		float radius          = tan(lightAngularRadius) * /*SHADOW_DEPTH_RADIUS*/16.0 * shadowProjection[0].x;
 
 		ivec2 maxRadiusPixels = ivec2(abs(SHADOW_RESOLUTION * radius)) + 1;
+
+		float lightSolidAngle = ConeAngleToSolidAngle(lightAngularRadius);
 		float occluderSolidAngle = 0.0;
 		for (int x = -maxRadiusPixels.x; x <= maxRadiusPixels.x; ++x) {
 			for (int y = -maxRadiusPixels.y; y <= maxRadiusPixels.y; ++y) {
@@ -431,29 +447,6 @@
 		}
 		if (occluderSolidAngle < 0.0) { return vec3(1.0, 0.0, 1.0); }
 		float sunVisibility = 1.0 - Clamp01(occluderSolidAngle / lightSolidAngle);
-		//*/
-
-		/*
-		float sunVisibility = 1.0;
-		for (int i = 0; i < samples; ++i) {
-			vec2 sampleOffset = CircleMap(i * ditherSize + dither, samples * ditherSize);
-
-			vec3 occluderPos; occluderPos.xy = sampleOffset * radius + position.xy;
-			float distortionFactor = CalculateDistortionFactor(occluderPos.xy);
-			     occluderPos.z = texelFetch(shadowtex1, ivec2(((occluderPos.xy * distortionFactor) * 0.5 + 0.5) * SHADOW_RESOLUTION), 0).r * 2.0 - 1.0;
-
-			vec3  occluderVec             = vec3(shadowProjectionInverse[0].x, shadowProjectionInverse[1].y, -SHADOW_DEPTH_RADIUS) * (occluderPos - position);
-			float occluderDistanceSquared = dot(occluderVec, occluderVec);
-
-			if (occluderVec.z * inversesqrt(occluderDistanceSquared) < cos(lightAngularRadius)) { continue; }
-
-			float bias = biasMul * ((pixelRadiusBase / (distortionFactor * distortionFactor)) + length(sampleOffset) * radius) + biasAdd;
-
-			if (occluderPos.z - position.z > bias) { continue; }
-
-			sunVisibility -= max(weight / occluderDistanceSquared, 1.0 / samples);
-		} sunVisibility = max(sunVisibility, 0.0);
-		//*/
 
 		return vec3(sunVisibility);
 	}
@@ -549,7 +542,7 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 		float waterFraction, waterDepth;
 		vec3 shadows = PercentageCloserSoftShadows(shadowClip, shadowCoord, distortionFactor, biasMul, biasAdd, dither, ditherSize, waterFraction, waterDepth);
 	#elif SHADOW_FILTER == SHADOW_FILTER_EXPERIMENTAL || SHADOW_FILTER == SHADOW_FILTER_EXPERIMENTAL_PCSSASSISTED
-		float waterFraction = 0.0;
+		float waterFraction = 0.0, waterDepth = 0.0;
 		vec3 shadows = ExperimentalVPS(shadowClip, biasMul, biasAdd, dither, ditherSize, waterFraction, waterDepth);
 	#endif
 

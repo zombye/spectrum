@@ -1,31 +1,26 @@
-/*\
- * Program Description:
-\*/
-
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 
 #define EMISSIVE_TEMP_FIX
 
-//--// Uniforms
+//--// Uniforms //------------------------------------------------------------//
 
-#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
-	uniform int heldItemId;
-	uniform int heldItemId2;
-#endif
+uniform sampler2D tex;
+uniform sampler2D normals;
+uniform sampler2D specular;
 
-uniform vec3 cameraPosition;
-uniform vec3 previousCameraPosition;
+uniform sampler2D noisetex;
 
-// Time
+//--// Time uniforms
+
 uniform float frameTime;
 uniform float frameTimeCounter;
 
-// Gbuffer uniforms
-#if defined PROGRAM_ENTITIES
-	uniform vec4 entityColor;
-#endif
+//--// Camera uniforms
+
+uniform vec3 cameraPosition;
+uniform vec3 previousCameraPosition;
 
 uniform mat4 gbufferModelView;
 uniform mat4 gbufferModelViewInverse;
@@ -34,33 +29,25 @@ uniform mat4 gbufferPreviousModelView;
 uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferPreviousProjection;
 
-// Misc samplers
-uniform sampler2D tex;
-uniform sampler2D normals;
-uniform sampler2D specular;
+//--// Custom Uniforms
 
-uniform sampler2D noisetex;
-
-// Custom Uniforms
 uniform vec2 viewPixelSize;
 uniform vec2 taaOffset;
 
 uniform vec3 shadowLightVector;
 
-//--// Shared Libraries
+//--// Shared Includes //-----------------------------------------------------//
 
-#include "/lib/utility.glsl"
-
-//--// Shared Functions
+#include "/include/utility.glsl"
 
 #if defined STAGE_VERTEX
-	//--// Vertex Inputs
+	//--// Vertex Inputs //---------------------------------------------------//
 
 	attribute vec4 at_tangent;
 	attribute vec2 mc_Entity;
 	attribute vec2 mc_midTexCoord;
 
-	//--// Vertex Outputs
+	//--// Vertex Outputs //--------------------------------------------------//
 
 	// Interpolated
 	out mat3 tbn;
@@ -85,11 +72,11 @@ uniform vec3 shadowLightVector;
 	flat out vec3 tint;
 	flat out int blockId;
 
-	//--// Vertex Libraries
+	//--// Vertex Includes //-------------------------------------------------//
 
-	#include "/lib/vertex/animation.vsh"
+	#include "/include/vertex/animation.vsh"
 
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	vec2 GetLightmapCoordinates() {
 		#ifdef EMISSIVE_TEMP_FIX
@@ -200,7 +187,7 @@ uniform vec3 shadowLightVector;
 		#endif
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Inputs
+	//--// Fragment Inputs //-------------------------------------------------//
 
 	// Interpolated
 	in mat3 tbn;
@@ -225,10 +212,10 @@ uniform vec3 shadowLightVector;
 	flat in vec3 tint; // Interestingly, the tint color seems to always be the same for the entire quad.
 	flat in int blockId;
 
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
 	#if defined MOTION_BLUR || defined TAA
-		/* DRAWBUFFERS:015 */
+		/* DRAWBUFFERS:012 */
 	#else
 		/* DRAWBUFFERS:01 */
 	#endif
@@ -239,18 +226,18 @@ uniform vec3 shadowLightVector;
 		layout (location = 2) out vec3 velocity; // Velocity
 	#endif
 
-	//--// Fragment Libraries
+	//--// Fragment Includes //-----------------------------------------------//
 
-	#include "/lib/utility/dithering.glsl"
-	#include "/lib/utility/encoding.glsl"
-	#include "/lib/utility/math.glsl"
-	#include "/lib/utility/packing.glsl"
+	#include "/include/utility/dithering.glsl"
+	#include "/include/utility/encoding.glsl"
+	#include "/include/utility/math.glsl"
+	#include "/include/utility/packing.glsl"
 
 	#ifdef PARALLAX
-		#include "/lib/fragment/parallax.fsh"
+		#include "/include/fragment/parallax.fsh"
 	#endif
 
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	#if defined SMOOTH_ALBEDO || defined SMOOTH_NORMALS || defined SMOOTH_SPECULAR
 		#extension GL_ARB_texture_query_levels : require
@@ -329,9 +316,6 @@ uniform vec3 shadowLightVector;
 		#endif
 		if (baseTex.a < 0.102) { discard; }
 		baseTex.rgb *= tint;
-		#if defined PROGRAM_ENTITIES
-			baseTex.rgb = mix(baseTex.rgb, entityColor.rgb, entityColor.a);
-		#endif
 
 		#if !defined PROGRAM_TEXTURED
 			#ifdef SMOOTH_SPECULAR

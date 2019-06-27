@@ -1,51 +1,45 @@
-/*\
- * Program Description:
-\*/
-
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 
-//--// Uniforms
-
-uniform int frameCounter;
+//--// Uniforms //------------------------------------------------------------//
 
 uniform sampler2D colortex3;
 uniform sampler2D colortex6; // Bloom tiles
 
-// Custom Uniforms
+//--// Time uniforms
+
+uniform int frameCounter;
+
+//--// Custom Uniforms
+
 uniform vec2 viewPixelSize;
 
-//--// Shared Libraries
-
-//--// Shared Functions
-
 #if defined STAGE_VERTEX
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
-		gl_Position.xy = gl_Vertex.xy * 2.0 - 1.0;
-		gl_Position.zw = vec2(1.0);
+		gl_Position = vec4(gl_Vertex.xy * 2.0 - 1.0, 1.0, 1.0);
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
 	/* DRAWBUFFERS:4 */
 
 	layout (location = 0) out vec4 colortex4Write;
 
-	//--// Fragment Libraries
+	//--// Fragment Includes //-----------------------------------------------//
 
-	#include "/lib/utility.glsl"
-	#include "/lib/utility/colorspace.glsl"
-	#include "/lib/utility/encoding.glsl"
-	#include "/lib/utility/noise.glsl"
+	#include "/include/utility.glsl"
+	#include "/include/utility/colorspace.glsl"
+	#include "/include/utility/encoding.glsl"
+	#include "/include/utility/noise.glsl"
 
-	#include "/lib/shared/blurTileOffset.glsl"
+	#include "/include/shared/blurTileOffset.glsl"
 
-	#include "/lib/fragment/tonemap.fsh"
+	#include "/include/fragment/tonemap.fsh"
 
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	vec3 GetBloom(vec2 screenCoord) {
 		vec3 bloom = texture(colortex6, screenCoord * exp2(-1.0) + CalculateTileOffset(0)).rgb;

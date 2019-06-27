@@ -1,8 +1,4 @@
-/*\
- * Program Description:
-\*/
-
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 
@@ -12,63 +8,66 @@
 #define REFRACTION_MODE REFRACTION_WATER_ONLY // [REFRACTION_OFF REFRACTION_WATER_ONLY REFRACTION_FULL]
 //#define REFRACTION_RAYTRACED
 
-//--// Uniforms
+//--// Uniforms //------------------------------------------------------------//
 
-//
 uniform float sunAngle;
 
 uniform float wetness;
 
-uniform int isEyeInWater;
-uniform ivec2 eyeBrightness;
-uniform vec3 cameraPosition;
-
 uniform float fogDensity = 0.1;
 
-uniform float eyeAltitude;
+uniform sampler2D depthtex0;
+uniform sampler2D depthtex1;
 
-uniform float far;
+uniform sampler2D colortex0; // Gbuffer0
+uniform sampler2D colortex1; // Gbuffer1
 
-// Time
+uniform sampler2D colortex3; // Transparent color
+uniform sampler2D colortex4; // Main color
+uniform sampler2D colortex5; // Image storing some stuff that would ideally be uniforms but currently can't be
+uniform sampler2D colortex6; // Sky Scattering Image
+uniform sampler2D colortex7; // Shadows
+uniform sampler2D noisetex;
+
+//--// Time uniforms
+
 uniform int frameCounter;
 uniform float frameTimeCounter;
 
 uniform int worldDay;
 uniform int worldTime;
 
-// Gbuffer Uniforms
+//--// Camera uniforms
+
+uniform int isEyeInWater;
+uniform ivec2 eyeBrightness;
+uniform float eyeAltitude;
+
+uniform vec3 cameraPosition;
+
+uniform float far;
+
 uniform mat4 gbufferModelView;
 uniform mat4 gbufferModelViewInverse;
 uniform mat4 gbufferProjection;
 uniform mat4 gbufferProjectionInverse;
 
-uniform sampler2D depthtex0;
-uniform sampler2D depthtex1;
+//--// Shadow uniforms
 
-// Shadow Uniforms
 uniform mat4 shadowModelView;
 #if defined VL_AIR || defined VL_WATER
-	uniform mat4 shadowProjection;
+uniform mat4 shadowProjection;
 
-	uniform sampler2D shadowtex0;
-	uniform sampler2D shadowtex1;
-	uniform sampler2D shadowcolor0;
-	#ifdef SHADOW_COLORED
-		uniform sampler2D shadowcolor1;
-	#endif
+uniform sampler2D shadowtex0;
+uniform sampler2D shadowtex1;
+uniform sampler2D shadowcolor0;
+#ifdef SHADOW_COLORED
+uniform sampler2D shadowcolor1;
+#endif
 #endif
 
-//
-uniform sampler2D colortex0; // Gbuffer0
-uniform sampler2D colortex1; // Gbuffer1
-uniform sampler2D colortex2; // Shadows
-uniform sampler2D colortex3; // Transparent color
-uniform sampler2D colortex4; // Main color
-uniform sampler2D colortex6; // Sky Scattering Image
-uniform sampler2D colortex7; // Image storing some stuff that would ideally be uniforms but currently can't be
-uniform sampler2D noisetex;
+//-// Custom uniforms
 
-// Custom Uniforms
 uniform vec2 viewResolution;
 uniform vec2 viewPixelSize;
 uniform vec2 taaOffset;
@@ -77,24 +76,22 @@ uniform vec3 sunVector;
 
 uniform vec3 shadowLightVector;
 
-//--// Shared Libraries
+//--// Shared Includes //-----------------------------------------------------//
 
-#include "/lib/utility.glsl"
-#include "/lib/utility/colorspace.glsl"
-#include "/lib/utility/encoding.glsl"
-#include "/lib/utility/sampling.glsl"
+#include "/include/utility.glsl"
+#include "/include/utility/colorspace.glsl"
+#include "/include/utility/encoding.glsl"
+#include "/include/utility/sampling.glsl"
 
-#include "/lib/shared/celestialConstants.glsl"
-#include "/lib/shared/skyProjection.glsl"
+#include "/include/shared/celestialConstants.glsl"
+#include "/include/shared/skyProjection.glsl"
 
-#include "/lib/shared/atmosphere/constants.glsl"
-#include "/lib/shared/atmosphere/lookup.glsl"
-#include "/lib/shared/atmosphere/transmittance.glsl"
-
-//--// Shared Functions
+#include "/include/shared/atmosphere/constants.glsl"
+#include "/include/shared/atmosphere/lookup.glsl"
+#include "/include/shared/atmosphere/transmittance.glsl"
 
 #if defined STAGE_VERTEX
-	//--// Vertex Outputs
+	//--// Vertex Outputs //--------------------------------------------------//
 
 	out vec2 screenCoord;
 
@@ -103,14 +100,11 @@ uniform vec3 shadowLightVector;
 
 	out vec3 illuminanceSky;
 
-	//--// Vertex Libraries
-
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
-		screenCoord    = gl_Vertex.xy;
-		gl_Position.xy = gl_Vertex.xy * 2.0 - 1.0;
-		gl_Position.zw = vec2(1.0);
+		screenCoord = gl_Vertex.xy;
+		gl_Position = vec4(gl_Vertex.xy * 2.0 - 1.0, 1.0, 1.0);
 
 		const ivec2 samples = ivec2(16, 8);
 
@@ -127,12 +121,12 @@ uniform vec3 shadowLightVector;
 		const float sampleWeight = 4.0 * pi / (samples.x * samples.y);
 		illuminanceSky *= sampleWeight;
 
-		vec3 shadowlightTransmittance = texelFetch(colortex7, ivec2(0, 1), 0).rgb;
+		vec3 shadowlightTransmittance = texelFetch(colortex5, ivec2(0, 1), 0).rgb;
 		luminanceShadowlight   = (sunAngle < 0.5 ? sunLuminance   : moonLuminance)   * shadowlightTransmittance;
 		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : moonIlluminance) * shadowlightTransmittance;
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Inputs
+	//--// Fragment Inputs //-------------------------------------------------//
 
 	in vec2 screenCoord;
 
@@ -141,26 +135,26 @@ uniform vec3 shadowLightVector;
 
 	in vec3 illuminanceSky;
 
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
 	/* DRAWBUFFERS:6 */
 
 	layout (location = 0) out vec3 color;
 
-	//--// Fragment Libraries
+	//--// Fragment Includes //-----------------------------------------------//
 
-	#include "/lib/utility/complex.glsl"
-	#include "/lib/utility/dithering.glsl"
-	#include "/lib/utility/math.glsl"
-	#include "/lib/utility/noise.glsl"
-	#include "/lib/utility/packing.glsl"
-	#include "/lib/utility/rotation.glsl"
-	#include "/lib/utility/spaceConversion.glsl"
+	#include "/include/utility/complex.glsl"
+	#include "/include/utility/dithering.glsl"
+	#include "/include/utility/math.glsl"
+	#include "/include/utility/noise.glsl"
+	#include "/include/utility/packing.glsl"
+	#include "/include/utility/rotation.glsl"
+	#include "/include/utility/spaceConversion.glsl"
 
-	#include "/lib/fragment/clouds3D.fsh"
+	#include "/include/fragment/clouds3D.fsh"
 
 	#if defined VL_AIR || defined VL_WATER
-		#include "/lib/shared/shadowDistortion.glsl"
+		#include "/include/shared/shadowDistortion.glsl"
 
 		#ifdef SHADOW_COLORED
 			vec3 ReadShadowMaps(vec3 shadowCoord) {
@@ -182,20 +176,20 @@ uniform vec3 shadowLightVector;
 		#endif
 	#endif
 
-	#include "/lib/shared/atmosphere/density.glsl"
-	#include "/lib/shared/atmosphere/phase.glsl"
+	#include "/include/shared/atmosphere/density.glsl"
+	#include "/include/shared/atmosphere/phase.glsl"
 
 	#ifdef VL_WATER_CAUSTICS
-		#include "/lib/fragment/waterCaustics.fsh"
+		#include "/include/fragment/waterCaustics.fsh"
 	#endif
-	#include "/lib/fragment/fog.fsh"
+	#include "/include/fragment/fog.fsh"
 
-	#include "/lib/fragment/brdf.fsh"
-	#include "/lib/fragment/material.fsh"
-	#include "/lib/fragment/raytracer.fsh"
-	#include "/lib/fragment/specularLighting.fsh"
+	#include "/include/fragment/brdf.fsh"
+	#include "/include/fragment/material.fsh"
+	#include "/include/fragment/raytracer.fsh"
+	#include "/include/fragment/specularLighting.fsh"
 
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	vec3 refract2(vec3 I, vec3 N, vec3 NF, float eta) {
 		float NoI = dot(N, I);
@@ -366,34 +360,28 @@ uniform vec3 shadowLightVector;
 
 			// Specular
 			if (material.n != eyeN) {
+				color *= 1.0 - material.metalness;
+
 				float NoV = dot(normal, -viewVector);
 
-				#ifdef SSR_MULTILAYER
-					if (backPosition[0].z != frontPosition[0].z) {
-						float NoL = dot(normal, shadowLightVector);
-						float rcpLen_LV = inversesqrt(2.0 * LoV + 2.0);
-						float NoH = (NoL + NoV) * rcpLen_LV;
-						float VoH = LoV * rcpLen_LV + rcpLen_LV;
+				float NoL = dot(normal, shadowLightVector);
+				float rcpLen_LV = inversesqrt(2.0 * LoV + 2.0);
+				float NoH = (NoL + NoV) * rcpLen_LV;
+				float VoH = LoV * rcpLen_LV + rcpLen_LV;
 
-						float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
-						color += CalculateSpecularHighlight(NoL, NoV, LoV, VoH, material.roughness, material.n, material.k, lightAngularRadius) * illuminanceShadowlight * SrgbToLinear(texture(colortex2, screenCoord).rgb);
-					} else {
-						color += CalculateSsr(colortex4, frontPosition, normal, NoV, material.roughness, material.n, material.k, skylightFade, blockId == 8, dither, ditherSize);
+				float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
+				color += CalculateSpecularHighlight(NoL, NoV, LoV, VoH, material.roughness, material.n, material.k, lightAngularRadius) * illuminanceShadowlight * SrgbToLinear(texture(colortex7, screenCoord).rgb);
+
+				#ifdef SSR_MULTILAYER
+					if (backPosition[0].z == frontPosition[0].z) {
+						color += CalculateEnvironmentReflections(colortex4, frontPosition, normal, NoV, material.roughness, material.n, material.k, skylightFade, blockId == 8, dither, ditherSize);
 					}
 				#else
-					color += CalculateSsr(colortex4, frontPosition, normal, NoV, material.roughness, material.n, material.k, skylightFade, blockId == 8, dither, ditherSize);
-
-					if (backPosition[0].z != frontPosition[0].z) {
-						float NoL = dot(normal, shadowLightVector);
-						float rcpLen_LV = inversesqrt(2.0 * LoV + 2.0);
-						float NoH = (NoL + NoV) * rcpLen_LV;
-						float VoH = LoV * rcpLen_LV + rcpLen_LV;
-
-						float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
-						color += CalculateSpecularHighlight(NoL, NoV, LoV, VoH, material.roughness, material.n, material.k, lightAngularRadius) * illuminanceShadowlight * SrgbToLinear(texture(colortex2, screenCoord).rgb);
-					}
+					color += CalculateEnvironmentReflections(colortex4, frontPosition, normal, NoV, material.roughness, material.n, material.k, skylightFade, blockId == 8, dither, ditherSize);
 				#endif
 			}
+
+			color += material.emission;
 
 			// Eye to front fog
 			if (isEyeInWater == 1) { // Water fog

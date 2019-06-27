@@ -1,21 +1,15 @@
-/*\
- * Program Description:
-\*/
-
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 
-//--// Shared Functions
-
 #if defined STAGE_VERTEX
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
 		gl_Position = vec4(1.0);
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	void main() {
 		discard;

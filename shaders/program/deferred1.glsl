@@ -1,33 +1,30 @@
-/*\
- * Program Description:
-\*/
-
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 
-//--// Uniforms
+//--// Uniforms //------------------------------------------------------------//
 
-uniform sampler2D colortex7;
+uniform sampler2D colortex5;
+
+//--// Custom uniforms
 
 uniform vec2 viewResolution;
 uniform vec2 viewPixelSize;
 
 #if defined STAGE_VERTEX
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
-		gl_Position.xy = gl_Vertex.xy * 2.0 - 1.0;
-		gl_Position.zw = vec2(1.0);
+		gl_Position = vec4(gl_Vertex.xy * 2.0 - 1.0, 1.0, 1.0);
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
-	/* DRAWBUFFERS:7 */
+	/* DRAWBUFFERS:5 */
 
-	layout (location = 0) out vec4 colortex7Write;
+	layout (location = 0) out vec4 colortex5Write;
 
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	void UnditherTiles(ivec2 fragCoord, int patternSize, float scale, out ivec2 tile, out ivec2 tileFragCoord) {
 		ivec2 quadResolution      = ivec2(ceil(viewResolution / scale));
@@ -50,7 +47,7 @@ uniform vec2 viewPixelSize;
 		ivec2 fragCoord = ivec2(gl_FragCoord.xy);
 		vec2 screenCoord = gl_FragCoord.xy * viewPixelSize;
 
-		colortex7Write = texelFetch(colortex7, fragCoord, 0);
+		colortex5Write = texelFetch(colortex5, fragCoord, 0);
 
 		#ifdef RSM
 			if (screenCoord.x > 0.5 && screenCoord.y < 0.5) { // RSM
@@ -60,7 +57,7 @@ uniform vec2 viewPixelSize;
 				ivec2 quadResolution = ivec2(ceil(viewResolution / 2.0));
 				tileFragCoord.x += quadResolution.x;
 
-				colortex7Write = texelFetch(colortex7, tileFragCoord, 0);
+				colortex5Write = texelFetch(colortex5, tileFragCoord, 0);
 			}
 		#endif
 	}

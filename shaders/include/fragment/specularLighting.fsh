@@ -16,7 +16,7 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 
 //--//
 
-#if defined PROGRAM_COMPOSITE1 || defined PROGRAM_WATER || defined PROGRAM_HAND_WATER
+#if defined PROGRAM_COMPOSITE || defined PROGRAM_WATER || defined PROGRAM_HAND_WATER
 	float CalculateReflectionMip(vec3 position, vec3 hitPosition, float roughness) {
 		// Simple mip level calculation for SSR.
 		float positionalScale = distance(position, hitPosition) / -hitPosition.z; // ray length and perspective divide
@@ -61,7 +61,7 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 		return result;
 	}
 
-	vec3 CalculateSsr(sampler2D sampler, mat3 position, vec3 normal, float NdotV, float roughness, vec3 n, vec3 k, float skyFade, bool isWater, float dither, const float ditherSize) {
+	vec3 CalculateEnvironmentReflections(sampler2D sampler, mat3 position, vec3 normal, float NdotV, float roughness, vec3 n, vec3 k, float skyFade, bool isWater, float dither, const float ditherSize) {
 		float roughnessSquared = roughness * roughness;
 		vec3 viewDirection = normalize(position[1]);
 		normal = mat3(gbufferModelView) * normal;
@@ -81,6 +81,7 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 			vec3 reflectionSample = TraceSsrRay(sampler, position, rayDirection, NdotL, roughness, skyFade, dither);
 
 			reflectionSample *= FresnelDielectric(MdotV, (isEyeInWater == 1 && isWater ? 1.333 : 1.0002275) / n);
+			//reflectionSample *= FresnelNonpolarized(MdotV, isEyeInWater == 1 && isWater ? ComplexVec3(vec3(1.333), vec3(0.0)) : ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(n, k));
 			reflectionSample *= G2OverG1SmithGGX(NdotV, NdotL, roughnessSquared);
 
 			reflection += reflectionSample;

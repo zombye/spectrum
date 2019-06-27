@@ -3,52 +3,45 @@
  * Converts to sRGB and dithers before final output
 \*/
 
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 
-//--// Uniforms
+//--// Uniforms //------------------------------------------------------------//
 
 uniform sampler2D colortex4;
 #ifdef LUT
 uniform sampler2D depthtex2;
 #endif
 
-//--// Shared Libraries
-
-//--// Shared Functions
-
 #if defined STAGE_VERTEX
-	//--// Vertex Outputs
+	//--// Vertex Outputs //--------------------------------------------------//
 
 	out vec2 screenCoord;
 
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
-		screenCoord    = gl_Vertex.xy;
-		gl_Position.xy = gl_Vertex.xy * 2.0 - 1.0;
-		gl_Position.zw = vec2(1.0);
+		screenCoord = gl_Vertex.xy;
+		gl_Position = vec4(gl_Vertex.xy * 2.0 - 1.0, 1.0, 1.0);
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Inputs
+	//--// Fragment Inputs //-------------------------------------------------//
 
 	in vec2 screenCoord;
 
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
-	/* DRAWBUFFERS:0 */
+	out vec3 color;
 
-	layout (location = 0) out vec3 color;
+	//--// Fragment Includes //-----------------------------------------------//
 
-	//--// Fragment Libraries
+	#include "/include/utility.glsl"
+	#include "/include/utility/colorspace.glsl"
+	#include "/include/utility/dithering.glsl"
+	#include "/include/utility/encoding.glsl"
 
-	#include "/lib/utility.glsl"
-	#include "/lib/utility/colorspace.glsl"
-	#include "/lib/utility/dithering.glsl"
-	#include "/lib/utility/encoding.glsl"
-
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	vec3 Gamma(vec3 color) {
 		color = pow(color, vec3(GAMMA_CHROMINANCE));

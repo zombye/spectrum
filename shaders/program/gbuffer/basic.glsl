@@ -1,36 +1,28 @@
-/*\
- * Program Description:
-\*/
-
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 
-//--// Uniforms
+//--// Uniforms //------------------------------------------------------------//
+
+//--// Camera uniforms
 
 #ifdef TAA
-	uniform vec3 cameraPosition;
-	uniform vec3 previousCameraPosition;
+uniform vec3 cameraPosition;
+uniform vec3 previousCameraPosition;
 
-	// Gbuffer uniforms
-	uniform mat4 gbufferModelViewInverse;
-	uniform mat4 gbufferPreviousModelView;
+uniform mat4 gbufferModelViewInverse;
+uniform mat4 gbufferPreviousModelView;
 
-	uniform mat4 gbufferPreviousProjection;
+uniform mat4 gbufferPreviousProjection;
 
-	// Custom Uniforms
-	uniform vec2 viewPixelSize;
-	uniform vec2 taaOffset;
+//--// Custom uniforms
+
+uniform vec2 viewPixelSize;
+uniform vec2 taaOffset;
 #endif
 
-//--// Shared Libraries
-
-//--// Shared Functions
-
 #if defined STAGE_VERTEX
-	//--// Vertex Inputs
-
-	//--// Vertex Outputs
+	//--// Vertex Outputs //--------------------------------------------------//
 
 	// Interpolated
 	#ifdef TAA
@@ -41,7 +33,7 @@
 	// Flat
 	flat out vec3 color; // Must be flat for correct results.
 
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
 		color = gl_Color.rgb;
@@ -65,7 +57,7 @@
 		#endif
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Inputs
+	//--// Fragment Inputs //-------------------------------------------------//
 
 	// Interpolated
 	#ifdef TAA
@@ -76,10 +68,10 @@
 	// Flat
 	flat in vec3 color; // Must be flat for correct results.
 
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
 	#ifdef TAA
-		/* DRAWBUFFERS:015 */
+		/* DRAWBUFFERS:012 */
 	#else
 		/* DRAWBUFFERS:01 */
 	#endif
@@ -87,16 +79,16 @@
 	layout (location = 0) out vec4 colortex0Write;
 	layout (location = 1) out vec4 colortex1Write;
 	#ifdef TAA
-		layout (location = 2) out vec3 colortex5Write; // Velocity
+		layout (location = 2) out vec3 colortex2Write; // Velocity
 	#endif
 
-	//--// Fragment Libraries
+	//--// Fragment Includes //-----------------------------------------------//
 
-	#include "/lib/utility/dithering.glsl"
-	#include "/lib/utility/encoding.glsl"
-	#include "/lib/utility/packing.glsl"
+	#include "/include/utility/dithering.glsl"
+	#include "/include/utility/encoding.glsl"
+	#include "/include/utility/packing.glsl"
 
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	void main() {
 		float dither = Bayer4(gl_FragCoord.xy);
@@ -104,7 +96,7 @@
 		colortex0Write = vec4(Pack2x8(color.rg), Pack2x8(color.b, 1.0 / 255.0), Pack2x8Dithered(lightmapCoordinates, dither), Pack2x8(1.0, 1.0));
 		colortex1Write = vec4(Pack2x8(0.0, 0.0), Pack2x8(0.0, 1.0), Pack2x8(EncodeNormal(vec3(0.0, 1.0, 0.0)) * 0.5 + 0.5), Pack2x8(EncodeNormal(vec3(0.0, 1.0, 0.0)) * 0.5 + 0.5));
 		#ifdef TAA
-			colortex5Write = vec3(gl_FragCoord.xy * viewPixelSize, gl_FragCoord.z) - ((previousScreenPosition.xyz / previousScreenPosition.w) * 0.5 + 0.5);
+			colortex2Write = vec3(gl_FragCoord.xy * viewPixelSize, gl_FragCoord.z) - ((previousScreenPosition.xyz / previousScreenPosition.w) * 0.5 + 0.5);
 		#endif
 	}
 #endif

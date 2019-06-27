@@ -1,18 +1,8 @@
-/*\
- * Program Description:
-\*/
-
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 
-//--// Uniforms
-
-uniform int isEyeInWater;
-uniform float eyeAltitude;
-
-uniform vec3 cameraPosition;
-uniform vec3 previousCameraPosition;
+//--// Uniforms //------------------------------------------------------------//
 
 uniform float sunAngle;
 
@@ -21,23 +11,6 @@ uniform float wetness;
 uniform float fogDensity = 0.1;
 
 uniform float screenBrightness;
-
-// Time
-uniform int   frameCounter;
-uniform float frameTimeCounter;
-
-uniform int worldDay;
-uniform int worldTime;
-
-// Gbuffer Uniforms
-uniform float far;
-
-uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferPreviousModelView;
-uniform mat4 gbufferProjection;
-uniform mat4 gbufferProjectionInverse;
-uniform mat4 gbufferPreviousProjection;
 
 #define texture(a, b) texture2D(a, b)
 #define tex texture
@@ -49,19 +22,44 @@ uniform sampler2D specular;
 uniform sampler2D depthtex1;
 #endif
 
-// Misc Samplers
 #ifdef SSR_MULTILAYER
 uniform sampler2D gaux1;
 #define colortex4 gaux1
 #endif
+uniform sampler2D gaux2; // Image storing some stuff that would ideally be uniforms but currently can't be
+#define colortex5 gaux2
 uniform sampler2D gaux3; // Sky Scattering Image
 #define colortex6 gaux3
-uniform sampler2D gaux4; // Image storing some stuff that would ideally be uniforms but currently can't be
-#define colortex7 gaux4
 
 uniform sampler2D noisetex;
 
-// Shadow uniforms
+//--// Time uniforms
+
+uniform int   frameCounter;
+uniform float frameTimeCounter;
+
+uniform int worldDay;
+uniform int worldTime;
+
+//--// Camera uniforms
+
+uniform int isEyeInWater;
+uniform float eyeAltitude;
+
+uniform vec3 cameraPosition;
+uniform vec3 previousCameraPosition;
+
+uniform float far;
+
+uniform mat4 gbufferModelView;
+uniform mat4 gbufferModelViewInverse;
+uniform mat4 gbufferPreviousModelView;
+uniform mat4 gbufferProjection;
+uniform mat4 gbufferProjectionInverse;
+uniform mat4 gbufferPreviousProjection;
+
+//--// Shadow uniforms
+
 uniform mat4 shadowModelView;
 uniform mat4 shadowModelViewInverse;
 uniform mat4 shadowProjection;
@@ -74,7 +72,8 @@ uniform sampler2D shadowcolor0;
 	uniform sampler2D shadowcolor1;
 #endif
 
-// Custom Uniforms
+//--// Custom Uniforms
+
 uniform vec2 viewResolution;
 uniform vec2 viewPixelSize;
 uniform vec2 taaOffset;
@@ -82,28 +81,26 @@ uniform vec2 taaOffset;
 uniform vec3 shadowLightVectorView;
 uniform vec3 shadowLightVector;
 
-//--// Shared Libraries
+//--// Shared Includes //-----------------------------------------------------//
 
-#include "/lib/utility.glsl"
-#include "/lib/utility/colorspace.glsl"
-#include "/lib/utility/encoding.glsl"
-#include "/lib/utility/sampling.glsl"
+#include "/include/utility.glsl"
+#include "/include/utility/colorspace.glsl"
+#include "/include/utility/encoding.glsl"
+#include "/include/utility/sampling.glsl"
 
-#include "/lib/shared/celestialConstants.glsl"
+#include "/include/shared/celestialConstants.glsl"
 
-#include "/lib/shared/atmosphere/constants.glsl"
-#include "/lib/shared/skyProjection.glsl"
-
-//--// Shared Functions
+#include "/include/shared/atmosphere/constants.glsl"
+#include "/include/shared/skyProjection.glsl"
 
 #if defined STAGE_VERTEX
-	//--// Vertex Inputs
+	//--// Vertex Inputs //---------------------------------------------------//
 
 	attribute vec4 at_tangent;
 	attribute vec3 mc_Entity;
 	attribute vec2 mc_midTexCoord;
 
-	//--// Vertex Outputs
+	//--// Vertex Outputs //--------------------------------------------------//
 
 	// Interpolated
 	#if defined MOTION_BLUR || defined TAA
@@ -139,12 +136,12 @@ uniform vec3 shadowLightVector;
 	flat out vec3 luminanceShadowlight;
 	flat out vec3 illuminanceShadowlight;
 
-	//--// Vertex Libraries
+	//--// Vertex Includes //-------------------------------------------------//
 
-	#include "/lib/shared/atmosphere/lookup.glsl"
-	#include "/lib/shared/atmosphere/transmittance.glsl"
+	#include "/include/shared/atmosphere/lookup.glsl"
+	#include "/include/shared/atmosphere/transmittance.glsl"
 
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	mat3 CalculateTBNMatrix() {
 		mat3 tbn;
@@ -215,19 +212,19 @@ uniform vec3 shadowLightVector;
 			tangentViewVector = (mat3(gbufferModelViewInverse) * viewPosition) * tbn;
 		#endif
 
-		skylightPosX = texelFetch(colortex7, ivec2(0, 0), 0).rgb;
-		skylightPosY = texelFetch(colortex7, ivec2(1, 0), 0).rgb;
-		skylightPosZ = texelFetch(colortex7, ivec2(2, 0), 0).rgb;
-		skylightNegX = texelFetch(colortex7, ivec2(3, 0), 0).rgb;
-		skylightNegY = texelFetch(colortex7, ivec2(4, 0), 0).rgb;
-		skylightNegZ = texelFetch(colortex7, ivec2(5, 0), 0).rgb;
+		skylightPosX = texelFetch(colortex5, ivec2(0, 0), 0).rgb;
+		skylightPosY = texelFetch(colortex5, ivec2(1, 0), 0).rgb;
+		skylightPosZ = texelFetch(colortex5, ivec2(2, 0), 0).rgb;
+		skylightNegX = texelFetch(colortex5, ivec2(3, 0), 0).rgb;
+		skylightNegY = texelFetch(colortex5, ivec2(4, 0), 0).rgb;
+		skylightNegZ = texelFetch(colortex5, ivec2(5, 0), 0).rgb;
 
-		vec3 shadowlightTransmittance = texelFetch(colortex7, ivec2(0, 1), 0).rgb;
+		vec3 shadowlightTransmittance = texelFetch(colortex5, ivec2(0, 1), 0).rgb;
 		luminanceShadowlight   = (sunAngle < 0.5 ? sunLuminance   : moonLuminance)   * shadowlightTransmittance;
 		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : moonIlluminance) * shadowlightTransmittance;
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Inputs
+	//--// Fragment Inputs //-------------------------------------------------//
 
 	// Interpolated
 	#if defined MOTION_BLUR || defined TAA
@@ -265,49 +262,49 @@ uniform vec3 shadowLightVector;
 	flat in vec3 luminanceShadowlight;
 	flat in vec3 illuminanceShadowlight;
 
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
 	#if defined MOTION_BLUR || defined TAA
-		/* DRAWBUFFERS:01235 */
+		/* DRAWBUFFERS:01732 */
 	#else
-		/* DRAWBUFFERS:0123 */
+		/* DRAWBUFFERS:0173 */
 	#endif
 
 	layout (location = 0) out vec4 colortex0Write;
 	layout (location = 1) out vec4 colortex1Write;
-	layout (location = 2) out vec4 colortex2Write;
+	layout (location = 2) out vec4 shadowsOut;
 	layout (location = 3) out vec4 colortex3Write;
 	#if defined MOTION_BLUR || defined TAA
-		layout (location = 4) out vec4 colortex5Write; // Velocity
+		layout (location = 4) out vec4 velocity; // Velocity
 	#endif
 
-	//--// Fragment Libraries
+	//--// Fragment Includes //-----------------------------------------------//
 
-	#include "/lib/utility/complex.glsl"
-	#include "/lib/utility/dithering.glsl"
-	#include "/lib/utility/math.glsl"
-	#include "/lib/utility/noise.glsl"
-	#include "/lib/utility/packing.glsl"
-	#include "/lib/utility/rotation.glsl"
-	#include "/lib/utility/spaceConversion.glsl"
+	#include "/include/utility/complex.glsl"
+	#include "/include/utility/dithering.glsl"
+	#include "/include/utility/math.glsl"
+	#include "/include/utility/noise.glsl"
+	#include "/include/utility/packing.glsl"
+	#include "/include/utility/rotation.glsl"
+	#include "/include/utility/spaceConversion.glsl"
 
-	#include "/lib/shared/shadowDistortion.glsl"
+	#include "/include/shared/shadowDistortion.glsl"
 
 	#ifdef PARALLAX
-		#include "/lib/fragment/parallax.fsh"
+		#include "/include/fragment/parallax.fsh"
 	#endif
 
-	#include "/lib/fragment/waterNormal.fsh"
+	#include "/include/fragment/waterNormal.fsh"
 
-	#include "/lib/fragment/material.fsh"
-	#include "/lib/fragment/brdf.fsh"
-	#include "/lib/fragment/diffuseLighting.fsh"
+	#include "/include/fragment/material.fsh"
+	#include "/include/fragment/brdf.fsh"
+	#include "/include/fragment/diffuseLighting.fsh"
 	#ifdef CAUSTICS
-		#include "/lib/fragment/waterCaustics.fsh"
+		#include "/include/fragment/waterCaustics.fsh"
 	#endif
-	#include "/lib/fragment/shadows.fsh"
+	#include "/include/fragment/shadows.fsh"
 
-	#include "/lib/fragment/clouds3D.fsh"
+	#include "/include/fragment/clouds3D.fsh"
 
 
 	#ifdef SSR_MULTILAYER
@@ -334,16 +331,16 @@ uniform vec3 shadowLightVector;
 		#endif
 		*/
 
-		#include "/lib/shared/atmosphere/density.glsl"
-		#include "/lib/shared/atmosphere/phase.glsl"
-		#include "/lib/fragment/fog.fsh"
+		#include "/include/shared/atmosphere/density.glsl"
+		#include "/include/shared/atmosphere/phase.glsl"
+		#include "/include/fragment/fog.fsh"
 
-		#include "/lib/fragment/brdf.fsh"
-		#include "/lib/fragment/raytracer.fsh"
-		#include "/lib/fragment/specularLighting.fsh"
+		#include "/include/fragment/brdf.fsh"
+		#include "/include/fragment/raytracer.fsh"
+		#include "/include/fragment/specularLighting.fsh"
 	#endif
 
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	vec3 CalculateFakeBouncedLight(vec3 normal, vec3 lightVector) {
 		const vec3 groundAlbedo = vec3(0.1, 0.1, 0.1);
@@ -465,22 +462,20 @@ uniform vec3 shadowLightVector;
 			     bounce *= lightmapCoordinates.y * lightmapCoordinates.y * lightmapCoordinates.y;
 			     bounce *= cloudShadow * vertexAo;
 		#endif
-		colortex2Write = vec4(LinearToSrgb(shadows), 1.0);
+		shadowsOut = vec4(LinearToSrgb(shadows), 1.0);
 
 		float blocklightShading = 1.0; // TODO
 
 		material.albedo *= baseTex.a;
 		colortex3Write.rgb  = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, bounce, skylight, lightmapCoordinates, blocklightShading, vertexAo);
 		#ifdef SSR_MULTILAYER
-		colortex3Write.rgb += CalculateSsr(colortex4, position, normal, NoV, material.roughness, material.n, material.k, 1.0, blockId == 8 || blockId == 9, dither, ditherSize);
-		//float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
-		//colortex3Write.rgb += CalculateSpecularHighlight(NoL, NoV, LoV, VoH, material.roughness, material.n, material.k, lightAngularRadius) * illuminanceShadowlight * shadows;
+		colortex3Write.rgb += CalculateEnvironmentReflections(colortex4, position, normal, NoV, material.roughness, material.n, material.k, 1.0, blockId == 8 || blockId == 9, dither, ditherSize);
 		#endif
 		colortex3Write.rgb += material.emission;
 		colortex3Write.a    = totalOpacity;
 		#if defined MOTION_BLUR || defined TAA
-			colortex5Write.rgb = vec3(gl_FragCoord.xy * viewPixelSize, gl_FragCoord.z) - ((previousScreenPosition.xyz / previousScreenPosition.w) * 0.5 + 0.5);
-			colortex5Write.a = 1.0;
+			velocity.rgb = vec3(gl_FragCoord.xy * viewPixelSize, gl_FragCoord.z) - ((previousScreenPosition.xyz / previousScreenPosition.w) * 0.5 + 0.5);
+			velocity.a = 1.0;
 		#endif
 	}
 #endif

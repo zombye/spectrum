@@ -311,8 +311,8 @@ vec3 CalculateWaterFog(vec3 background, vec3 startPosition, vec3 endPosition, ve
 		if (isEyeInWater == 1) {
 			lighting += illuminanceShadowlight * sunlightPhase * skylight * GetCloudShadows(startPosition);
 		} else {
-			#if defined PROGRAM_COMPOSITE1
-				lighting += illuminanceShadowlight * sunlightPhase * SrgbToLinear(texture(colortex2, screenCoord).rgb);
+			#if defined PROGRAM_COMPOSITE
+				lighting += illuminanceShadowlight * sunlightPhase * SrgbToLinear(texture(colortex7, screenCoord).rgb);
 			#else
 				lighting += illuminanceShadowlight * sunlightPhase; // TODO: shadows
 			#endif

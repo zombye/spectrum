@@ -3,48 +3,48 @@
  * Used to render the shadow maps.
 \*/
 
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 
 #define SHADOW_BACKFACE_CULLING // This causes light to pass through terrain as side faces on chunks aren't rendered even if the neighboring chunk on that side isn't rendered either.
 //#define BEACON_BEAM_SHADOWS
 
-//--// Uniforms
+//--// Uniforms //------------------------------------------------------------//
 
 #ifndef BEACON_BEAM_SHADOWS
 	uniform int blockEntityId;
 #endif
 
-uniform vec3 cameraPosition;
-
-// Time
-uniform float frameTimeCounter;
-
-// Shadow uniforms
-uniform mat4 shadowModelView;
-uniform mat4 shadowModelViewInverse;
-uniform mat4 shadowProjection;
-
-// Misc samplers
 uniform sampler2D tex;
 
 uniform sampler2D noisetex;
 
-// Custom uniforms
+//--// Time uniforms
+
+uniform float frameTimeCounter;
+
+//--// Camera uniforms
+
+uniform vec3 cameraPosition;
+
+//--// Shadow uniforms
+
+uniform mat4 shadowModelView;
+uniform mat4 shadowModelViewInverse;
+uniform mat4 shadowProjection;
+
+//--// Custom uniforms
+
 uniform vec3 shadowLightVector;
 
-//--// Shared Libraries
-
-//--// Shared Functions
-
 #if defined STAGE_VERTEX
-	//--// Vertex Inputs
+	//--// Vertex Inputs //---------------------------------------------------//
 
 	attribute vec2 mc_Entity;
 	attribute vec2 mc_midTexCoord;
 
-	//--// Vertex Outputs
+	//--// Vertex Outputs //--------------------------------------------------//
 
 	// Interpolated
 	out vec3 normal;
@@ -58,15 +58,15 @@ uniform vec3 shadowLightVector;
 	flat out vec3 tint;
 	flat out int blockId;
 
-	//--// Vertex Libraries
+	//--// Vertex Includes //-------------------------------------------------//
 
-	#include "/lib/utility.glsl"
+	#include "/include/utility.glsl"
 
-	#include "/lib/shared/shadowDistortion.glsl"
+	#include "/include/shared/shadowDistortion.glsl"
 
-	#include "/lib/vertex/animation.vsh"
+	#include "/include/vertex/animation.vsh"
 
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
 		normal = gl_NormalMatrix * gl_Normal;
@@ -105,7 +105,7 @@ uniform vec3 shadowLightVector;
 		gl_Position.w   = 1.0;
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Inputs
+	//--// Fragment Inputs //-------------------------------------------------//
 
 	// Interpolated
 	in vec3 normal;
@@ -119,20 +119,20 @@ uniform vec3 shadowLightVector;
 	flat in vec3 tint;
 	flat in int blockId;
 
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
 	layout (location = 0) out vec4 shadowcolor0Write;
 	layout (location = 1) out vec4 shadowcolor1Write;
 
-	//--// Fragment Libraries
+	//--// Fragment Includes //-----------------------------------------------//
 
-	#include "/lib/utility.glsl"
-	#include "/lib/utility/encoding.glsl"
-	#include "/lib/utility/math.glsl"
+	#include "/include/utility.glsl"
+	#include "/include/utility/encoding.glsl"
+	#include "/include/utility/math.glsl"
 
-	#include "/lib/fragment/waterNormal.fsh"
+	#include "/include/fragment/waterNormal.fsh"
 
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	void main() {
 		#ifndef CAUSTICS

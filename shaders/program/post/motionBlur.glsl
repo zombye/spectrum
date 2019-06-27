@@ -3,24 +3,16 @@
  * Performs Motion Blur
 \*/
 
-//--// Settings
+//--// Settings //------------------------------------------------------------//
 
 #include "/settings.glsl"
 
-//--// Uniforms
-
-// Gbuffer Uniforms
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 gbufferPreviousModelView;
-
-uniform mat4 gbufferProjectionInverse;
-uniform mat4 gbufferPreviousProjection;
+//--// Uniforms //------------------------------------------------------------//
 
 uniform sampler2D depthtex1;
 
-// Misc Samplers
 uniform sampler2D colortex3;
-uniform sampler2D colortex5;
+uniform sampler2D colortex2;
 uniform sampler2D colortex6;
 
 #ifdef DOF
@@ -29,45 +21,47 @@ uniform sampler2D colortex6;
 #define colorSampler colortex3
 #endif
 
-// Custom Uniforms
+//--// Camera uniforms
+
+uniform mat4 gbufferModelViewInverse;
+uniform mat4 gbufferPreviousModelView;
+
+uniform mat4 gbufferProjectionInverse;
+uniform mat4 gbufferPreviousProjection;
+
+//--// Custom uniforms
+
 uniform vec2 viewResolution;
 
 uniform vec2 taaOffset;
 
-//--// Shared Libraries
-
-//--// Shared Functions
-
 #if defined STAGE_VERTEX
-	//--// Vertex Outputs
+	//--// Vertex Outputs //--------------------------------------------------//
 
 	out vec2 screenCoord;
 
-	//--// Vertex Libraries
-
-	//--// Vertex Functions
+	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
-		screenCoord    = gl_Vertex.xy;
-		gl_Position.xy = gl_Vertex.xy * 2.0 - 1.0;
-		gl_Position.zw = vec2(1.0);
+		screenCoord = gl_Vertex.xy;
+		gl_Position = vec4(gl_Vertex.xy * 2.0 - 1.0, 1.0, 1.0);
 	}
 #elif defined STAGE_FRAGMENT
-	//--// Fragment Inputs
+	//--// Fragment Inputs //-------------------------------------------------//
 
 	in vec2 screenCoord;
 
-	//--// Fragment Outputs
+	//--// Fragment Outputs //------------------------------------------------//
 
 	/* DRAWBUFFERS:3 */
 
 	layout (location = 0) out vec4 color;
 
-	//--// Fragment Libraries
+	//--// Fragment Includes //-----------------------------------------------//
 
-	#include "/lib/utility/spaceConversion.glsl"
+	#include "/include/utility/spaceConversion.glsl"
 
-	//--// Fragment Functions
+	//--// Fragment Functions //----------------------------------------------//
 
 	vec3 GetVelocity(vec3 position) {
 		if (position.z >= 1.0) { // Sky doesn't write to the velocity buffer
@@ -80,7 +74,7 @@ uniform vec2 taaOffset;
 			return currentPosition - position;
 		}
 
-		return texture(colortex5, position.xy).rgb;
+		return texture(colortex2, position.xy).rgb;
 	}
 
 	void main() {
