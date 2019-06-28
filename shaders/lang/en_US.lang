@@ -11,6 +11,9 @@ option.LIGHTING_ONLY=Lighting Only
 option.sunPathRotation=Sun Path Rotation
 suffix.sunPathRotation=°
 
+option.TIME_SCALE=Time Scale
+suffix.TIME_SCALE=x
+
 option.REFRACTION_MODE=Refractions
 value.REFRACTION_MODE.REFRACTION_OFF=Off
 value.REFRACTION_MODE.REFRACTION_WATER_ONLY=On (Only Water)
@@ -298,9 +301,9 @@ option.USE_WATER_TEXTURE=Use Water Texture
 screen.proceduralWaves=Procedural Waves
 
 option.WATER_WAVES_COUNT=Waves
-option.WATER_WAVES_SPEED=Speed
-value.WATER_WAVES_SPEED.0=Static
-
+option.WATER_WAVES_G=Gravity
+option.WATER_WAVES_G.comment=Gravity to assume when calculating the motion of waves. Affects their speed.
+suffix.WATER_WAVES_G=m/s²
 option.WATER_WAVES_WAVELENGTH=Wavelength
 suffix.WATER_WAVES_WAVELENGTH=m
 option.WATER_WAVES_WAVE_HEIGHT_RATIO=Wave Height Ratio

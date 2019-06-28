@@ -37,7 +37,7 @@ float CalculateWaterWave(vec2 position, vec2 direction, float phaseOffset, float
 float CalculateWaterWaves(vec3 position) {
 	position += cameraPosition;
 
-	float waveTime = frameTimeCounter * WATER_WAVES_SPEED;
+	float time = frameTimeCounter * TIME_SCALE;
 
 	const int   iterations = WATER_WAVES_COUNT;
 	const float g          = WATER_WAVES_G;
@@ -54,8 +54,8 @@ float CalculateWaterWaves(vec3 position) {
 		float k = tau / wavelength; // angular wavenumber (radians per metre)
 		float w = sqrt(g * k);      // angular frequency  (radians per second)
 
-		float phaseNoise = GetSmoothNoise(vec2(position.x, position.z - w * waveTime * 0.7) / wavelength) * wavelength * 0.8;
-		float phase = k * (position.z + phaseNoise) - w * waveTime;
+		float phaseNoise = GetSmoothNoise(vec2(position.x, position.z - w * time * 0.7) / wavelength) * wavelength * 0.8;
+		float phase = k * (position.z + phaseNoise) - w * time;
 
 		float sharpness = pow(pi * height / wavelength, 1.0 - WATER_WAVES_SHARPENING);
 		float wave = CalculateWaterWave(phase, height, sharpness);

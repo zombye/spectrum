@@ -118,6 +118,8 @@ vec3 AnimateLeaves(vec3 position, float time) {
 }
 
 vec3 AnimateVertex(vec3 scenePosition, vec3 worldPosition, int id, float time) {
+	time *= TIME_SCALE;
+
 	if (id == 31) {
 		return AnimatePlant(scenePosition, worldPosition, time);
 	} else if (id == 18) {

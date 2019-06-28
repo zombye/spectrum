@@ -62,9 +62,9 @@ float GetCloudCoverage() {
 
 float Get3DCloudDensity(vec3 position, float coreDistance, float coverage, const int octaves) {
 	#ifdef CLOUDS3D_USE_WORLD_TIME
-		float cloudsTime = (worldDay % 128 + worldTime / 24000.0) * CLOUDS3D_SPEED;
+		float cloudsTime = CLOUDS3D_SPEED * TIME_SCALE * (worldDay % 128 + worldTime / 24000.0);
 	#else
-		float cloudsTime = frameTimeCounter * CLOUDS3D_SPEED / 1200.0;
+		float cloudsTime = CLOUDS3D_SPEED * TIME_SCALE * (1.0 / 1200.0) * frameTimeCounter;
 	#endif
 
 	//--// Noise
