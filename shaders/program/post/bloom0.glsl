@@ -7,8 +7,8 @@
 
 #include "/settings.glsl"
 
-const bool colortex3MipmapEnabled = true;
-#define samplerName colortex3
+const bool colortex5MipmapEnabled = true;
+#define samplerName colortex5
 
 //--// Uniforms //------------------------------------------------------------//
 

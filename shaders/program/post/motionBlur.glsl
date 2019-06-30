@@ -11,12 +11,12 @@
 
 uniform sampler2D depthtex1;
 
-uniform sampler2D colortex3;
 uniform sampler2D colortex2;
-uniform sampler2D colortex6;
+uniform sampler2D colortex3;
+uniform sampler2D colortex5;
 
 #ifdef DOF
-#define colorSampler colortex6
+#define colorSampler colortex5
 #else
 #define colorSampler colortex3
 #endif
@@ -53,9 +53,9 @@ uniform vec2 taaOffset;
 
 	//--// Fragment Outputs //------------------------------------------------//
 
-	/* DRAWBUFFERS:3 */
+	/* DRAWBUFFERS:5 */
 
-	layout (location = 0) out vec4 color;
+	layout (location = 0) out vec3 color;
 
 	//--// Fragment Includes //-----------------------------------------------//
 
@@ -78,8 +78,7 @@ uniform vec2 taaOffset;
 	}
 
 	void main() {
-		color.rgb = texture(colorSampler, screenCoord).rgb;
-		color.a = texture(colortex3, screenCoord).a;
+		color = texture(colorSampler, screenCoord).rgb;
 
 		#ifdef MOTION_BLUR
 			vec2 velocity = GetVelocity(vec3(screenCoord, texture(depthtex1, screenCoord).r)).xy * MOTION_BLUR_INTENSITY;
@@ -94,9 +93,9 @@ uniform vec2 taaOffset;
 					color.rgb += texelFetch(colortex3, ivec2(clamp(c, 0.0, 1.0) * viewResolution - 0.5), 0).rgb;
 				} else
 				//*/
-				color.rgb += texture(colorSampler, c).rgb;
+				color += texture(colorSampler, c).rgb;
 			}
-			color.rgb /= MOTION_BLUR_SAMPLES;
+			color /= MOTION_BLUR_SAMPLES;
 		#endif
 	}
 #endif

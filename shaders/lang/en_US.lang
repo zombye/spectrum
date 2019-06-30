@@ -237,10 +237,8 @@ option.SSCS_STRIDE=Stride
 ##--## Sky & Atmosphere ##----------------------------------------------------##
 
 screen.sky_atmosphere=Sky & Atmosphere
-option.SKY_RENDER_LOD=Rendering LOD
-option.SKY_RENDER_LOD.comment=Higher values are less detailed.
 option.SKY_IMAGE_LOD=Cubemap LOD
-option.SKY_IMAGE_LOG.comment=Primarily affects reflections. Higher values are less detailed.
+option.SKY_IMAGE_LOD.comment=Primarily affects reflections. Higher values are less detailed.
 
 option.VL_AIR=Volumetric Lighting
 option.VL_AIR_STEPS=VL Steps

@@ -13,6 +13,8 @@ uniform float sunAngle;
 
 uniform float wetness;
 
+uniform float screenBrightness;
+
 uniform sampler2D depthtex1;
 
 uniform sampler2D colortex0;
@@ -36,6 +38,7 @@ uniform int worldTime;
 
 //--// Camera uniforms
 
+uniform int isEyeInWater;
 uniform float eyeAltitude;
 
 uniform vec3 cameraPosition;
@@ -157,19 +160,19 @@ uniform vec3 shadowLightVector;
 	//--// Fragment Outputs //------------------------------------------------//
 
 	#if defined HBAO || defined RSM
-		/* DRAWBUFFERS:3465 */
+		/* DRAWBUFFERS:465 */
 
-		layout (location = 3) out vec4 halfres;
+		layout (location = 2) out vec4 halfres;
 	#else
-		/* DRAWBUFFERS:346 */
+		/* DRAWBUFFERS:46 */
 	#endif
 
-	layout (location = 0) out float cloudTransmittance;
-	layout (location = 1) out vec4  scatteringEncode;
-	layout (location = 2) out vec4  skyImage_cloudShadow;
+	layout (location = 0) out vec4  skyEncode;
+	layout (location = 1) out vec4  skyImage_cloudShadow;
 
 	//--// Fragment Includes //-----------------------------------------------//
 
+	#include "/include/utility/complex.glsl"
 	#include "/include/utility/dithering.glsl"
 	#include "/include/utility/packing.glsl"
 	#include "/include/utility/rotation.glsl"
@@ -181,6 +184,11 @@ uniform vec3 shadowLightVector;
 
 	#include "/include/fragment/clouds2D.fsh"
 	#include "/include/fragment/clouds3D.fsh"
+
+	#include "/include/fragment/material.fsh"
+	#include "/include/fragment/brdf.fsh"
+	#include "/include/fragment/diffuseLighting.fsh"
+	#include "/include/fragment/specularLighting.fsh"
 
 	//--// Fragment Functions //----------------------------------------------//
 
@@ -497,6 +505,81 @@ uniform vec3 shadowLightVector;
 		tileScreenCoord = (tileFragCoord + 0.5) * scale / viewResolution;
 	}
 
+	//------------------------------------------------------------------------//
+
+	vec3 CalculateStars(vec3 background, vec3 viewVector) {
+		const float scale = 256.0;
+		const float coverage = 0.01;
+		const float maxLuminance = 0.7 * NIGHT_SKY_BRIGHTNESS;
+		const float minTemperature = 1500.0;
+		const float maxTemperature = 9000.0;
+
+		viewVector = Rotate(viewVector, sunVector, vec3(0, 0, 1));
+
+		// TODO: Calculate for surrounding cells as well to allow uniform apparent size
+
+		vec3  p = viewVector * scale;
+		ivec3 i = ivec3(floor(p));
+		vec3  f = p - i;
+		float r = dot(f - 0.5, f - 0.5);
+
+		vec2 hash = Hash2(i);
+		hash.y = 2.0 * hash.y - 4.0 * hash.y * hash.y + 3.0 * hash.y * hash.y * hash.y;
+
+		vec3 luminance = Pow2(LinearStep(1.0 - coverage, 1.0, hash.x)) * Blackbody(mix(minTemperature, maxTemperature, hash.y));
+		return background + maxLuminance * LinearStep(0.25, 0.0, r) * Pow2(LinearStep(1.0 - coverage, 1.0, hash.x)) * Blackbody(mix(minTemperature, maxTemperature, hash.y));
+	}
+
+	vec3 CalculateSun(vec3 background, vec3 viewVector, vec3 sunVector) {
+		float cosTheta = dot(viewVector, sunVector);
+
+		if (cosTheta < cos(sunAngularRadius)) { return background; }
+
+		// limb darkening approximation
+		const vec3 a = vec3(0.397, 0.503, 0.652);
+		const vec3 halfa = a * 0.5;
+		const vec3 normalizationConst = vec3(0.83438, 0.79904, 0.75415); // changes with `a` and `sunAngularRadius`
+
+		float x = Clamp01(acos(cosTheta) / sunAngularRadius);
+		vec3 sunDisk = exp2(log2(1.0 - x * x) * halfa) / normalizationConst;
+
+		return sunLuminance * sunDisk;
+	}
+
+	vec3 CalculateMoon(vec3 background, vec3 viewVector, vec3 moonVector) {
+		const float roughness = 0.4;
+		const float roughnessSquared = roughness * roughness;
+
+		// -- Find normal and calculate dot products for lighting
+
+		vec2 dists = RaySphereIntersection(-moonVector, viewVector, sin(moonAngularRadius));
+		if (dists.y < 0.0) { return background; }
+
+		vec3 normal = normalize(viewVector * dists.x - moonVector);
+
+		float NoL = dot(normal, sunVector);
+		float LoV = dot(sunVector, -viewVector);
+		float NoV = dot(normal, -viewVector);
+		float rcpLen_LV = inversesqrt(2.0 * LoV + 2.0);
+		float NoH = (NoL + NoV) * rcpLen_LV;
+		float VoH = LoV * rcpLen_LV + rcpLen_LV;
+
+		vec3 diffuse = DiffuseHammon(NoL, NoH, NoV, LoV, moonAlbedo, roughness);
+
+		// Specular
+		float f  = FresnelDielectric(VoH, 1.0 / 1.45);
+		float d  = DistributionGGX(NoH, roughnessSquared);
+		float g2 = G2SmithGGX(NoL, NoV, roughnessSquared);
+
+		float specular = f * d * g2 // BRDF
+		               * NoL / NoV; // incoming spread / outgoing gather
+
+		// Return result
+		return sunIlluminance * (diffuse + specular);
+	}
+
+	//------------------------------------------------------------------------//
+
 	void main() {
 		ivec2 fragCoord = ivec2(gl_FragCoord.xy);
 
@@ -573,15 +656,17 @@ uniform vec3 shadowLightVector;
 		vec3 viewPosition  = vec3(0.0, atmosphere_planetRadius + eyeAltitude, 0.0);
 		float cloudCoverage = GetCloudCoverage();
 
-		vec4 depths = textureGather(depthtex1, screenCoord * exp2(SKY_RENDER_LOD));
-		if (screenCoord.x <= exp2(-SKY_RENDER_LOD) && screenCoord.y <= exp2(-SKY_RENDER_LOD) && (depths.x >= 1.0 || depths.y >= 1.0 || depths.z >= 1.0 || depths.w >= 1.0)) {
-			mat3 position;
-			position[0] = vec3(screenCoord * exp2(SKY_RENDER_LOD), 1.0);
-			position[1] = ScreenSpaceToViewSpace(position[0], gbufferProjectionInverse);
-			position[2] = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
-			vec3 viewVector = normalize(position[2] - gbufferModelViewInverse[3].xyz);
+		float depth = texture(depthtex1, screenCoord).x;
+		if (depth >= 1.0) {
+			vec3 viewVector = mat3(gbufferModelViewInverse) * GetViewDirection(screenCoord, gbufferProjectionInverse);
 
-			cloudTransmittance = 1.0;
+			vec3 color = vec3(0.0);
+			color  = CalculateStars(color, viewVector);
+			color  = CalculateSun(color, viewVector, sunVector);
+			color  = CalculateMoon(color, viewVector, moonVector);
+			color *= AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector);
+
+			float cloudTransmittance = 1.0;
 			#ifdef CLOUDS3D
 				vec3 scattering = vec3(0.0);
 
@@ -627,8 +712,11 @@ uniform vec3 shadowLightVector;
 						vec4 clouds3D = Calculate3DClouds(viewVector, dither);
 						scattering += clouds3D.rgb * transmittance; transmittance *= clouds3D.a;
 						cloudTransmittance *= clouds3D.a;
+						color = color * clouds3D.a + scattering;
 
-						scattering += atmosphereScattering * transmittance;
+						color += atmosphereScattering * transmittance;
+					#else
+						color = color + scattering;
 					#endif
 				} else {
 					#ifdef DISTANT_VL
@@ -639,30 +727,45 @@ uniform vec3 shadowLightVector;
 						#endif
 
 						mat2x3 distantVl = CloudShadowedAtmosphere(viewPosition, viewVector, vlEndDistance, cloudCoverage, dither);
-						scattering = distantVl[0];
+						color += distantVl[0];
 						vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, vlEndDistance);
 
 						vec3 vlEndPosition = vlEndDistance * viewVector + viewPosition;
 						vec3 atmosphereScattering  = AtmosphereScattering(scatteringLut, vlEndPosition, viewVector, sunVector ) * sunIlluminance;
 						     atmosphereScattering += AtmosphereScattering(scatteringLut, vlEndPosition, viewVector, moonVector) * moonIlluminance;
-						scattering += atmosphereScattering * transmittance * averageCloudTransmittance;
+						color += atmosphereScattering * transmittance * averageCloudTransmittance;
 					#else
 						scattering  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
 						scattering += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
 
-						scattering *= averageCloudTransmittance;
+						color += scattering * averageCloudTransmittance;
 					#endif
 				}
 			#else
 				// Atmosphere
-				vec3 scattering  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
-				     scattering += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
+				color += AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
+				color += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
 			#endif
 
-			scatteringEncode = EncodeRGBE8(scattering);
+			#ifdef CLOUDS2D
+				float clouds2DDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_planetRadius + CLOUDS2D_ALTITUDE).y;
+
+				vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, clouds2DDistance) * cloudTransmittance;
+
+				vec3 clouds2DPosition = clouds2DDistance * viewVector + viewPosition;
+				vec3 atmosphereScattering  = AtmosphereScattering(scatteringLut, clouds2DPosition, viewVector, sunVector ) * sunIlluminance;
+				     atmosphereScattering += AtmosphereScattering(scatteringLut, clouds2DPosition, viewVector, moonVector) * moonIlluminance;
+				color -= atmosphereScattering * transmittance;
+
+				vec4 clouds2D = Calculate2DClouds(viewVector, dither);
+				color += clouds2D.rgb * transmittance; transmittance *= clouds2D.a;
+
+				color += atmosphereScattering * transmittance;
+			#endif
+
+			skyEncode = EncodeRGBE8(color);
 		} else {
-			cloudTransmittance = 1.0;
-			scatteringEncode = vec4(0.0);
+			skyEncode = vec4(0.0);
 		}
 
 		float tileSize = min(floor(viewResolution.x * 0.5) / 1.5, floor(viewResolution.y * 0.5)) * exp2(-SKY_IMAGE_LOD);

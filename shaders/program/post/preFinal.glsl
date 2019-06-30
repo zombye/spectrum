@@ -5,6 +5,7 @@
 //--// Uniforms //------------------------------------------------------------//
 
 uniform sampler2D colortex3;
+uniform sampler2D colortex5;
 uniform sampler2D colortex6; // Bloom tiles
 
 //--// Time uniforms
@@ -69,9 +70,8 @@ uniform vec2 viewPixelSize;
 	void main() {
 		vec2 screenCoord = gl_FragCoord.st * viewPixelSize;
 
-		vec4 colorsample = texture(colortex3, screenCoord);
-		vec3 color = colorsample.rgb;
-		float exposure = colorsample.a;
+		vec3 color = texture(colortex5, screenCoord).rgb;
+		float exposure = texture(colortex3, screenCoord).a;
 
 		#ifdef BLOOM
 			color = mix(GetBloom(screenCoord), color, 1.0 / (1.0 + BLOOM_AMOUNT));

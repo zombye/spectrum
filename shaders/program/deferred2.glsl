@@ -22,7 +22,6 @@ uniform sampler2D depthtex1;
 
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
-uniform sampler2D colortex3; // Clouds Transmittance
 uniform sampler2D colortex4; // Sky Encode
 uniform sampler2D colortex6; // Sky Scattering Image
 uniform sampler2D colortex5; // Misc encoded stuff
@@ -224,7 +223,6 @@ uniform vec3 shadowLightVector;
 	#endif
 	#include "/include/fragment/shadows.fsh"
 
-	#include "/include/fragment/clouds2D.fsh"
 	#include "/include/fragment/clouds3D.fsh"
 
 	#include "/include/fragment/raytracer.fsh"
@@ -509,33 +507,7 @@ uniform vec3 shadowLightVector;
 		} else {
 			shadowsOut = vec4(0.0);
 
-			color  = CalculateStars(vec3(0.0), viewVector);
-			color  = CalculateSun(color, viewVector, sunVector);
-			color  = CalculateMoon(color, viewVector, moonVector);
-			color *= AtmosphereTransmittance(transmittanceLut, vec3(0.0, atmosphere_planetRadius + eyeAltitude, 0.0), viewVector);
-
-			vec4 sky;
-			sky.rgb = DecodeRGBE8(texelFetch(colortex4, ivec2(screenCoord * exp2(-SKY_RENDER_LOD) * viewResolution), 0));
-			sky.a   = texelFetch(colortex3, ivec2(screenCoord * exp2(-SKY_RENDER_LOD) * viewResolution), 0).r;
-			color = color * sky.a + sky.rgb;
-
-			#ifdef CLOUDS2D
-				vec3 viewPosition = vec3(0.0, atmosphere_planetRadius + eyeAltitude, 0.0);
-
-				float clouds2DDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_planetRadius + CLOUDS2D_ALTITUDE).y;
-
-				vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, clouds2DDistance) * sky.a;
-
-				vec3 clouds2DPosition = clouds2DDistance * viewVector + viewPosition;
-				vec3 atmosphereScattering  = AtmosphereScattering(scatteringLut, clouds2DPosition, viewVector, sunVector ) * sunIlluminance;
-				     atmosphereScattering += AtmosphereScattering(scatteringLut, clouds2DPosition, viewVector, moonVector) * moonIlluminance;
-				color -= atmosphereScattering * transmittance;
-
-				vec4 clouds2D = Calculate2DClouds(viewVector, dither);
-				color += clouds2D.rgb * transmittance; transmittance *= clouds2D.a;
-
-				color += atmosphereScattering * transmittance;
-			#endif
+			color = DecodeRGBE8(texelFetch(colortex4, ivec2(screenCoord * viewResolution), 0));
 		}
 
 		colortex4Write = EncodeRGBE8(color);

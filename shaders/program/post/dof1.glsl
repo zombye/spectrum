@@ -60,7 +60,7 @@ uniform vec2 taaOffset;
 
 	//--// Fragment Outputs //------------------------------------------------//
 
-	/* DRAWBUFFERS:6 */
+	/* DRAWBUFFERS:5 */
 
 	layout (location = 0) out vec4 color;
 
