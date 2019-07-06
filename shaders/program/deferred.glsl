@@ -1,6 +1,6 @@
 /*\
  * Program Description:
- * Renders HBAO, RSM, clouds, and the sky "cubemap"
+ * Renders HBAO, RSM, and the sky
 \*/
 
 //--// Settings //------------------------------------------------------------//
@@ -144,7 +144,7 @@ uniform vec3 shadowLightVector;
 		     shadowlightTransmittance *= smoothstep(0.0, 0.01, abs(shadowLightVector.y));
 		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : (moonIlluminance / NIGHT_SKY_BRIGHTNESS)) * shadowlightTransmittance;
 
-		averageCloudTransmittance = CalculateAverageCloudTransmittance(GetCloudCoverage());
+		averageCloudTransmittance = Calculate3DCloudsAverageTransmittance();
 	}
 #elif defined STAGE_FRAGMENT
 	//--// Fragment Inputs //-------------------------------------------------//
@@ -167,8 +167,8 @@ uniform vec3 shadowLightVector;
 		/* DRAWBUFFERS:46 */
 	#endif
 
-	layout (location = 0) out vec4  skyEncode;
-	layout (location = 1) out vec4  skyImage_cloudShadow;
+	layout (location = 0) out vec4 skyEncode;
+	layout (location = 1) out vec4 skyImage_cloudShadow;
 
 	//--// Fragment Includes //-----------------------------------------------//
 
@@ -405,7 +405,7 @@ uniform vec3 shadowLightVector;
 	#endif
 
 	#ifdef DISTANT_VL
-		mat2x3 CloudShadowedAtmosphere(vec3 startPosition, vec3 viewVector, float endDistance, float cloudCoverage, float dither) {
+		mat2x3 CloudShadowedAtmosphere(vec3 startPosition, vec3 viewVector, float endDistance, float dither) {
 			const int steps = DISTANT_VL_STEPS;
 			//int steps = int(ceil(endDistance / 1000.0));
 
@@ -423,7 +423,7 @@ uniform vec3 shadowLightVector;
 			vec3 sun  = AtmosphereScatteringSingle(scatteringLut, position, viewVector, sunVector ) * sunIlluminance;
 			vec3 moon = AtmosphereScatteringSingle(scatteringLut, position, viewVector, moonVector) * moonIlluminance;
 			for (int i = 0; i < steps; ++i) {
-				float cloudShadow = Calculate3DCloudShadows(position + vec3(cameraPosition.x, -atmosphere_planetRadius, cameraPosition.z), cloudCoverage, 3);
+				float cloudShadow = exp(-Calculate3DCloudsOpticalDepth(position + vec3(cameraPosition.x, -atmosphere_planetRadius, cameraPosition.z), shadowLightVector, 0.5, 3));
 				if (sunAngle < 0.5) {
 					sun *= cloudShadow;
 				} else {
@@ -454,7 +454,7 @@ uniform vec3 shadowLightVector;
 	#endif
 
 	#ifdef CLOUDS3D
-		float CalculateCloudShadowMap(float cloudCoverage) {
+		float CalculateCloudShadowMap() {
 			vec3 pos = vec3(screenCoord, 0.0);
 			pos.xy /= CLOUD_SHADOW_MAP_RESOLUTION * viewPixelSize;
 			if (Clamp01(pos.xy) != pos.xy) { return 1.0; }
@@ -468,11 +468,7 @@ uniform vec3 shadowLightVector;
 
 			//--//
 
-			float cloudShadow = 1.0;
-
-			cloudShadow *= Calculate3DCloudShadows(pos, cloudCoverage, 20);
-
-			return cloudShadow;
+			return exp(-Calculate3DCloudsOpticalDepth(pos, shadowLightVector, 0.5, 50));
 		}
 	#endif
 
@@ -654,7 +650,6 @@ uniform vec3 shadowLightVector;
 		#endif
 
 		vec3 viewPosition  = vec3(0.0, atmosphere_planetRadius + eyeAltitude, 0.0);
-		float cloudCoverage = GetCloudCoverage();
 
 		float depth = texture(depthtex1, screenCoord).x;
 		if (depth >= 1.0) {
@@ -680,7 +675,7 @@ uniform vec3 shadowLightVector;
 							float vlEndDistance = min(clouds3DDistance, DISTANT_VL_RANGE * 1e3);
 						#endif
 
-						mat2x3 distantVl = CloudShadowedAtmosphere(viewPosition, viewVector, vlEndDistance, cloudCoverage, dither);
+						mat2x3 distantVl = CloudShadowedAtmosphere(viewPosition, viewVector, vlEndDistance, dither);
 						scattering = distantVl[0];
 						vec3 transmittance = distantVl[1];
 
@@ -709,7 +704,8 @@ uniform vec3 shadowLightVector;
 						atmosphereScattering += AtmosphereScattering(scatteringLut, clouds3DPosition, viewVector, moonVector) * moonIlluminance;
 						scattering -= atmosphereScattering * transmittance * averageCloudTransmittance;
 
-						vec4 clouds3D = Calculate3DClouds(viewVector, dither);
+						float temp = 0.0;
+						vec4 clouds3D = Render3DClouds(viewVector, dither, temp);
 						scattering += clouds3D.rgb * transmittance; transmittance *= clouds3D.a;
 						cloudTransmittance *= clouds3D.a;
 						color = color * clouds3D.a + scattering;
@@ -726,7 +722,7 @@ uniform vec3 shadowLightVector;
 							float vlEndDistance = min(lowerLimitDistance, DISTANT_VL_RANGE * 1e3);
 						#endif
 
-						mat2x3 distantVl = CloudShadowedAtmosphere(viewPosition, viewVector, vlEndDistance, cloudCoverage, dither);
+						mat2x3 distantVl = CloudShadowedAtmosphere(viewPosition, viewVector, vlEndDistance, dither);
 						color += distantVl[0];
 						vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, vlEndDistance);
 
@@ -793,7 +789,8 @@ uniform vec3 shadowLightVector;
 						atmosphereScattering += AtmosphereScattering(scatteringLut, clouds3DPosition, viewVector, moonVector) * moonIlluminance;
 						skyImage -= atmosphereScattering * transmittance * averageCloudTransmittance;
 
-						vec4 clouds3D = Calculate3DClouds(viewVector, 0.5);
+						float temp = 0.0;
+						vec4 clouds3D = Render3DClouds(viewVector, 0.5, temp);
 						skyImage += clouds3D.rgb * transmittance; transmittance *= clouds3D.a;
 
 						skyImage += atmosphereScattering * transmittance;
@@ -838,7 +835,7 @@ uniform vec3 shadowLightVector;
 		skyImage_cloudShadow.rgb = skyImage;
 
 		#ifdef CLOUDS3D
-			skyImage_cloudShadow.a = CalculateCloudShadowMap(cloudCoverage);
+			skyImage_cloudShadow.a = CalculateCloudShadowMap();
 		#else
 			skyImage_cloudShadow.a = 1.0;
 		#endif

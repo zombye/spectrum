@@ -117,7 +117,7 @@ uniform vec3 shadowLightVector;
 		screenCoord = gl_Vertex.xy;
 		gl_Position = vec4(gl_Vertex.xy * 2.0 - 1.0, 1.0, 1.0);
 
-		const ivec2 samples = ivec2(16, 8);
+		const ivec2 samples = ivec2(64, 32);
 
 		skylightPosX = vec3(0.0);
 		skylightPosY = vec3(0.0);

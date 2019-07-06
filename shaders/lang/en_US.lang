@@ -259,14 +259,13 @@ option.CLOUDS2D_USE_WORLD_TIME=Use World Time
 
 screen.clouds3D=3D Clouds
 option.CLOUDS3D=3D Clouds
-option.CLOUDS3D_STEPS=Steps
-option.CLOUDS3D_SIMPLE_SKYLIGHT_SHADING=Simple Skylight Shading
+option.CLOUDS3D_STEPS_VIEW=Visibility Steps
+option.CLOUDS3D_STEPS_SUN=Sunlight Steps
+option.CLOUDS3D_STEPS_SKY=Skylight Steps
 
-option.CLOUDS3D_DYNAMIC_COVERAGE=Dynamic Coverage
-option.CLOUDS3D_STATIC_COVERAGE=Static Coverage
+option.CLOUDS3D_STATIC_COVERAGE=Coverage
 option.CLOUDS3D_USE_WORLD_TIME=Use World Time
 option.CLOUDS3D_SPEED=Speed
-value.CLOUDS3D_SPEED.0=Static
 
 option.CLOUDS3D_ALTITUDE=Altitude
 suffix.CLOUDS3D_ALTITUDE=m
