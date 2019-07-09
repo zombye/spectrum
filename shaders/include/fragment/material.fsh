@@ -77,10 +77,43 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 		material.metalness    = float(isMetal);
 		material.roughness    = Pow2(1.0 - specTex.r);
 		material.porosity     = !isMetal && isPorous ? specTex.b * (255.0 / 64.0) : 0.0;
-		material.n            = F0ToIor(isMetal ? baseTex.rgb : vec3(specTex.g * specTex.g)) * airMaterial.n;
-		material.k            = vec3(0.0);
 		material.translucency = vec3(!isMetal && !isPorous ? specTex.b * (255.0 / 190.0) - (65.0 / 190.0) : float(isFoliage));
 		material.emission     = specTex.a < (254.5 / 255.0) ? baseTex * specTex.a * (255.0 / 254.0) * BLOCK_LIGHT_LUMINANCE : vec3(0.0);
+
+		if (isMetal) {
+			int index = int(specTex.g * 255.0 + 0.5) - 230;
+			if (index < 8) {
+				vec3[8] metalN = vec3[8](
+					vec3(2.91140, 2.94970, 2.58450), // Iron
+					vec3(0.18299, 0.42108, 1.37340), // Gold
+					vec3(1.34560, 0.96521, 0.61722), // Aluminium
+					vec3(3.10710, 3.18120, 2.32300), // Chrome
+					vec3(0.27105, 0.67693, 1.31640), // Copper
+					vec3(1.91000, 1.83000, 1.44000), // Lead
+					vec3(2.37570, 2.08470, 1.84530), // Platinum
+					vec3(0.15943, 0.14512, 0.13547)  // Silver
+				);
+				vec3[8] metalK = vec3[8](
+					vec3(3.0893, 2.9318, 2.7670), // Iron
+					vec3(3.4242, 2.3459, 1.7704), // Gold
+					vec3(7.4746, 6.3995, 5.3031), // Aluminium
+					vec3(3.3314, 3.3291, 3.1350), // Chrome
+					vec3(3.6092, 2.6248, 2.2921), // Copper
+					vec3(3.5100, 3.4000, 3.1800), // Lead
+					vec3(4.2655, 3.7153, 3.1365), // Platinum
+					vec3(3.9291, 3.1900, 2.3808)  // Silver
+				);
+
+				material.n = metalN[index];
+				material.k = metalK[index];
+			} else {
+				material.n = F0ToIor(baseTex.rgb) * airMaterial.n;
+				material.k = vec3(0.0);
+			}
+		} else {
+			material.n = F0ToIor(specTex.g * specTex.g) * airMaterial.n;
+			material.k = vec3(0.0);
+		}
 	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_WIP
 		bool isMetal = specTex.g > (254.5 / 255.0);
 

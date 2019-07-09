@@ -80,8 +80,7 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 
 			vec3 reflectionSample = TraceSsrRay(sampler, position, rayDirection, NdotL, roughness, skyFade, dither);
 
-			reflectionSample *= FresnelDielectric(MdotV, (isEyeInWater == 1 && isWater ? 1.333 : 1.0002275) / n);
-			//reflectionSample *= FresnelNonpolarized(MdotV, isEyeInWater == 1 && isWater ? ComplexVec3(vec3(1.333), vec3(0.0)) : ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(n, k));
+			reflectionSample *= FresnelNonpolarized(MdotV, isEyeInWater == 1 && isWater ? ComplexVec3(vec3(1.333), vec3(0.0)) : ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(n, k));
 			reflectionSample *= G2OverG1SmithGGX(NdotV, NdotL, roughnessSquared);
 
 			reflection += reflectionSample;

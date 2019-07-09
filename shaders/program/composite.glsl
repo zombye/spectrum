@@ -184,8 +184,8 @@ uniform vec3 shadowLightVector;
 	#endif
 	#include "/include/fragment/fog.fsh"
 
-	#include "/include/fragment/brdf.fsh"
 	#include "/include/fragment/material.fsh"
+	#include "/include/fragment/brdf.fsh"
 	#include "/include/fragment/raytracer.fsh"
 	#include "/include/fragment/specularLighting.fsh"
 

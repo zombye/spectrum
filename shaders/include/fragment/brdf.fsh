@@ -74,7 +74,7 @@ vec3 CalculateSpecularBRDF(float NdotL, float NdotH, float NdotV, float VdotH, f
 	// Small enough that it can be assumed to be invisible unless reflected by a rough surface.
 	if (alpha2 == 0.0) { return vec3(0.0); }
 
-	vec3  f  = FresnelDielectric(VdotH, 1.000275 / n);
+	vec3  f  = FresnelNonpolarized(VdotH, ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(n, k));
 	float d  = DistributionGGX(NdotH, alpha2);
 	float g2 = G2SmithGGX(NdotL, NdotV, alpha2);
 
@@ -115,7 +115,7 @@ float GetNdotHSquared(float radiusCos, float radiusTan, float NdotL, float NdotV
 }
 vec3 CalculateSpecularBRDFSphere(float NdotL, float NdotV, float VdotL, float VdotH, float alpha2, vec3 n, vec3 k, float angularRadius) {
 	// Specular fraction (fresnel)
-	vec3 f = FresnelDielectric(VdotH, 1.000275 / n);
+	vec3 f = FresnelNonpolarized(VdotH, ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(n, k));
 
 	// Reflection direction
 	float RdotL = 2.0 * NdotV * NdotL - VdotL; // == dot(reflect(-V, N), L)
@@ -123,7 +123,6 @@ vec3 CalculateSpecularBRDFSphere(float NdotL, float NdotV, float VdotL, float Vd
 		// No roughness, use mirror specular
 		return step(cos(angularRadius), RdotL) * f / ConeAngleToSolidAngle(angularRadius);
 	}
-
 
 	float NdotH = sqrt(GetNdotHSquared(cos(angularRadius), tan(angularRadius), NdotL, NdotV, VdotL, RdotL));
 

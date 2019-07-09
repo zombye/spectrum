@@ -59,10 +59,10 @@ ComplexVec3 ComplexMul(ComplexVec3 a, ComplexVec3 b) {
 	return ComplexVec3(a.r * b.r - a.i * b.i, a.i * b.r + a.r * b.i);
 }
 ComplexVec3 ComplexMul(vec3 a, ComplexVec3 b) {
-	return ComplexVec3(a * b.r, a.r * b.i);
+	return ComplexVec3(a * b.r, a * b.i);
 }
 ComplexVec3 ComplexMul(ComplexVec3 a, vec3 b) {
-	return ComplexVec3(a.r * b.r, a.i * b.r);
+	return ComplexVec3(a.r * b, a.i * b);
 }
 ComplexFloat ComplexDiv(ComplexFloat a, ComplexFloat b) {
 	ComplexFloat ret;
