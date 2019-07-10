@@ -99,12 +99,11 @@ vec4 AtmosphereScatteringLookupUv(float R, float Mu, float MuS, float V) {
 	float a = (d - dMin) / (dMax - dMin);
 	float A = -2.0 * atmosphere_MuS_min * atmosphere_lowerLimitRadius / (dMax - dMin);
 	float uvMuS = AddUvMargin(Max0(1.0 - a / A) / (1.0 + a), resMuS);
-	      uvMuS = clamp(uvMuS, 1.5 / resMuS, 1.0);
 
-	float halfRangeV = sqrt((1.0 - Mu * Mu) * (1.0 - MuS * MuS));
+	float halfRangeV = sqrt(Clamp01(1.0 - Mu * Mu) * Clamp01(1.0 - MuS * MuS));
 	float maxV = Mu * MuS + halfRangeV;
 	float minV = Mu * MuS - halfRangeV;
-	float uvV = AddUvMargin((maxV - minV) == 0.0 ? 0.0 : Clamp01((V - minV) / (maxV - minV)), resV);
+	float uvV = AddUvMargin((maxV - minV) <= 0.0 ? 0.0 : Clamp01((V - minV) / (maxV - minV)), resV);
 
 	return vec4(uvMu, uvV, uvR, uvMuS);
 }
@@ -138,7 +137,7 @@ void AtmosphereScatteringLookupUvReverse(vec4 coord, out float R, out float Mu, 
 	float d = dMin + min(a, A) * (dMax - dMin);
 	MuS = d == 0.0 ? 1.0 : (H * H - d * d) / (2.0 * atmosphere_lowerLimitRadius * d);
 
-	float halfRangeV = sqrt((1.0 - Mu * Mu) * (1.0 - MuS * MuS));
+	float halfRangeV = sqrt(Clamp01(1.0 - Mu * Mu) * Clamp01(1.0 - MuS * MuS));
 	float maxV = Mu * MuS + halfRangeV;
 	float minV = Mu * MuS - halfRangeV;
 	V = uvV * (maxV - minV) + minV;
