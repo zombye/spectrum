@@ -146,7 +146,7 @@ void Calculate3DCloudsScattering(
 		skySum += (0.25/pi) * (octSkyPathTransmittance - octSkyPathTransmittance * stepTransmittance);
 	}
 
-	const float norm = 1.0 + (CLOUDS3D_MSA_A / (1.0 - CLOUDS3D_MSA_A)) * (1.0 - exp2(log2(CLOUDS3D_MSA_A) * CLOUDS3D_MSA_N));
+	const float norm = 1.0 / (1.0 + (CLOUDS3D_MSA_A / (1.0 - CLOUDS3D_MSA_A)) * (1.0 - exp2(log2(CLOUDS3D_MSA_A) * CLOUDS3D_MSA_N)));
 
 	float sunPowder = 1.0 - 0.7 * exp(-sunPathOpticalDepth);
 	float skyPowder = 1.0 - 0.7 * exp(-skyPathOpticalDepth);
