@@ -86,239 +86,196 @@
 			return vec3(mix(mix(visible1.w, visible1.z, f.x), mix(visible1.x, visible1.y, f.x), f.y));
 		#endif
 	}
-#elif SHADOW_FILTER == SHADOW_FILTER_PCF
-	vec3 PercentageCloserFilter(vec3 position, float biasMul, float biasAdd, float dither, const float ditherSize, out float waterFraction, out float waterDepth) {
-		const int filterSamples = SHADOW_FILTER_SAMPLES;
-
-		dither = dither * ditherSize + 0.5;
-		float dither2 = dither / ditherSize;
-
-		float pixelRadiusBase = 1.0 / SHADOW_RESOLUTION;
-		float filterRadius = 4.0 * pixelRadiusBase * SHADOW_DISTORTION_AMOUNT_INVERSE;
-
-		float refZ = position.z * 0.5 + 0.5 + biasAdd;
-
-		vec3 result = vec3(0.0);
-		waterFraction = 0.0, waterDepth = 0.0; float validSamples = 0.0;
-		vec2 dir = SinCos(dither * goldenAngle);
-		for (int i = 0; i < filterSamples; ++i) {
-			vec2 sampleOffset = dir * sqrt((i + dither2) / filterSamples) * filterRadius;
-			dir *= rotateGoldenAngle;
-
-			vec3 sampleCoord;
-			     sampleCoord.xy = sampleOffset + position.xy;
-
-			float distortionFactor = CalculateDistortionFactor(sampleCoord.xy);
-			sampleCoord.xy = (sampleCoord.xy * distortionFactor) * 0.5 + 0.5;
-
-			float bias = pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE) + filterRadius;
-
-			sampleCoord.z = biasMul * bias + refZ;
-
-			//--//
-
-			// Separate integer & fractional coordinates
-			sampleCoord.xy = sampleCoord.xy * SHADOW_RESOLUTION + 0.5;
-
-			ivec2 ip = ivec2(sampleCoord.xy);
-			vec2  fp = sampleCoord.xy - ip;
-
-			//
-			vec2 samplePos = vec2(ip) / SHADOW_RESOLUTION;
-
-			vec4 samples0 = textureGather(shadowtex0, samplePos);
-
-			vec4 visible0 = step(sampleCoord.z, samples0);
-			vec4 visible1 = step(sampleCoord.z, textureGather(shadowtex1, samplePos));
-			vec4 valid = visible1 - visible0 * visible1;
-			vec4 isWater = textureGather(shadowcolor0, samplePos, 3) * valid;
-
-			waterFraction += SumOf(isWater);
-			waterDepth    += SumOf(samples0 * isWater);
-			validSamples  += SumOf(valid);
-
-			#ifdef SHADOW_COLORED
-				vec3 c0 = BlendColoredShadow(visible0.x, visible1.x, texelFetch(shadowcolor1, ip - ivec2(1, 0), 0));
-				vec3 c1 = BlendColoredShadow(visible0.y, visible1.y, texelFetch(shadowcolor1, ip - ivec2(0, 0), 0));
-				vec3 c2 = BlendColoredShadow(visible0.z, visible1.z, texelFetch(shadowcolor1, ip - ivec2(0, 1), 0));
-				vec3 c3 = BlendColoredShadow(visible0.w, visible1.w, texelFetch(shadowcolor1, ip - ivec2(1, 1), 0));
-
-				return mix(mix(c3, c2, fp.x), mix(c0, c1, fp.x), fp.y);
-			#else
-				result += mix(mix(visible1.w, visible1.z, fp.x), mix(visible1.x, visible1.y, fp.x), fp.y);
-			#endif
-		} result /= filterSamples;
-
-		waterDepth    /= waterFraction;
-		waterFraction /= validSamples;
-
-		return result;
-	}
-#elif SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
-	vec3 PercentageCloserSoftShadows(vec3 position, vec3 shadowCoord, float distortionFactor, float biasMul, float biasAdd, float dither, const float ditherSize, out float waterFraction, out float waterDepth) {
-		const int filterSamples = SHADOW_FILTER_SAMPLES;
-		const int searchSamples = SHADOW_SEARCH_SAMPLES;
-
+#elif SHADOW_FILTER == SHADOW_FILTER_PCF || SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
+	#if defined SHADOW_COLORED && SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
+	vec2 FindPenumbraRadius(vec3 position, float dither, float dither2) {
+		float referenceDepth = position.z * 0.5 + 0.5;
 		float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
 
+		const int samples = SHADOW_SEARCH_SAMPLES;
+
+		float maxPenumbraRadius = 2.0 * SHADOW_DEPTH_RADIUS * shadowProjection[0].x * tan(lightAngularRadius);
+		float searchRadius = SHADOW_FILTER_MAX_RADIUS * shadowProjection[0].x;
+		float searchLod = log2(SHADOW_RESOLUTION * 2.0 * searchRadius * inversesqrt(samples));
+
+		float searchCmpMul = 1.0 / maxPenumbraRadius;
+
+		vec2 dir = SinCos(dither * goldenAngle);
+		vec2 averageBlockerDistances = vec2(0.0), weightSums = vec2(0.0);
+		for (int i = 0; i < samples; ++i, dir *= rotateGoldenAngle) {
+			float sampleDist = inversesqrt(samples) * searchRadius * sqrt(i + dither2);
+
+			vec2 sampleUv = sampleDist * dir + position.xy;
+			     sampleUv = DistortShadowSpace(sampleUv);
+			     sampleUv = sampleUv * 0.5 + 0.5;
+
+			vec2 blockerDistances = referenceDepth - vec2(textureLod(shadowtex0, sampleUv, searchLod).x, textureLod(shadowtex1, sampleUv, searchLod).x);
+			vec2 weights = step(0.0, blockerDistances);
+			//vec2 weights = vec2(lessThanEqual(vec2(searchCmpMul * sampleDist), blockerDistances));
+			//vec2 weights = LinearStep(0.25 * searchCmpMul * sampleDist, searchCmpMul * sampleDist, blockerDistances);
+
+			averageBlockerDistances += blockerDistances * weights;
+			weightSums              += weights;
+		}
+
+		averageBlockerDistances.x /= weightSums.x > 0.0 ? weightSums.x : 1.0;
+		averageBlockerDistances.y /= weightSums.y > 0.0 ? weightSums.y : 1.0;
+
+		vec2 penumbraRadii = maxPenumbraRadius * averageBlockerDistances;
+		     penumbraRadii = min(penumbraRadii, searchRadius);
+
+		return penumbraRadii;
+	}
+	#elif SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
+	float FindPenumbraRadius(vec3 position, float dither, float dither2) {
+		float referenceDepth = position.z * 0.5 + 0.5;
+		float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
+
+		const int samples = SHADOW_SEARCH_SAMPLES;
+
+		float maxPenumbraRadius = abs(2.0 * SHADOW_DEPTH_RADIUS * shadowProjection[0].x * tan(lightAngularRadius));
+		float searchRadius = SHADOW_FILTER_MAX_RADIUS * shadowProjection[0].x;
+		float searchLod = log2(SHADOW_RESOLUTION * 2.0 * searchRadius * inversesqrt(samples));
+
+		float searchCmpMul = 1.0 / maxPenumbraRadius;
+
+		vec2 dir = SinCos(dither * goldenAngle);
+		float averageBlockerDistance = 0.0, weightSum = 0.0;
+		for (int i = 0; i < samples; ++i, dir *= rotateGoldenAngle) {
+			float sampleDist = searchRadius * inversesqrt(samples) * sqrt(i + dither2);
+
+			vec2 sampleUv = sampleDist * dir + position.xy;
+			     sampleUv = DistortShadowSpace(sampleUv);
+			     sampleUv = sampleUv * 0.5 + 0.5;
+
+			float blockerDistance = referenceDepth - textureLod(shadowtex1, sampleUv, searchLod).x;
+			float weight = step(0.0, blockerDistance);
+			//float weight = float(searchCmpMul * sampleDist <= blockerDistance);
+			//float weight = LinearStep(0.25 * searchCmpMul * sampleDist, searchCmpMul * sampleDist, blockerDistance);
+
+			averageBlockerDistance += weight * blockerDistance;
+			weightSum              += weight;
+		}
+
+		if (weightSum <= 0.0) { return 0.0; }
+
+		averageBlockerDistance /= weightSum;
+
+		float penumbraRadius = maxPenumbraRadius * averageBlockerDistance;
+		      penumbraRadius = min(penumbraRadius, searchRadius);
+
+		return penumbraRadius;
+	}
+	#endif
+
+	vec3 PercentageCloserFilter(vec3 position, float biasMul, float biasAdd, float dither, const float ditherSize, out float waterFraction, out float waterDepth) {
+		waterFraction = 0.0;
+		waterDepth = 0.0;
+
+		//--//
+
+		const int samples = SHADOW_FILTER_SAMPLES;
+
 		dither = dither * ditherSize + 0.5;
 		float dither2 = dither / ditherSize;
 
-		vec2 initialDir = SinCos(dither * goldenAngle);
-
-		float refZ = position.z * 0.5 + 0.5;
-
-		//--// Blocker search
-
-		//const float searchScale  = 0.01; float searchRadius = spread * searchScale; // search radius as multiple of max possible radius
-		float searchRadius = SHADOW_FILTER_MAX_RADIUS * shadowProjection[0].x; // search radius as number of blocks
-		float searchLod    = log2(2.0 * SHADOW_RESOLUTION * searchRadius * inversesqrt(searchSamples));
-		float searchCmpMul = searchRadius / (tan(lightAngularRadius) * SHADOW_DEPTH_RADIUS);
-
-		#if defined SHADOW_COLORED && SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
-			vec2 averageBlockerDepth = vec2(0.0), validSamples = vec2(0.0);
+		#if   defined SHADOW_COLORED && SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
+			vec2 filterRadius = FindPenumbraRadius(position, dither, dither2);
+			filterRadius = max(filterRadius, 4.0 / SHADOW_RESOLUTION / SHADOW_DISTANCE_EFFECTIVE);
+		#elif SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
+			float filterRadius = FindPenumbraRadius(position, dither, dither2);
+			#if !defined SHADOW_COLORED
+			float unclampedFilterRadius = filterRadius;
+			#endif
+			filterRadius = max(filterRadius, 4.0 / SHADOW_RESOLUTION / SHADOW_DISTANCE_EFFECTIVE);
 		#else
-			float averageBlockerDepth = 0.0, validSamples = 0.0;
-		#endif
-		vec2 dir = initialDir;
-		for (int i = 0; i < searchSamples; ++i) {
-			vec2 sampleOffset = dir * sqrt((i + dither2) / searchSamples);
-			dir *= rotateGoldenAngle;
-
-			vec2 sampleCoord = DistortShadowSpace(sampleOffset * searchRadius + position.xy);
-			sampleCoord = sampleCoord * 0.5 + 0.5;
-
-			#if defined SHADOW_COLORED && SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
-				vec2 sampleDepth = refZ - vec2(textureLod(shadowtex0, sampleCoord, searchLod).r, textureLod(shadowtex1, sampleCoord, searchLod).r);
-				vec2 validSample = step(length(sampleOffset) * searchCmpMul, sampleDepth);
-				averageBlockerDepth += sampleDepth * validSample;
-				validSamples += validSample;
-			#else
-				float sampleDepth = refZ - textureLod(shadowtex1, sampleCoord, searchLod).r;
-				float validSample = step(length(sampleOffset) * searchCmpMul, sampleDepth);
-				averageBlockerDepth += sampleDepth * validSample;
-				validSamples += validSample;
-			#endif
-		}
-
-		averageBlockerDepth /= Clamp01(1.0 - validSamples) + validSamples;
-
-		//--// Filter
-
-		float spread = tan(lightAngularRadius) * SHADOW_DEPTH_RADIUS * shadowProjection[0].x; // this could be moved to be part of the filter section
-
-		float pixelRadiusBase = 1.0 / SHADOW_RESOLUTION;
-		#ifdef SHADOW_COLORED
-			#if SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
-				vec2 filterRadius = averageBlockerDepth * spread * 2.0;
-			#else
-				float filterRadius = averageBlockerDepth * spread * 2.0;
-			#endif
-
-			#if defined SHADOW_FILTER_MIN_RADIUS_LIMITED
-				filterRadius = clamp(filterRadius, 4.0 * pixelRadiusBase * SHADOW_DISTORTION_AMOUNT_INVERSE, 0.5 * searchRadius);
-			#else
-				filterRadius = min(filterRadius, 0.5 * searchRadius);
-			#endif
-		#else
-			float penumbraSize = averageBlockerDepth * spread * 2.0;
-			float filterRadius = clamp(penumbraSize, 4.0 * pixelRadiusBase * SHADOW_DISTORTION_AMOUNT_INVERSE, 0.5 * searchRadius);
+			float filterRadius = 4.0 / SHADOW_RESOLUTION / SHADOW_DISTANCE_EFFECTIVE;
 		#endif
 
-		refZ += biasAdd;
+		float referenceDepth = position.z * 0.5 + 0.5 + biasAdd;
 
 		vec3 result = vec3(0.0);
-		#if !defined SHADOW_COLORED || SHADOW_FILTER != SHADOW_FILTER_DUAL_PCSS
-			waterFraction = 0.0, waterDepth = 0.0, validSamples = 0.0;
-		#endif
-		dir = initialDir;
-		for (int i = 0; i < filterSamples; ++i) {
-			vec2 sampleOffset = dir * sqrt((i + dither2) / filterSamples);
-			dir *= rotateGoldenAngle;
-
+		float validSamples = 0.0;
+		vec2 dir = SinCos(dither * goldenAngle);
+		for (int i = 0; i < samples; ++i, dir *= rotateGoldenAngle) {
 			#if defined SHADOW_COLORED && SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
-				vec2 sampleCoordTransp = sampleOffset * filterRadius.x + position.xy;
-				vec2 sampleCoordOpaque = sampleOffset * filterRadius.y + position.xy;
+				vec2 sampleDist = filterRadius * inversesqrt(samples) * sqrt(i + dither2);
 
-				float distortionFactorTransp = CalculateDistortionFactor(sampleCoordTransp);
-				float distortionFactorOpaque = CalculateDistortionFactor(sampleCoordOpaque);
-				sampleCoordTransp = (sampleCoordTransp * distortionFactorTransp) * 0.5 + 0.5;
-				sampleCoordOpaque = (sampleCoordOpaque * distortionFactorOpaque) * 0.5 + 0.5;
+				vec2 sampleUv0 = sampleDist.x * dir + position.xy;
+				vec2 sampleUv1 = sampleDist.y * dir + position.xy;
 
-				float biasTransp = pixelRadiusBase / Pow2(distortionFactorTransp * SHADOW_DISTORTION_AMOUNT_INVERSE) + filterRadius.x;
-				float biasOpaque = pixelRadiusBase / Pow2(distortionFactorOpaque * SHADOW_DISTORTION_AMOUNT_INVERSE) + filterRadius.y;
+				float distortionFactor0 = CalculateDistortionFactor(sampleUv0);
+				float distortionFactor1 = CalculateDistortionFactor(sampleUv1);
+				sampleUv0 = sampleUv0 * distortionFactor0 * 0.5 + 0.5;
+				sampleUv1 = sampleUv1 * distortionFactor1 * 0.5 + 0.5;
 
-				float shadow0 = step(biasMul * biasTransp + refZ, textureLod(shadowtex0, sampleCoordTransp, 0.0).r);
-				float shadow1 = step(biasMul * biasOpaque + refZ, textureLod(shadowtex1, sampleCoordOpaque, 0.0).r);
-				vec4  shadowC = textureLod(shadowcolor1, sampleCoordTransp, 0.0);
-				      shadowC.rgb = SrgbToLinear(shadowC.rgb);
+				float bias0 = 1.0 / (SHADOW_RESOLUTION * Pow2(distortionFactor0 * SHADOW_DISTORTION_AMOUNT_INVERSE)) + sampleDist.x;
+				float bias1 = 1.0 / (SHADOW_RESOLUTION * Pow2(distortionFactor1 * SHADOW_DISTORTION_AMOUNT_INVERSE)) + sampleDist.y;
 
-				result += (shadowC.rgb * shadowC.a - shadowC.a) * (-shadow1 * shadow0 + shadow1) + shadow1;
-			#else
-				vec3 sampleCoord;
-				     sampleCoord.xy = sampleOffset * filterRadius + position.xy;
-
-				float distortionFactor = CalculateDistortionFactor(sampleCoord.xy);
-				sampleCoord.xy = (sampleCoord.xy * distortionFactor) * 0.5 + 0.5;
-
-				float bias = pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE) + filterRadius;
-
-				sampleCoord.z = biasMul * bias + refZ;
+				float cmpDepth0 = biasMul * bias0 + referenceDepth;
+				float cmpDepth1 = biasMul * bias1 + referenceDepth;
 
 				//--//
 
-				// Separate integer & fractional coordinates
-				sampleCoord.xy = sampleCoord.xy * SHADOW_RESOLUTION + 0.5;
+				float depth0 = textureLod(shadowtex0, sampleUv0, 0.0).x;
+				float depth1 = textureLod(shadowtex1, sampleUv1, 0.0).x;
 
-				ivec2 ip = ivec2(sampleCoord.xy);
-				vec2  fp = sampleCoord.xy - ip;
+				float shadow0 = step(cmpDepth0, depth0);
+				float shadow1 = step(cmpDepth1, depth1);
 
-				//
-				vec2 samplePos = vec2(ip) / SHADOW_RESOLUTION;
+				float valid    = shadow1 - shadow0 * shadow1;
+				float isWater  = valid * textureLod(shadowcolor0, sampleUv0, 0.0).a;
+				waterDepth    += isWater * depth0;
+				waterFraction += isWater;
+				validSamples  += valid;
 
-				vec4 samples0 = textureGather(shadowtex0, samplePos);
+				vec4 shadowC = textureLod(shadowcolor1, sampleUv0, 0.0);
+				result += BlendColoredShadow(shadow0, shadow1, shadowC);
+			#else
+				float sampleDist = filterRadius * inversesqrt(samples) * sqrt(i + dither2);
 
-				vec4 visible0 = step(sampleCoord.z, samples0);
-				vec4 visible1 = step(sampleCoord.z, textureGather(shadowtex1, samplePos));
-				vec4 valid = visible1 - visible0 * visible1;
-				vec4 isWater = textureGather(shadowcolor0, samplePos, 3) * valid;
+				vec2 sampleUv = sampleDist * dir + position.xy;
+				float distortionFactor = CalculateDistortionFactor(sampleUv);
+				sampleUv = sampleUv * distortionFactor * 0.5 + 0.5;
 
+				float bias = 2.0 / (SHADOW_RESOLUTION * Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE)) + sampleDist;
+
+				float cmpDepth = biasMul * bias + referenceDepth;
+
+				//--//
+
+				vec4 depth0 = textureGather(shadowtex0, sampleUv);
+				vec4 depth1 = textureGather(shadowtex1, sampleUv);
+
+				vec4 shadow0 = step(cmpDepth, depth0);
+				vec4 shadow1 = step(cmpDepth, depth1);
+
+				vec4 valid     = shadow1 - shadow0 * shadow1;
+				vec4 isWater   = valid * textureGather(shadowcolor0, sampleUv, 3);
+				waterDepth    += SumOf(isWater * depth0);
 				waterFraction += SumOf(isWater);
-				waterDepth    += SumOf(samples0 * isWater);
 				validSamples  += SumOf(valid);
 
-				#ifdef SHADOW_COLORED
-					vec3 c0 = BlendColoredShadow(visible0.x, visible1.x, texelFetch(shadowcolor1, ip - ivec2(1, 0), 0));
-					vec3 c1 = BlendColoredShadow(visible0.y, visible1.y, texelFetch(shadowcolor1, ip - ivec2(0, 0), 0));
-					vec3 c2 = BlendColoredShadow(visible0.z, visible1.z, texelFetch(shadowcolor1, ip - ivec2(0, 1), 0));
-					vec3 c3 = BlendColoredShadow(visible0.w, visible1.w, texelFetch(shadowcolor1, ip - ivec2(1, 1), 0));
+				vec2 iUv, fUv = modf(sampleUv * SHADOW_RESOLUTION + 0.5, iUv);
 
-					result += mix(mix(c3, c2, fp.x), mix(c0, c1, fp.x), fp.y);
+				#ifdef SHADOW_COLORED
+					vec3 s0 = BlendColoredShadow(shadow0.x, shadow1.x, texelFetch(shadowcolor1, ivec2(iUv - vec2(1, 0)), 0));
+					vec3 s1 = BlendColoredShadow(shadow0.y, shadow1.y, texelFetch(shadowcolor1, ivec2(iUv - vec2(0, 0)), 0));
+					vec3 s2 = BlendColoredShadow(shadow0.z, shadow1.z, texelFetch(shadowcolor1, ivec2(iUv - vec2(0, 1)), 0));
+					vec3 s3 = BlendColoredShadow(shadow0.w, shadow1.w, texelFetch(shadowcolor1, ivec2(iUv - vec2(1, 1)), 0));
+					result += mix(mix(s3, s2, fUv.x), mix(s0, s1, fUv.x), fUv.y);
 				#else
-					result += mix(mix(visible1.w, visible1.z, fp.x), mix(visible1.x, visible1.y, fp.x), fp.y);
+					result += mix(mix(shadow1.w, shadow1.z, fUv.x), mix(shadow1.x, shadow1.y, fUv.x), fUv.y);
 				#endif
 			#endif
-		} result /= filterSamples;
+		}
+		waterDepth /= waterFraction;
+		waterFraction /= validSamples;
 
-		#if !defined SHADOW_COLORED || SHADOW_FILTER != SHADOW_FILTER_DUAL_PCSS
-			waterDepth    /= waterFraction;
-			waterFraction /= validSamples;
-		#else
-			shadowCoord.z += biasMul * (0.5 * pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE)) + biasAdd;
+		result /= samples;
 
-			waterFraction = texture(shadowcolor0, shadowCoord.xy).a;
-
-			float sample0 = texture(shadowtex0, shadowCoord.xy).r;
-			waterDepth = sample0;
-
-			float visible0 = step(shadowCoord.z, sample0);
-			float visible1 = step(shadowCoord.z, texture(shadowtex1, shadowCoord.xy).r);
-
-			waterFraction *= (visible1 - visible0 * visible1);
-		#endif
-
-		#ifndef SHADOW_COLORED
-			float penumbraFraction = Clamp01(penumbraSize / filterRadius);
+		#if !defined SHADOW_COLORED && (SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS)
+			float penumbraFraction = Clamp01(unclampedFilterRadius / filterRadius);
 			result = LinearStep(0.5 - 0.5 * penumbraFraction, 0.5 + 0.5 * penumbraFraction, result);
 		#endif
 
@@ -499,7 +456,7 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 		if (distanceFade >= 1.0) { return vec3(1.0); } // Early-exit
 	#endif
 
-	float biasMul  = SHADOW_DISTORTION_AMOUNT_INVERSE / -SHADOW_DEPTH_RADIUS;
+	float biasMul  = SHADOW_DISTORTION_AMOUNT_INVERSE / (-2.0 * SHADOW_DEPTH_RADIUS);
 	      biasMul *= SumOf(abs(normalize(normal.xy)) * vec2(shadowProjectionInverse[0].x, shadowProjectionInverse[1].y));
 	      biasMul *= sqrt(Clamp01(1.0 - normal.z * normal.z)) / abs(normal.z);
 
@@ -535,12 +492,9 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 	#elif SHADOW_FILTER == SHADOW_FILTER_BILINEAR
 		float waterFraction, waterDepth;
 		vec3 shadows = BilinearFilter(shadowCoord, distortionFactor, biasMul, biasAdd, waterFraction, waterDepth);
-	#elif SHADOW_FILTER == SHADOW_FILTER_PCF
+	#elif SHADOW_FILTER == SHADOW_FILTER_PCF || SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
 		float waterFraction, waterDepth;
 		vec3 shadows = PercentageCloserFilter(shadowClip, biasMul, biasAdd, dither, ditherSize, waterFraction, waterDepth);
-	#elif SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
-		float waterFraction, waterDepth;
-		vec3 shadows = PercentageCloserSoftShadows(shadowClip, shadowCoord, distortionFactor, biasMul, biasAdd, dither, ditherSize, waterFraction, waterDepth);
 	#elif SHADOW_FILTER == SHADOW_FILTER_EXPERIMENTAL || SHADOW_FILTER == SHADOW_FILTER_EXPERIMENTAL_PCSSASSISTED
 		float waterFraction = 0.0, waterDepth = 0.0;
 		vec3 shadows = ExperimentalVPS(shadowClip, biasMul, biasAdd, dither, ditherSize, waterFraction, waterDepth);
@@ -557,7 +511,7 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 		vec3 waterShadow = exp(-attenuationCoefficient * fogDensity * waterDepth);
 
 		#ifdef CAUSTICS
-			waterShadow *= CalculateCaustics(position[2], waterDepth, dither, ditherSize) * waterFraction + (1.0 - waterFraction);
+			waterShadow *= CalculateCaustics(position[2], waterDepth, dither, ditherSize);
 		#endif
 
 		shadows *= waterShadow * waterFraction + (1.0 - waterFraction);
