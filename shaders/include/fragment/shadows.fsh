@@ -51,39 +51,40 @@
 
 #if   SHADOW_FILTER == SHADOW_FILTER_BILINEAR
 	vec3 BilinearFilter(vec3 shadowCoord, float distortionFactor, float biasMul, float biasAdd, out float waterFraction, out float waterDepth) {
-		// Bias
-		float pixelRadiusBase = 0.5 / SHADOW_RESOLUTION;
-		shadowCoord.z += 2.0 * biasMul * (pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE)) + biasAdd;
-
 		// Separate integer & fractional coordinates
-		shadowCoord.xy = shadowCoord.xy * SHADOW_RESOLUTION + 0.5;
+		vec2 sampleUv = shadowCoord.xy;
+		vec2 iUv, fUv = modf(sampleUv * SHADOW_RESOLUTION + 0.5, iUv);
+		sampleUv = iUv / SHADOW_RESOLUTION; // Fixes some small artifacting
 
-		ivec2 i = ivec2(shadowCoord.xy);
-		vec2  f = shadowCoord.xy - i;
+		// Bias
+		float cmpDepth = shadowCoord.z;
+		float bias = 2.0 / (SHADOW_RESOLUTION * Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE));
+		cmpDepth += biasMul * bias + biasAdd;
 
-		//
-		vec2 samplePos = vec2(i) / SHADOW_RESOLUTION;
+		//--//
 
-		vec4 samples0 = textureGather(shadowtex0, samplePos);
+		vec4 depth0 = textureGather(shadowtex0, sampleUv);
+		vec4 depth1 = textureGather(shadowtex1, sampleUv);
 
-		vec4 visible0 = step(shadowCoord.z, samples0);
-		vec4 visible1 = step(shadowCoord.z, textureGather(shadowtex1, samplePos));
-		vec4 valid    = visible1 - visible0 * visible1;
-		vec4 isWater  = textureGather(shadowcolor0, samplePos, 3) * valid;
+		vec4 shadow0 = step(cmpDepth, depth0);
+		vec4 shadow1 = step(cmpDepth, depth1);
+		vec4 valid   = shadow1 - shadow0 * shadow1;
+		vec4 isWater = textureGather(shadowcolor0, sampleUv, 3) * valid;
 
 		waterFraction  = SumOf(isWater);
-		waterDepth     = SumOf(samples0 * isWater) / waterFraction;
-		waterFraction /= SumOf(valid);
+		waterDepth     = SumOf(isWater * depth0) / waterFraction;
+		waterFraction /= max(SumOf(valid), 1);
+
 
 		#ifdef SHADOW_COLORED
-			vec3 c0 = BlendColoredShadow(visible0.x, visible1.x, texelFetch(shadowcolor1, i - ivec2(1, 0), 0));
-			vec3 c1 = BlendColoredShadow(visible0.y, visible1.y, texelFetch(shadowcolor1, i - ivec2(0, 0), 0));
-			vec3 c2 = BlendColoredShadow(visible0.z, visible1.z, texelFetch(shadowcolor1, i - ivec2(0, 1), 0));
-			vec3 c3 = BlendColoredShadow(visible0.w, visible1.w, texelFetch(shadowcolor1, i - ivec2(1, 1), 0));
+			vec3 c0 = BlendColoredShadow(shadow0.x, shadow1.x, texelFetch(shadowcolor1, ivec2(iUv - vec2(1, 0)), 0));
+			vec3 c1 = BlendColoredShadow(shadow0.y, shadow1.y, texelFetch(shadowcolor1, ivec2(iUv - vec2(0, 0)), 0));
+			vec3 c2 = BlendColoredShadow(shadow0.z, shadow1.z, texelFetch(shadowcolor1, ivec2(iUv - vec2(0, 1)), 0));
+			vec3 c3 = BlendColoredShadow(shadow0.w, shadow1.w, texelFetch(shadowcolor1, ivec2(iUv - vec2(1, 1)), 0));
 
-			return mix(mix(c3, c2, f.x), mix(c0, c1, f.x), f.y);
+			return mix(mix(c3, c2, fUv.x), mix(c0, c1, fUv.x), fUv.y);
 		#else
-			return vec3(mix(mix(visible1.w, visible1.z, f.x), mix(visible1.x, visible1.y, f.x), f.y));
+			return vec3(mix(mix(shadow1.w, shadow1.z, fUv.x), mix(shadow1.x, shadow1.y, fUv.x), fUv.y));
 		#endif
 	}
 #elif SHADOW_FILTER == SHADOW_FILTER_PCF || SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
@@ -472,21 +473,21 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 	#if   SHADOW_FILTER == SHADOW_FILTER_NONE
 		float waterFraction = texture(shadowcolor0, shadowCoord.xy).a, waterDepth;
 		vec3 shadows; {
-			float pixelRadiusBase = 0.5 / SHADOW_RESOLUTION;
+			shadowCoord.z += biasMul * (1.0 / (SHADOW_RESOLUTION * Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE))) + biasAdd;
 
-			shadowCoord.z += biasMul * (pixelRadiusBase / Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE)) + biasAdd;
+			float depth0 = textureLod(shadowtex0, shadowCoord.xy, 0.0).r;
+			float depth1 = textureLod(shadowtex1, shadowCoord.xy, 0.0).r;
 
-			float sample0 = texture(shadowtex0, shadowCoord.xy).r;
-			waterDepth = sample0;
+			float shadow0 = step(shadowCoord.z, depth0);
+			float shadow1 = step(shadowCoord.z, depth1);
 
-			float visible0 = step(shadowCoord.z, sample0);
-			float visible1 = step(shadowCoord.z, texture(shadowtex1, shadowCoord.xy).r);
-			waterFraction *= visible1 - visible0 * visible1;
+			waterDepth = depth0;
+			waterFraction *= shadow1 - shadow0 * shadow1;
 
 			#ifdef SHADOW_COLORED
-				shadows = BlendColoredShadow(visible0, visible1, textureLod(shadowcolor1, shadowCoord.xy, 0.0));
+				shadows = BlendColoredShadow(shadow0, shadow1, textureLod(shadowcolor1, shadowCoord.xy, 0.0));
 			#else
-				shadows = vec3(visible1);
+				shadows = vec3(shadow1);
 			#endif
 		}
 	#elif SHADOW_FILTER == SHADOW_FILTER_BILINEAR
