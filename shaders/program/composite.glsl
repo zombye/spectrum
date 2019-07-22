@@ -348,9 +348,17 @@ uniform vec3 shadowLightVector;
 				// Front to back fog
 				bool backIsSky = backPosition[0].z >= 1.0;
 				if (isEyeInWater != 1 && (blockId == 8 || blockId == 9)) { // Water fog
+					#ifdef VL_WATER
+					color = CalculateWaterFogVL(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, dither, backIsSky);
+					#else
 					color = CalculateWaterFog(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, dither, backIsSky);
+					#endif
 				} else { // Air fog
+					#ifdef VL_AIR
+					color = CalculateAirFogVL(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, skylightFade, dither, backIsSky);
+					#else
 					color = CalculateAirFog(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, skylightFade, dither, backIsSky);
+					#endif
 				}
 
 				// Apply transparents
@@ -385,21 +393,37 @@ uniform vec3 shadowLightVector;
 
 			// Eye to front fog
 			if (isEyeInWater == 1) { // Water fog
+				#ifdef VL_WATER
+				color = CalculateWaterFogVL(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight * (1.0 - skylightFade) + skylightFade, dither, false);
+				#else
 				color = CalculateWaterFog(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight * (1.0 - skylightFade) + skylightFade, dither, false);
+				#endif
 			} else if (isEyeInWater == 2) { // Lava fog
 				// TODO
 			} else { // Air fog
+				#ifdef VL_AIR
+				color = CalculateAirFogVL(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight, skylightFade, dither, false);
+				#else
 				color = CalculateAirFog(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight, skylightFade, dither, false);
+				#endif
 			}
 		} else { // Sky
 			color = DecodeRGBE8(texture(colortex4, screenCoord));
 
 			if (isEyeInWater == 1) { // Water fog
+				#ifdef VL_WATER
+				color = CalculateWaterFogVL(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight, dither, true);
+				#else
 				color = CalculateWaterFog(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight, dither, true);
+				#endif
 			} else if (isEyeInWater == 2) { // Lava fog
 				// TODO
 			} else { // Air fog
+				#ifdef VL_AIR
+				color = CalculateAirFogVL(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight, 1.0, dither, true);
+				#else
 				color = CalculateAirFog(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight, 1.0, dither, true);
+				#endif
 			}
 		}
 

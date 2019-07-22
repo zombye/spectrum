@@ -53,9 +53,17 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 
 		float VdotL = dot(rayDirectionWorld, shadowLightVector);
 		if (isEyeInWater == 1) {
+			#if defined VL_WATER && defined SSR_ALLOW_VL_WATER
+			result = CalculateWaterFogVL(result, position[2], hitPositionScene, rayDirectionWorld, VdotL, skyFade, dither, !intersected);
+			#else
 			result = CalculateWaterFog(result, position[2], hitPositionScene, rayDirectionWorld, VdotL, skyFade, dither, !intersected);
+			#endif
 		} else {
+			#if defined VL_AIR && defined SSR_ALLOW_VL_AIR
+			result = CalculateAirFogVL(result, position[2], hitPositionScene, rayDirectionWorld, VdotL, skyFade, skyFade, dither, !intersected);
+			#else
 			result = CalculateAirFog(result, position[2], hitPositionScene, rayDirectionWorld, VdotL, skyFade, skyFade, dither, !intersected);
+			#endif
 		}
 
 		return result;
