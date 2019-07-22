@@ -159,23 +159,24 @@ uniform vec3 shadowLightVector;
 			shadowcolor1Write.a   = 0.0;
 
 			#if CAUSTICS != CAUSTICS_OFF
-			vec3 waterNormal = CalculateWaterNormal(scenePosition);
+				vec3 waterNormal = CalculateWaterNormal(scenePosition);
+				float projectedCaustics = CalculateProjectedCaustics(scenePosition, waterNormal);
+				shadowcolor0Write.w = sqrt(0.5 * projectedCaustics) * (254.0 / 255.0) + (1.0 / 255.0);
+			#else
+				shadowcolor0Write.w = 1.0;
 			#endif
 			#if CAUSTICS == CAUSTICS_HIGH
 				shadowcolor0Write.xy = EncodeNormal(waterNormal) * 0.5 + 0.5;
 			#endif
-
-			float projectedCaustics = CalculateProjectedCaustics(scenePosition, waterNormal);
-			shadowcolor0Write.w = sqrt(0.5 * projectedCaustics) * (254.0 / 255.0) + (1.0 / 255.0);
 		} else {
 			shadowcolor1Write = texture(tex, textureCoordinates);
 			if (shadowcolor1Write.a < 0.102) { discard; }
 			shadowcolor1Write.rgb *= tint;
 
+			shadowcolor0Write.w = 0.0;
 			#if CAUSTICS == CAUSTICS_HIGH
 				shadowcolor0Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
 			#endif
-			shadowcolor0Write.w = 0.0;
 		}
 
 		#if CAUSTICS != CAUSTICS_HIGH
