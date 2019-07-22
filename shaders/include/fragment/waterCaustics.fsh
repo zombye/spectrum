@@ -1,6 +1,19 @@
 #if !defined INCLUDE_FRAGMENT_WATERCAUSTICS
 #define INCLUDE_FRAGMENT_WATERCAUSTICS
 
+float GetProjectedCaustics(float shadowcolor0Alpha, float depth) {
+	depth = Clamp01(depth);
+
+	float caustics = shadowcolor0Alpha * (255.0 / 254.0) - (1.0 / 254.0);
+	      caustics = pow(2.0 * caustics * caustics, CAUSTICS_POWER);
+
+	return caustics * depth + 1.0 - depth;
+}
+float GetProjectedCaustics(vec2 uv, float depth) {
+	return GetProjectedCaustics(texture(shadowcolor0, uv).a, depth);
+}
+
+#if CAUSTICS == CAUSTICS_HIGH
 vec3 GetWaterNormal(vec3 position) {
 	position    = mat3(shadowModelView) * position + shadowModelView[3].xyz;
 	position.xy = vec2(shadowProjection[0].x, shadowProjection[1].y) * position.xy + shadowProjection[3].xy;
@@ -8,7 +21,7 @@ vec3 GetWaterNormal(vec3 position) {
 	vec4 normalSample = texture(shadowcolor0, DistortShadowSpace(position.xy) * 0.5 + 0.5);
 	normalSample.xyz = DecodeNormal(normalSample.xy * 2.0 - 1.0);
 
-	return normalSample.a < 1.0 ? vec3(0.0, 1.0, 0.0) : normalSample.xyz;
+	return normalSample.a < (0.5 / 255.0) ? vec3(0.0, 1.0, 0.0) : normalSample.xyz;
 }
 
 #ifdef CAUSTICS_DISPERSION
@@ -73,5 +86,6 @@ CausticsReturnType CalculateCaustics(vec3 position, float waterDepth, float dith
 }
 
 #undef CausticsReturnType
+#endif
 
 #endif

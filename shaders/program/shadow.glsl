@@ -48,7 +48,7 @@ uniform vec3 shadowLightVector;
 
 	// Interpolated
 	out vec3 normal;
-	#ifdef CAUSTICS
+	#if CAUSTICS != CAUSTICS_OFF
 		out vec3 scenePosition;
 	#endif
 	out vec2 textureCoordinates;
@@ -90,7 +90,7 @@ uniform vec3 shadowLightVector;
 		blockId             = int(mc_Entity.x);
 
 		gl_Position.xyz = mat3(gl_ModelViewMatrix) * gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz;
-		#ifdef CAUSTICS
+		#if CAUSTICS != CAUSTICS_OFF
 			scenePosition = mat3(shadowModelViewInverse) * gl_Position.xyz + shadowModelViewInverse[3].xyz;
 		#elif defined VERTEX_ANIMATION
 			vec3 scenePosition = mat3(shadowModelViewInverse) * gl_Position.xyz + shadowModelViewInverse[3].xyz;
@@ -109,7 +109,7 @@ uniform vec3 shadowLightVector;
 
 	// Interpolated
 	in vec3 normal;
-	#ifdef CAUSTICS
+	#if CAUSTICS != CAUSTICS_OFF
 		in vec3 scenePosition;
 	#endif
 	in vec2 textureCoordinates;
@@ -134,29 +134,53 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Functions //----------------------------------------------//
 
-	void main() {
-		#ifndef CAUSTICS
-			shadowcolor0Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
-		#endif
-		shadowcolor0Write.z = lightmapCoordinates.y;
+	#if CAUSTICS != CAUSTICS_OFF
+	float CalculateProjectedCaustics(vec3 position, vec3 normal) {
+		// calculate (squared) original area
+		vec3 dpdx = dFdx(position), dpdy = dFdy(position);
+		float oldAreaSquared = dot(dpdx, dpdx) * dot(dpdy, dpdy);
 
+		// refract
+		vec3 refractedLightVector = refract(-shadowLightVector, normal, 0.75);
+		position += 2.0 * refractedLightVector;
+
+		// calculate (squared) new area
+		dpdx = dFdx(position), dpdy = dFdy(position);
+		float newAreaSquared = dot(dpdx, dpdx) * dot(dpdy, dpdy);
+
+		// calculate relative density from old and new area
+		return sqrt(oldAreaSquared / newAreaSquared);
+	}
+	#endif
+
+	void main() {
 		if (blockId == 8 || blockId == 9) {
 			shadowcolor1Write.rgb = vec3(1.0);
 			shadowcolor1Write.a   = 0.0;
 
-			#ifdef CAUSTICS
-				shadowcolor0Write.xy = EncodeNormal(CalculateWaterNormal(scenePosition)) * 0.5 + 0.5;
+			#if CAUSTICS != CAUSTICS_OFF
+			vec3 waterNormal = CalculateWaterNormal(scenePosition);
 			#endif
-			shadowcolor0Write.w = 1.0;
+			#if CAUSTICS == CAUSTICS_HIGH
+				shadowcolor0Write.xy = EncodeNormal(waterNormal) * 0.5 + 0.5;
+			#endif
+
+			float projectedCaustics = CalculateProjectedCaustics(scenePosition, waterNormal);
+			shadowcolor0Write.w = sqrt(0.5 * projectedCaustics) * (254.0 / 255.0) + (1.0 / 255.0);
 		} else {
 			shadowcolor1Write = texture(tex, textureCoordinates);
 			if (shadowcolor1Write.a < 0.102) { discard; }
 			shadowcolor1Write.rgb *= tint;
 
-			#ifdef CAUSTICS
+			#if CAUSTICS == CAUSTICS_HIGH
 				shadowcolor0Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
 			#endif
 			shadowcolor0Write.w = 0.0;
 		}
+
+		#if CAUSTICS != CAUSTICS_HIGH
+			shadowcolor0Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
+		#endif
+		shadowcolor0Write.z = lightmapCoordinates.y;
 	}
 #endif

@@ -69,7 +69,7 @@
 		vec4 shadow0 = step(cmpDepth, depth0);
 		vec4 shadow1 = step(cmpDepth, depth1);
 		vec4 valid   = shadow1 - shadow0 * shadow1;
-		vec4 isWater = textureGather(shadowcolor0, sampleUv, 3) * valid;
+		vec4 isWater = step(0.5/255.0, textureGather(shadowcolor0, sampleUv, 3)) * valid;
 
 		waterFraction  = SumOf(isWater);
 		waterDepth     = SumOf(isWater * depth0) / waterFraction;
@@ -225,7 +225,7 @@
 				float shadow1 = step(cmpDepth1, depth1);
 
 				float valid    = shadow1 - shadow0 * shadow1;
-				float isWater  = valid * textureLod(shadowcolor0, sampleUv0, 0.0).a;
+				float isWater  = valid * step(0.5/255.0, textureLod(shadowcolor0, sampleUv0, 0.0).a);
 				waterDepth    += isWater * depth0;
 				waterFraction += isWater;
 				validSamples  += valid;
@@ -252,7 +252,7 @@
 				vec4 shadow1 = step(cmpDepth, depth1);
 
 				vec4 valid     = shadow1 - shadow0 * shadow1;
-				vec4 isWater   = valid * textureGather(shadowcolor0, sampleUv, 3);
+				vec4 isWater   = valid * step(0.5/255.0, textureGather(shadowcolor0, sampleUv, 3));
 				waterDepth    += SumOf(isWater * depth0);
 				waterFraction += SumOf(isWater);
 				validSamples  += SumOf(valid);
@@ -471,7 +471,7 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 	shadowCoord     = shadowCoord * 0.5 + 0.5;
 
 	#if   SHADOW_FILTER == SHADOW_FILTER_NONE
-		float waterFraction = texture(shadowcolor0, shadowCoord.xy).a, waterDepth;
+		float waterFraction = step(0.5/255.0, texture(shadowcolor0, shadowCoord.xy).a), waterDepth;
 		vec3 shadows; {
 			shadowCoord.z += biasMul * (1.0 / (SHADOW_RESOLUTION * Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE))) + biasAdd;
 
@@ -511,7 +511,9 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 		vec3 attenuationCoefficient = -log(SrgbToLinear(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
 		vec3 waterShadow = exp(-attenuationCoefficient * fogDensity * waterDepth);
 
-		#ifdef CAUSTICS
+		#if   CAUSTICS == CAUSTICS_LOW
+			waterShadow *= GetProjectedCaustics(shadowCoord.xy, waterDepth);
+		#elif CAUSTICS == CAUSTICS_HIGH
 			waterShadow *= CalculateCaustics(position[2], waterDepth, dither, ditherSize);
 		#endif
 

@@ -179,7 +179,7 @@ uniform vec3 shadowLightVector;
 	#include "/include/shared/atmosphere/density.glsl"
 	#include "/include/shared/atmosphere/phase.glsl"
 
-	#ifdef VL_WATER_CAUSTICS
+	#if defined VL_WATER && CAUSTICS != CAUSTICS_OFF
 		#include "/include/fragment/waterCaustics.fsh"
 	#endif
 	#include "/include/fragment/fog.fsh"

@@ -267,14 +267,17 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 			lightingSun *= GetCloudShadows(worldPosition);
 		#endif
 
-		if (texture(shadowcolor0, shadowCoord.xy).a > 0.5) {
+		float shadowcolor0Alpha = texture(shadowcolor0, shadowCoord.xy).a;
+		if (shadowcolor0Alpha > 0.5/255.0) {
 			float waterDepth = SHADOW_DEPTH_RADIUS * Max0(shadowCoord.z - textureLod(shadowtex0, shadowCoord.xy, 0.0).r);
 
 			if (waterDepth > 0.0) {
 				lightingSun *= exp(-baseAttenuationCoefficient * fogDensity * waterDepth);
 
-				#if defined VL_WATER_CAUSTICS && defined CAUSTICS
+				#if CAUSTICS == CAUSTICS_HIGH && defined VL_WATER_CAUSTICS
 					lightingSun *= CalculateCaustics(worldPosition, waterDepth, 0.5, 1.0);
+				#elif CAUSTICS != CAUSTICS_OFF
+					lightingSun *= GetProjectedCaustics(shadowcolor0Alpha, waterDepth);
 				#endif
 			}
 		}

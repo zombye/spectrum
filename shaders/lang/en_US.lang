@@ -322,8 +322,8 @@ option.WATER_PARALLAX_STEPS=Water Parallax Steps
 screen.waterFog=Water Fog
 option.VL_WATER=Volumetric Lighting
 option.VL_WATER_STEPS=VL Steps
-option.VL_WATER_CAUSTICS=Volumetric Caustics
-option.VL_WATER_CAUSTICS.comment=Slow!
+option.VL_WATER_CAUSTICS=HQ Volumetric Caustics
+option.VL_WATER_CAUSTICS.comment=Allows high-quality caustics in VL. Slow!
 option.UNDERWATER_ADAPTATION=Underwater Adaptation
 option.WATER_REALISTIC_PHASE_FUNCTION=Realistic Phase Function
 option.WATER_REALISTIC_PHASE_FUNCTION.comment=Use a more realistic phase function for water. Not recommended if VL is disabled. Currently causes some artifacts!
@@ -341,6 +341,9 @@ suffix.WATER_REFERENCE_DEPTH=m
 
 screen.caustics=Underwater Caustics
 option.CAUSTICS=Underwater Caustics
+value.CAUSTICS.CAUSTICS_OFF=Off
+value.CAUSTICS.CAUSTICS_LOW=Low
+value.CAUSTICS.CAUSTICS_HIGH=High
 option.CAUSTICS_DITHERED=Use Dithering
 option.CAUSTICS_DITHERED.comment=Dithering should usually be used unless focus is set to 0.5 or less.
 

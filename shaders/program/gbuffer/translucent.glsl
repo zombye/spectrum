@@ -299,7 +299,7 @@ uniform vec3 shadowLightVector;
 	#include "/include/fragment/material.fsh"
 	#include "/include/fragment/brdf.fsh"
 	#include "/include/fragment/diffuseLighting.fsh"
-	#ifdef CAUSTICS
+	#if CAUSTICS != CAUSTICS_OFF
 		#include "/include/fragment/waterCaustics.fsh"
 	#endif
 	#include "/include/fragment/shadows.fsh"
