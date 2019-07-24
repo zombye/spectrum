@@ -55,30 +55,14 @@ vec2 SinCos(float x) { return vec2(sin(x), cos(x)); }
 
 //--// Uncategorized stuff
 
-float AddUvMargin(float uv, int resolution) {
-	return uv * (1.0 - 1.0 / resolution) + (0.5 / resolution);
-}
-float RemoveUvMargin(float uv, int resolution) {
-	return (uv - 0.5 / resolution) / (1.0 - 1.0 / resolution);
-}
-vec2 AddUvMargin(vec2 uv, ivec2 resolution) {
-	return uv * (1.0 - 1.0 / resolution) + (0.5 / resolution);
-}
-vec2 RemoveUvMargin(vec2 uv, ivec2 resolution) {
-	return (uv - (0.5 / resolution)) / (1.0 - (1.0 / resolution));
-}
-vec3 AddUvMargin(vec3 uv, ivec3 resolution) {
-	return uv * (1.0 - 1.0 / resolution) + (0.5 / resolution);
-}
-vec3 RemoveUvMargin(vec3 uv, ivec3 resolution) {
-	return (uv - 0.5 / resolution) / (1.0 - 1.0 / resolution);
-}
-vec4 AddUvMargin(vec4 uv, ivec4 resolution) {
-	return uv * (1.0 - 1.0 / resolution) + (0.5 / resolution);
-}
-vec4 RemoveUvMargin(vec4 uv, ivec4 resolution) {
-	return (uv - 0.5 / resolution) / (1.0 - 1.0 / resolution);
-}
+float AddUvMargin(float uv, int   resolution) { return uv * (1.0 - 1.0 / resolution) + (0.5 / resolution); }
+vec2  AddUvMargin(vec2 uv,  ivec2 resolution) { return uv * (1.0 - 1.0 / resolution) + (0.5 / resolution); }
+vec3  AddUvMargin(vec3 uv,  ivec3 resolution) { return uv * (1.0 - 1.0 / resolution) + (0.5 / resolution); }
+vec4  AddUvMargin(vec4 uv,  ivec4 resolution) { return uv * (1.0 - 1.0 / resolution) + (0.5 / resolution); }
+float RemoveUvMargin(float uv, int   resolution) { return (uv - 0.5 / resolution) / (1.0 - 1.0 / resolution); }
+vec2  RemoveUvMargin(vec2 uv,  ivec2 resolution) { return (uv - 0.5 / resolution) / (1.0 - 1.0 / resolution); }
+vec3  RemoveUvMargin(vec3 uv,  ivec3 resolution) { return (uv - 0.5 / resolution) / (1.0 - 1.0 / resolution); }
+vec4  RemoveUvMargin(vec4 uv,  ivec4 resolution) { return (uv - 0.5 / resolution) / (1.0 - 1.0 / resolution); }
 
 // A sort of smooth minimum.
 // value is n when x == 0, x when x >= m.

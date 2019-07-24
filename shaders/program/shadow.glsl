@@ -69,16 +69,16 @@ uniform vec3 shadowLightVector;
 	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
-		normal = gl_NormalMatrix * gl_Normal;
-		#ifdef SHADOW_BACKFACE_CULLING
-			if (normal.z < 0.0) {
+		#ifndef BEACON_BEAM_SHADOWS
+			if (blockEntityId == 138) {
 				gl_Position = vec4(-1.0);
 				return;
 			}
 		#endif
 
-		#ifndef BEACON_BEAM_SHADOWS
-			if (blockEntityId == 138) {
+		normal = gl_NormalMatrix * gl_Normal;
+		#ifdef SHADOW_BACKFACE_CULLING
+			if (normal.z < 0.0) {
 				gl_Position = vec4(-1.0);
 				return;
 			}

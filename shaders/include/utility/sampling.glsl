@@ -10,7 +10,7 @@ vec3 GenerateConeVector(vec3 vector, float angle, vec2 xy) {
 	float VoD = dot(vector, dir);
 	float noiseAngle = acos(VoD) * (angle / pi);
 
-	return sin(noiseAngle) * (dir - vector * VoD) * inversesqrt(1.0 - VoD * VoD) + cos(noiseAngle) * vector;
+	return sin(noiseAngle) * inversesqrt(1.0 - VoD * VoD) * (dir - vector * VoD) + cos(noiseAngle) * vector;
 }
 
 vec3 GenerateCosineVector(vec3 vector, vec2 xy) {

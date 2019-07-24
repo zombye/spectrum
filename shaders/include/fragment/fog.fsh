@@ -293,7 +293,7 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 
 	vec3 stepTransmittedFraction = Clamp01((stepTransmittance - 1.0) / -stepOpticalDepth);
 
-	vec3 scattering  = scatteringSun * sunlightPhase * illuminanceShadowlight * skylight;
+	vec3 scattering  = scatteringSun * sunlightPhase * illuminanceShadowlight;
 	     scattering += scatteringSky * isotropicPhase * illuminanceSky * skylight;
 	     scattering *= waterScatteringAlbedo * stepOpticalDepth * stepTransmittedFraction;
 

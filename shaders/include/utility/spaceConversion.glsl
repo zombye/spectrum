@@ -2,14 +2,13 @@
 #define INCLUDE_UTILITY_SPACECONVERSION
 
 vec3 ViewSpaceToScreenSpace(vec3 viewPosition, mat4 projection) {
-	vec3 screenPosition  = vec3(projection[0].x, projection[1].y, projection[2].z) * viewPosition + projection[3].xyz;
-	     screenPosition /= -viewPosition.z;
+	vec3 screenPosition = vec3(projection[0].x, projection[1].y, projection[2].z) * viewPosition + projection[3].xyz;
 
 	#ifdef TAA
-		screenPosition.xy += taaOffset;
+		screenPosition.xy -= taaOffset * viewPosition.z;
 	#endif
 
-	return screenPosition * 0.5 + 0.5;
+	return screenPosition * (0.5 / -viewPosition.z) + 0.5;
 }
 vec3 ScreenSpaceToViewSpace(vec3 screenPosition, mat4 projectionInverse) {
 	screenPosition = screenPosition * 2.0 - 1.0;
@@ -37,7 +36,7 @@ vec3 GetViewDirection(vec2 uv, mat4 projectionInverse) {
 }
 
 float ViewSpaceToScreenSpace(float depth, mat4 projection) {
-	return ((projection[2].z * depth + projection[3].z) / -depth) * 0.5 + 0.5;
+	return (projection[2].z * depth + projection[3].z) * 0.5 / -depth + 0.5;
 }
 float ScreenSpaceToViewSpace(float depth, mat4 projectionInverse) {
 	depth = depth * 2.0 - 1.0;

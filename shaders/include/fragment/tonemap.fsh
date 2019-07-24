@@ -13,8 +13,7 @@ vec3 Tonemap(vec3 color) {
 	const float toeY     = linearSlope * toeLength * (1.0 - toeStrength);
 	const float toePower = 1.0 / (1.0 - toeStrength);
 
-	const float tim = 1.0 / toeX;
-	const float tom = toeY;
+	const float tm = toeY * pow(1.0 / toeX, toePower);
 
 	const float lm = linearSlope;
 	const float la = toeStrength == 1.0 ? -linearSlope * toeX : toeY - toeY * toePower;
@@ -29,7 +28,7 @@ vec3 Tonemap(vec3 color) {
 
 	for (int i = 0; i < 3; ++i) {
 		if (color[i] < toeX) {
-			color[i] = tom * pow(tim * color[i], toePower);
+			color[i] = tm * pow(color[i], toePower);
 		} else if (color[i] < shoulderX) {
 			color[i] = lm * color[i] + la;
 		} else {
