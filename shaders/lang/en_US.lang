@@ -344,14 +344,12 @@ option.CAUSTICS=Underwater Caustics
 value.CAUSTICS.CAUSTICS_OFF=Off
 value.CAUSTICS.CAUSTICS_LOW=Low
 value.CAUSTICS.CAUSTICS_HIGH=High
-option.CAUSTICS_DITHERED=Use Dithering
-option.CAUSTICS_DITHERED.comment=Dithering should usually be used unless focus is set to 0.5 or less.
-
-option.CAUSTICS_SAMPLES=Samples
-option.CAUSITCS_SAMPLES.comment=Determines the overall quality of caustics. More samples give sharper caustics, or if combined with a lower value for focus, less noise when dithering is enabled.
-option.CAUSTICS_FOCUS=Focus
-option.CAUSTICS_FOCUS.comment=Determine the overall amount of noise, if dithering is enabled. If dithering is not used, this should usually be set to 0.5 or less to prevent certain artifacts.
 option.CAUSTICS_POWER=Contrast
+
+option.CAUSTICS_QUALITY=Quality
+option.CAUSITCS_SAMPLES.comment=Higher values allow for finer detail and (generally) less noise.
+option.CAUSTICS_DITHERED=Use Dithering
+option.CAUSTICS_DITHERED.comment=This should usually be left on.
 
 option.CAUSTICS_DISPERSION=Chromatic Dispersion
 option.CAUSTICS_DISPERSION.comment=Adds (greatly exaggerated) chromatic dispersion. Without exaggeration it'd be nearly unnoticable.
