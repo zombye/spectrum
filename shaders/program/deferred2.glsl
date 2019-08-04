@@ -189,6 +189,7 @@ uniform vec3 shadowLightVector;
 
 	#include "/include/utility/complex.glsl"
 	#include "/include/utility/dithering.glsl"
+	#include "/include/utility/geometry.glsl"
 	#include "/include/utility/math.glsl"
 	#include "/include/utility/noise.glsl"
 	#include "/include/utility/packing.glsl"
