@@ -79,6 +79,36 @@ float Get3DCloudsDensity(vec3 position) {
 	return Clamp01(2.0 * cloudsMask - noise3D);
 }
 
+float Calculate3DCloudsOpticalDepth(vec3 rayPosition, vec3 rayDirection, float startOffset, const int steps, const float stepGrowth) {
+	vec2 outerDistances = RaySphereIntersection(rayPosition + vec3(0.0, atmosphere_planetRadius, 0.0), rayDirection, atmosphere_planetRadius + CLOUDS3D_ALTITUDE_MAX);
+	if (outerDistances.y <= 0.0) { return 0.0; }
+	vec2 innerDistances = RaySphereIntersection(rayPosition + vec3(0.0, atmosphere_planetRadius, 0.0), rayDirection, atmosphere_planetRadius + CLOUDS3D_ALTITUDE_MIN);
+
+	float startDistance = rayPosition.y < CLOUDS3D_ALTITUDE_MIN ? innerDistances.y : (rayPosition.y > CLOUDS3D_ALTITUDE_MAX ? outerDistances.x : 0.0);
+	float endDistance   = rayPosition.y < CLOUDS3D_ALTITUDE_MIN ? outerDistances.y : (innerDistances.y >= 0.0 ? innerDistances.x : outerDistances.y);
+
+	float baseStepSize = (endDistance - startDistance) / (pow(stepGrowth, steps) - 1.0);
+
+	rayPosition += rayDirection * startDistance;
+
+	float stepSize = (pow(stepGrowth, startOffset + 0.5) - 1.0) * baseStepSize;
+	float stepDist = (pow(stepGrowth, startOffset      ) - 1.0) * baseStepSize;
+	float densitySum = stepSize * Get3DCloudsDensity(rayPosition + rayDirection * stepDist);
+	stepSize = (sqrt(stepGrowth) - inversesqrt(stepGrowth)) * pow(stepGrowth, startOffset) * baseStepSize; //stepSize = baseStepSize * ((pow(stepGrowth, startOffset + 0.5) - 1.0) - (pow(stepGrowth, startOffset - 0.5) - 1.0));
+	for (int i = 1; i < steps - 1; ++i) {
+		stepSize *= stepGrowth; //stepSize = baseStepSize * ((pow(stepGrowth, i + startOffset + 0.5) - 1.0) - (pow(stepGrowth, i + startOffset - 0.5) - 1.0));
+		float stepDist = baseStepSize * (pow(stepGrowth, i + startOffset) - 1.0);
+		densitySum += stepSize * Get3DCloudsDensity(rayPosition + rayDirection * stepDist);
+	}
+
+	{ // handle last step separately
+		stepSize = baseStepSize * ((pow(stepGrowth, steps) - 1.0) - (pow(stepGrowth, (steps - 1) + startOffset - 0.5) - 1.0));
+		float stepDist = baseStepSize * (pow(stepGrowth, (steps - 1) + startOffset) - 1.0);
+		densitySum += stepSize * Get3DCloudsDensity(rayPosition + rayDirection * stepDist);
+	}
+
+	return CLOUDS3D_ATTENUATION_COEFFICIENT * densitySum;
+}
 float Calculate3DCloudsOpticalDepth(vec3 rayPosition, vec3 rayDirection, float startOffset, const int steps) {
 	vec2 outerDistances = RaySphereIntersection(rayPosition + vec3(0.0, atmosphere_planetRadius, 0.0), rayDirection, atmosphere_planetRadius + CLOUDS3D_ALTITUDE_MAX);
 	if (outerDistances.y <= 0.0) { return 0.0; }
@@ -114,7 +144,7 @@ void Calculate3DCloudsScattering(
 	float stepOpticalDepth, float stepTransmittance,
 	inout float scatteringSun, inout float scatteringSky
 ) {
-	float sunOpticalDepth = Calculate3DCloudsOpticalDepth(position, shadowLightVector, dither, CLOUDS3D_STEPS_SUN);
+	float sunOpticalDepth = Calculate3DCloudsOpticalDepth(position, shadowLightVector, dither, CLOUDS3D_STEPS_SUN, 1.5);
 	float sunTransmittance = exp(-sunOpticalDepth);
 	float sunPathOpticalDepth = viewOpticalDepth + sunOpticalDepth;
 	float sunPathTransmittance = viewTransmittance * sunTransmittance;
