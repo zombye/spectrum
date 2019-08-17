@@ -25,9 +25,16 @@ uniform vec2 viewPixelSize;
 #elif defined STAGE_FRAGMENT
 	//--// Fragment Outputs //------------------------------------------------//
 
+	#if defined MC_GL_RENDERER_RADEON // workaround for AMD driver bug(?) causing colortex0 to not get cleared
+	/* DRAWBUFFERS:40 */
+
+	layout (location = 0) out vec4 colortex4Write;
+	layout (location = 1) out vec4 colortex0Write;
+	#else
 	/* DRAWBUFFERS:4 */
 
 	layout (location = 0) out vec4 colortex4Write;
+	#endif
 
 	//--// Fragment Includes //-----------------------------------------------//
 
@@ -68,6 +75,10 @@ uniform vec2 viewPixelSize;
 	}
 
 	void main() {
+		#if defined MC_GL_RENDERER_RADEON // workaround for AMD driver bug(?) causing colortex0 to not get cleared
+		colortex0Write = vec4(0.0, 0.0, 0.0, 1.0);
+		#endif
+
 		vec2 screenCoord = gl_FragCoord.st * viewPixelSize;
 
 		vec3 color = texture(colortex5, screenCoord).rgb;
