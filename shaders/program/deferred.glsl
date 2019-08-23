@@ -261,8 +261,10 @@ uniform vec3 shadowLightVector;
 
 			float NoV = dot(normal, viewVector);
 
-			vec3 normal2 = Rotate(normal, viewVector, vec3(0,0,1));
-			float phiN = atan(normal2.x, normal2.y);
+			mat3 rot = GetRotationMatrix(vec3(0, 0, 1), viewVector);
+
+			vec3 normal2 = normal * rot;
+			float phiN = atan(normal2.y, normal2.x);
 			float sinThetaN = sqrt(Clamp01(1.0 - normal2.z * normal2.z));
 			float cosThetaN = normal2.z;
 
@@ -270,8 +272,8 @@ uniform vec3 shadowLightVector;
 			for (int i = 0; i < HBAO_DIRECTIONS; ++i) {
 				float idx = i + dither;
 				float phi = idx * pi / HBAO_DIRECTIONS;
-				vec2 xy = SinCos(phi);
-				vec3 horizonDirection = Rotate(vec3(xy, 0.0), vec3(0,0,1), viewVector);
+				vec2 xy = vec2(cos(phi), sin(phi));
+				vec3 horizonDirection = rot * vec3(xy, 0.0);
 
 				//--// Get cosine horizon angles
 
@@ -287,26 +289,26 @@ uniform vec3 shadowLightVector;
 				float theta2 = acos(clamp(cosTheta2, -1.0, 1.0));
 				float sinThetaSq1 = 1.0 - cosTheta1 * cosTheta1;
 				float sinThetaSq2 = 1.0 - cosTheta2 * cosTheta2;
-				float cu1MinusCu2 = sinThetaSq1 * sin(theta1) - sinThetaSq2 * sin(theta2);
+				float sinTheta1 = sin(theta1);
+				float sinTheta2 = sin(theta2);
+				float cu1MinusCu2 = sinThetaSq1 * sinTheta1 - sinThetaSq2 * sinTheta2;
 
 				float temp = cos(phiN - phi) * sinThetaN;
 
 				// Average non-occluded direction
-				float xym = cos(3.0 * theta1) + cos(3.0 * theta2) - 9.0 * (cosTheta1 + cosTheta2);
-				      xym = temp * (0.25 * xym + 4.0) + cosThetaN * cu1MinusCu2;
+				float xym = 4.0 - cosTheta1 * (2.0 + sinThetaSq1) - cosTheta2 * (2.0 + sinThetaSq2);
+				      xym = temp * xym + cosThetaN * cu1MinusCu2;
 
 				result.xy += xy * xym;
 				result.z  += temp * cu1MinusCu2 + cosThetaN * (2.0 - Pow3(cosTheta1) - Pow3(cosTheta2));
 
 				// AO
-				result.w += temp * (theta1 + 0.5 * (sin(2.0 * theta2) - sin(2.0 * theta1)) - theta2);
+				result.w += temp * ((theta1 - cosTheta1 * sinTheta1) - (theta2 - cosTheta2 * sinTheta2));
 				result.w += cosThetaN * (sinThetaSq1 + sinThetaSq2);
 			}
 
-			result.xyz = Rotate(result.xyz, vec3(0, 0, 1), viewVector);
-
 			float coneLength = length(result.xyz);
-			result.xyz = coneLength <= 0.0 ? normal : result.xyz / coneLength;
+			result.xyz = coneLength <= 0.0 ? normal : rot * result.xyz / coneLength;
 			result.w /= 2.0 * HBAO_DIRECTIONS;
 
 			return result;
