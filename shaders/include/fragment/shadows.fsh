@@ -95,14 +95,16 @@
 
 		const int samples = SHADOW_SEARCH_SAMPLES;
 
-		float maxPenumbraRadius = 2.0 * SHADOW_DEPTH_RADIUS * shadowProjection[0].x * tan(lightAngularRadius);
-		float searchRadius = SHADOW_FILTER_MAX_RADIUS * shadowProjection[0].x;
+		float maxPenumbraRadius = abs(2.0 * SHADOW_DEPTH_RADIUS * shadowProjection[0].x * tan(lightAngularRadius));
+		float searchRadius = min(maxPenumbraRadius * referenceDepth, SHADOW_FILTER_MAX_RADIUS * shadowProjection[0].x);
 		float searchLod = log2(SHADOW_RESOLUTION * 2.0 * searchRadius * inversesqrt(samples));
 
-		float searchCmpMul = 1.0 / maxPenumbraRadius;
+		const float overestimationPrevention = 0.125; // 0 to 1
+		float searchCmpMul = overestimationPrevention / maxPenumbraRadius;
+		float searchCmpClamp = searchRadius * inversesqrt(samples);
 
+		vec2 blockerDepths = vec2(referenceDepth);
 		vec2 dir = SinCos(dither * goldenAngle);
-		vec2 averageBlockerDistances = vec2(0.0), weightSums = vec2(0.0);
 		for (int i = 0; i < samples; ++i, dir *= rotateGoldenAngle) {
 			float sampleDist = inversesqrt(samples) * searchRadius * sqrt(i + dither2);
 
@@ -110,19 +112,15 @@
 			     sampleUv = DistortShadowSpace(sampleUv);
 			     sampleUv = sampleUv * 0.5 + 0.5;
 
-			vec2 blockerDistances = referenceDepth - vec2(textureLod(shadowtex0, sampleUv, searchLod).x, textureLod(shadowtex1, sampleUv, searchLod).x);
-			vec2 weights = step(0.0, blockerDistances);
-			//vec2 weights = vec2(lessThanEqual(vec2(searchCmpMul * sampleDist), blockerDistances));
-			//vec2 weights = LinearStep(0.25 * searchCmpMul * sampleDist, searchCmpMul * sampleDist, blockerDistances);
+			vec2 depths = vec2(textureLod(shadowtex0, sampleUv, searchLod).x, textureLod(shadowtex1, sampleUv, searchLod).x);
 
-			averageBlockerDistances += blockerDistances * weights;
-			weightSums              += weights;
+			bvec2 validBlocker = lessThanEqual(depths, vec2(referenceDepth - searchCmpMul * max(sampleDist, searchCmpClamp)));
+			blockerDepths = mix(blockerDepths, min(blockerDepths, depths), validBlocker);
 		}
 
-		averageBlockerDistances.x /= weightSums.x > 0.0 ? weightSums.x : 1.0;
-		averageBlockerDistances.y /= weightSums.y > 0.0 ? weightSums.y : 1.0;
+		vec2 blockerDistances = referenceDepth - blockerDepths;
 
-		vec2 penumbraRadii = maxPenumbraRadius * averageBlockerDistances;
+		vec2 penumbraRadii = maxPenumbraRadius * blockerDistances;
 		     penumbraRadii = min(penumbraRadii, searchRadius);
 
 		return penumbraRadii;
@@ -135,13 +133,15 @@
 		const int samples = SHADOW_SEARCH_SAMPLES;
 
 		float maxPenumbraRadius = abs(2.0 * SHADOW_DEPTH_RADIUS * shadowProjection[0].x * tan(lightAngularRadius));
-		float searchRadius = SHADOW_FILTER_MAX_RADIUS * shadowProjection[0].x;
+		float searchRadius = min(maxPenumbraRadius * referenceDepth, SHADOW_FILTER_MAX_RADIUS * shadowProjection[0].x);
 		float searchLod = log2(SHADOW_RESOLUTION * 2.0 * searchRadius * inversesqrt(samples));
 
-		float searchCmpMul = 1.0 / maxPenumbraRadius;
+		const float overestimationPrevention = 0.125; // 0 to 1
+		float searchCmpMul = overestimationPrevention / maxPenumbraRadius;
+		float searchCmpClamp = searchRadius * inversesqrt(samples);
 
+		float blockerDepth = referenceDepth;
 		vec2 dir = SinCos(dither * goldenAngle);
-		float averageBlockerDistance = 0.0, weightSum = 0.0;
 		for (int i = 0; i < samples; ++i, dir *= rotateGoldenAngle) {
 			float sampleDist = searchRadius * inversesqrt(samples) * sqrt(i + dither2);
 
@@ -149,20 +149,15 @@
 			     sampleUv = DistortShadowSpace(sampleUv);
 			     sampleUv = sampleUv * 0.5 + 0.5;
 
-			float blockerDistance = referenceDepth - textureLod(shadowtex1, sampleUv, searchLod).x;
-			float weight = step(0.0, blockerDistance);
-			//float weight = float(searchCmpMul * sampleDist <= blockerDistance);
-			//float weight = LinearStep(0.25 * searchCmpMul * sampleDist, searchCmpMul * sampleDist, blockerDistance);
+			float depth = textureLod(shadowtex1, sampleUv, searchLod).x;
 
-			averageBlockerDistance += weight * blockerDistance;
-			weightSum              += weight;
+			bool validBlocker = depth <= referenceDepth - searchCmpMul * max(sampleDist, searchCmpClamp);
+			blockerDepth = validBlocker ? min(blockerDepth, depth) : blockerDepth;
 		}
 
-		if (weightSum <= 0.0) { return 0.0; }
+		float blockerDistance = referenceDepth - blockerDepth;
 
-		averageBlockerDistance /= weightSum;
-
-		float penumbraRadius = maxPenumbraRadius * averageBlockerDistance;
+		float penumbraRadius = maxPenumbraRadius * blockerDistance;
 		      penumbraRadius = min(penumbraRadius, searchRadius);
 
 		return penumbraRadius;
