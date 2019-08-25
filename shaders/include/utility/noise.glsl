@@ -27,6 +27,11 @@ float GetNoise(sampler2D noiseSampler, vec3 position) {
 
 	return mix(noise.x, noise.y, position.z - flr);
 }
+#if !defined PROGRAM_WATER && !defined PROGRAM_HAND_WATER
+vec2 GetNoise3D(sampler3D noiseSampler, vec3 position) {
+	return texture(noiseSampler, fract(position)).rg;
+}
+#endif
 
 float GetNoiseSmooth(sampler2D noiseSampler, vec2 position) {
 	vec2 flr  = floor(position);
@@ -162,40 +167,34 @@ float ValueNoise1(float c, uint seed) {
 }
 
 float CellNoise1(vec2 position) {
-	// Might be worth looking into making a hexagonal grid.
-	// Would in theory be more efficient (7 cells to calculate vs 9).
+	vec2 i = floor(position);
+	vec2 f = fract(position);
 
-	ivec2 i = ivec2(floor(position));
-	vec2  f = fract(position);
-
-	float dist = sqrt(2.5); // max possible
+	float distSq = 2.5; // max possible
 	for (int x = -1; x <= 1; ++x) {
 		for (int y = -1; y <= 1; ++y) {
-			vec2 cell = Hash2(i + vec2(x, y)) + vec2(x, y);
-
-			dist = min(dist, distance(cell, f));
+			vec2 cell = Hash2(i + vec2(x, y)) + vec2(x, y) - f;
+			distSq = min(distSq, dot(cell, cell));
 		}
 	}
 
-	return dist;
+	return sqrt(distSq);
 }
-
 float CellNoise1(vec3 position) {
-	ivec3 i = ivec3(floor(position));
-	vec3  f = fract(position);
+	vec3 i = floor(position);
+	vec3 f = fract(position);
 
-	float dist = sqrt(2.75); // max possible
+	float distSq = 2.75; // max possible
 	for (int x = -1; x <= 1; ++x) {
 		for (int y = -1; y <= 1; ++y) {
 			for (int z = -1; z <= 1; ++z) {
-				vec3 cell = Hash3(i + vec3(x, y, z)) + vec3(x, y, z);
-
-				dist = min(dist, distance(cell, f));
+				vec3 cell = Hash3(i + vec3(x, y, z)) + vec3(x, y, z) - f;
+				distSq = min(distSq, dot(cell, cell));
 			}
 		}
 	}
 
-	return dist;
+	return sqrt(distSq);
 }
 
 #endif
