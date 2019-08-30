@@ -1,18 +1,6 @@
 #if !defined INCLUDE_VERTEX_ANIMATION
 #define INCLUDE_VERTEX_ANIMATION
 
-vec4 TextureBilinear(sampler2D sampler, vec2 coord, ivec2 resolution) {
-	coord = coord * resolution - 0.5;
-	ivec2 i = ivec2(floor(coord));
-	vec2 f = coord - i;
-
-	vec4 s0 = texelFetch(sampler, (i + ivec2(0,0)) % resolution, 0);
-	vec4 s1 = texelFetch(sampler, (i + ivec2(1,0)) % resolution, 0);
-	vec4 s2 = texelFetch(sampler, (i + ivec2(0,1)) % resolution, 0);
-	vec4 s3 = texelFetch(sampler, (i + ivec2(1,1)) % resolution, 0);
-
-	return mix(mix(s0, s1, f.x), mix(s2, s3, f.x), f.y);
-}
 vec4 TextureBicubic(sampler2D sampler, vec2 coord) {
 	ivec2 res = textureSize(sampler, 0);
 
@@ -22,20 +10,21 @@ vec4 TextureBicubic(sampler2D sampler, vec2 coord) {
 	coord -= f;
 
 	vec2 ff = f * f;
-	vec4 w0, w1;
-	w0.xz = 1.0 - f; w0.xz *= w0.xz * w0.xz;
-	w1.yw = ff * f;
-	w1.xz = 3.0 * w1.yw + 4.0 - 6.0 * ff;
-	w0.yw = 6.0 - w1.xz - w1.yw - w0.xz;
 
-	vec4 s = w0 + w1;
-	vec4 c = coord.xxyy + vec4(-0.5, 1.5, -0.5, 1.5) + w1 / s;
-	c /= res.xxyy;
+	vec2 w0 = ff * f;
+	vec2 w3 = 1.0 - f; w3 *= w3 * w3;
+	vec2 w1 = w3 + 6.0 * f - 2.0 * w0;
+	vec2 w2 = 3.0 * w0 + 4.0 - 6.0 * ff;
 
-	vec2 m = s.xz / (s.xz + s.yw);
+	vec4 s = vec4(w3, w1) + vec4(w2, w0);
+	vec4 c = coord.xyxy + vec4(w2, w0) / s;
+	c.xy -= 0.5; c.zw += 1.5;
+	c /= res.xyxy;
+
+	vec2 m = s.zw / (s.xy + s.zw);
 	return mix(
-		mix(TextureBilinear(sampler, c.yw, res), TextureBilinear(sampler, c.xw, res), m.x),
-		mix(TextureBilinear(sampler, c.yz, res), TextureBilinear(sampler, c.xz, res), m.x),
+		mix(texture(sampler, c.xy), texture(sampler, c.zy), m.x),
+		mix(texture(sampler, c.xw), texture(sampler, c.zw), m.x),
 		m.y
 	);
 }
@@ -62,8 +51,8 @@ vec3 AnimatePlant(
 	// 10.0 km/h ~= 2.78
 	// 15.0 km/h ~= 4.16
 
-	vec2 noiseUv = worldPosition.xz + mod(time * 2.0, 64.0); // 7.2 km/h
-	vec2 noise = TextureBicubic(noisetex, noiseUv / 64.0).xy * 1.5 - 1.0;
+	vec2 noiseUv = worldPosition.xz + mod(time * 2.0, 256.0); // 7.2 km/h
+	vec2 noise = TextureBicubic(noisetex, noiseUv / 256.0).xy * 1.5 - 1.0;
 	vec2 rotation = vec2(atan(noise.y, noise.x), length(noise.xy) * MaxOf(abs(normalize(noise.xy))) * 0.2);
 	if (isTopHalf && isTopEdge) {
 		rotation *= 1.5;

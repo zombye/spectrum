@@ -8,10 +8,10 @@ float GetSmoothNoise(vec2 coord) {
 	coord -= floored;
 	coord *= coord * (3.0 - 2.0 * coord);
 	coord += floored - 0.5;
-	return texture(noisetex, 0.015625 * coord).r;
+	return texture(noisetex, coord / 256.0).r;
 	//*/
 
-	vec4 samples = textureGather(noisetex, 0.015625 * floored); // textureGather is slightly offset (at least on nvidia) and this offset can change with driver versions, which is why i floor the coords
+	vec4 samples = textureGather(noisetex, floored / 256.0); // textureGather is slightly offset (at least on nvidia) and this offset can change with driver versions, which is why i floor the coords
 	vec4 weights    = (coord - floored).xxyy;
 	     weights.yw = 1.0 - weights.yw;
 	     weights   *= weights * (-2.0 * weights + 3.0);

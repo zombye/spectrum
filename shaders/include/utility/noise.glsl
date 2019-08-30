@@ -4,14 +4,14 @@
 //--// Texture noise //-------------------------------------------------------//
 
 float GetNoise(sampler2D noiseSampler, vec2 position) {
-	return texture(noiseSampler, 0.015625 * position).x;
+	return texture(noiseSampler, position / 256.0).x;
 }
 vec2 GetNoise2HQ(sampler2D noiseSampler, vec2 position) {
 	vec2  f = fract(position);
 	ivec2 i = ivec2(position - f);
 
-	vec4 samples0 = textureGather(noiseSampler, 0.015625 * i, 0);
-	vec4 samples1 = textureGather(noiseSampler, 0.015625 * i, 1);
+	vec4 samples0 = textureGather(noiseSampler, i / 256.0, 0);
+	vec4 samples1 = textureGather(noiseSampler, i / 256.0, 1);
 
 	vec4 w = f.xxyy;
 	w.yw = 1.0 - w.yw;
@@ -22,7 +22,7 @@ vec2 GetNoise2HQ(sampler2D noiseSampler, vec2 position) {
 float GetNoise(sampler2D noiseSampler, vec3 position) {
 	float flr = floor(position.z);
 
-	vec2 coord = (position.xy * 0.015625) + (flr * 0.265625); // 1/64 | 17/64
+	vec2 coord = (position.xy / 256.0) + (flr * (97.0/256.0));
 	vec2 noise = texture(noiseSampler, coord).xy;
 
 	return mix(noise.x, noise.y, position.z - flr);
@@ -38,7 +38,7 @@ float GetNoiseSmooth(sampler2D noiseSampler, vec2 position) {
 	vec2 frc  = position - flr;
 	     frc *= frc * (3.0 - 2.0 * frc);
 
-	vec2 coord = (flr.xy + frc.xy) * 0.015625; // 1/64
+	vec2 coord = (flr.xy + frc.xy) / 256.0;
 	return texture(noiseSampler, coord).x;
 }
 float GetNoiseSmooth(sampler2D noiseSampler, vec3 position) {
@@ -46,7 +46,7 @@ float GetNoiseSmooth(sampler2D noiseSampler, vec3 position) {
 	vec3 frc  = position - flr;
 	     frc *= frc * (3.0 - 2.0 * frc);
 
-	vec2 coord = ((flr.xy + frc.xy) * 0.015625) + (flr.z * 0.265625); // 1/64 | 17/64
+	vec2 coord = ((flr.xy + frc.xy) / 256.0) + (flr.z * (97.0/256.0));
 	vec2 noise = texture(noiseSampler, coord).xy;
 
 	return mix(noise.x, noise.y, frc.z);

@@ -12,13 +12,13 @@
 #define CLOUDS3D_NOISE_OCTAVES_3D 3 // 3D noise octaves, adds detail.
 
 // shape
-#define CLOUDS3D_STATIC_COVERAGE 0.35 // [0 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1 0.11 0.12 0.13 0.14 0.15 0.16 0.17 0.18 0.19 0.2 0.21 0.22 0.23 0.24 0.25 0.26 0.27 0.28 0.29 0.3 0.31 0.32 0.33 0.34 0.35 0.36 0.37 0.38 0.39 0.4 0.41 0.42 0.43 0.44 0.45 0.46 0.47 0.48 0.49 0.5 0.51 0.52 0.53 0.54 0.55 0.56 0.57 0.58 0.59 0.6 0.61 0.62 0.63 0.64 0.65 0.66 0.67 0.68 0.69 0.7 0.71 0.72 0.73 0.74 0.75 0.76 0.77 0.78 0.79 0.8 0.81 0.82 0.83 0.84 0.85 0.86 0.87 0.88 0.89 0.9 0.91 0.92 0.93 0.94 0.95 0.96 0.97 0.98 0.99 1]
+#define CLOUDS3D_STATIC_COVERAGE 0.4 // [0 0.01 0.02 0.03 0.04 0.05 0.06 0.07 0.08 0.09 0.1 0.11 0.12 0.13 0.14 0.15 0.16 0.17 0.18 0.19 0.2 0.21 0.22 0.23 0.24 0.25 0.26 0.27 0.28 0.29 0.3 0.31 0.32 0.33 0.34 0.35 0.36 0.37 0.38 0.39 0.4 0.41 0.42 0.43 0.44 0.45 0.46 0.47 0.48 0.49 0.5 0.51 0.52 0.53 0.54 0.55 0.56 0.57 0.58 0.59 0.6 0.61 0.62 0.63 0.64 0.65 0.66 0.67 0.68 0.69 0.7 0.71 0.72 0.73 0.74 0.75 0.76 0.77 0.78 0.79 0.8 0.81 0.82 0.83 0.84 0.85 0.86 0.87 0.88 0.89 0.9 0.91 0.92 0.93 0.94 0.95 0.96 0.97 0.98 0.99 1]
 
 #define CLOUDS3D_USE_WORLD_TIME
-#define CLOUDS3D_SPEED 4.8 // [0.2 0.4 0.6 0.8 1 1.2 1.4 1.6 1.8 2 2.2 2.4 2.6 2.8 3 3.2 3.4 3.6 3.8 4 4.2 4.4 4.6 4.8 5 5.2 5.4 5.6 5.8 6 6.2 6.4 6.6 6.8 7 7.2 7.4 7.6 7.8 8 8.2 8.4 8.6 8.8 9 9.2 9.4 9.6 9.8 10]
-#define CLOUDS3D_ALTITUDE 500 // [300 400 500 600 700 800 900 1000]
-#define CLOUDS3D_THICKNESS_MULT 1 // [0.5 0.6 0.7 0.8 0.9 1 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2]
-#define CLOUDS3D_SCALE 2 // [1 1.4 2 2.8 4]
+#define CLOUDS3D_SPEED 3 // [0.2 0.4 0.6 0.8 1 1.2 1.4 1.6 1.8 2 2.2 2.4 2.6 2.8 3 3.2 3.4 3.6 3.8 4 4.2 4.4 4.6 4.8 5 5.2 5.4 5.6 5.8 6 6.2 6.4 6.6 6.8 7 7.2 7.4 7.6 7.8 8 8.2 8.4 8.6 8.8 9 9.2 9.4 9.6 9.8 10]
+#define CLOUDS3D_ALTITUDE 700 // [300 400 500 600 700 800 900 1000]
+#define CLOUDS3D_THICKNESS_MULT 0.7 // [0.5 0.6 0.7 0.8 0.9 1 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2]
+#define CLOUDS3D_SCALE 1.4 // [1 1.4 2 2.8 4]
 
 #define CLOUDS3D_THICKNESS (CLOUDS3D_ALTITUDE * CLOUDS3D_THICKNESS_MULT)
 #define CLOUDS3D_ALTITUDE_MIN CLOUDS3D_ALTITUDE
@@ -63,7 +63,7 @@ float Get3DCloudsDensity(vec3 position) {
 	float coverageFade = Clamp01(cloudAltitude);
 	      coverageFade = 1.0 - coverageFade * coverageFade;
 	float coverage = mix(CLOUDS3D_STATIC_COVERAGE, 1.0, wetness) * coverageFade;
-	float cloudsMask = Clamp01(2.5 * (noise2D + coverage + 0.2 - 1.0));
+	float cloudsMask = Clamp01(2.5 * (noise2D + coverage + 0.125 - 1.0));
 
 	// return early if no clouds
 	if (cloudsMask <= 0.0) { return 0.0; }
@@ -72,17 +72,18 @@ float Get3DCloudsDensity(vec3 position) {
 
 	const int octaves3D = CLOUDS3D_NOISE_OCTAVES_3D;
 
-	vec3 noisePos3D = position * (3.0 / CLOUDS3D_THICKNESS) - cloudsTime * vec3(11.0, 4.0, 11.0);
+	vec3 noisePos3D = position * (4.5 / CLOUDS3D_THICKNESS) - cloudsTime * vec3(16.5, 6.0, 16.5);
 
-	//float noise3D = mix(abs(GetNoise3D(colortex7, noisePos3D * 0.015625).x * 2.0 - 1.0), 1.65 * GetNoise3D(colortex7, noisePos3D * 0.1).y, cloudAltitude);
-	float noise3D = mix(abs(GetNoise(noisePos3D) * 2.0 - 1.0), 1.65 * GetNoise3D(colortex7, noisePos3D * 0.1).y, cloudAltitude);
-	for (int i = 1; i < octaves3D; ++i) {
+	float noise3D = dot(GetNoise3D(colortex7, noisePos3D * 0.1), vec2(0.2, 1.0));
+
+	noisePos3D *= 6.4;
+	for (int i = 2; i < octaves3D; ++i) {
 		noisePos3D.xz *= rotateGoldenAngle;
 		noisePos3D = noisePos3D * pi - cloudsTime;
 		//noise3D += GetNoise3D(colortex7, noisePos3D * 0.015625).x * exp2(-i);
-		noise3D += GetNoise(noisePos3D) * exp2(-i);
-	} noise3D = noise3D * 0.5 + (0.5 * exp2(-octaves3D));
-	noise3D *= noise3D * (3.0 - 2.0 * noise3D);
+		noise3D += GetNoise(noisePos3D) * 0.5 * exp2(-i);
+	} noise3D += 0.5 * exp2(-octaves3D);
+	noise3D = max(noise3D - 0.25, 0.0);
 
 	float densityScale = Clamp01(cloudAltitude * 2.0);
 	return Clamp01(2.0 * cloudsMask - noise3D) * densityScale;
