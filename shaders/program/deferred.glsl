@@ -410,9 +410,9 @@ uniform vec3 shadowLightVector;
 	#ifdef DISTANT_VL
 		mat2x3 CloudShadowedAtmosphere(vec3 startPosition, vec3 viewVector, float endDistance, float dither) {
 			const int steps = DISTANT_VL_STEPS;
-			//int steps = int(ceil(endDistance / 1000.0));
 
-			float stepSize = abs(endDistance / steps);
+			float raymarchDistance = min(endDistance, 1e3 * DISTANT_VL_RANGE);
+			float stepSize = abs(raymarchDistance / steps);
 			vec3 increment = viewVector * stepSize;
 			vec3 position  = startPosition + increment * dither;
 
@@ -450,6 +450,21 @@ uniform vec3 shadowLightVector;
 				} else {
 					scattering -= (sun + moon * cloudShadow) * transmittance;
 				}
+			}
+
+			if (raymarchDistance < endDistance) {
+				vec3 endPos = startPosition + viewVector * endDistance;
+
+				vec3 scatteringFromRme  = AtmosphereScattering(scatteringLut, position, viewVector, sunVector)  * sunIlluminance;
+				     scatteringFromRme += AtmosphereScattering(scatteringLut, position, viewVector, moonVector) * moonIlluminance;
+				vec3 scatteringFromEnd  = AtmosphereScattering(scatteringLut, endPos, viewVector, sunVector)  * sunIlluminance;
+				     scatteringFromEnd += AtmosphereScattering(scatteringLut, endPos, viewVector, moonVector) * moonIlluminance;
+
+				vec3 transmittanceViewToEnd = AtmosphereTransmittance(transmittanceLut, startPosition, viewVector, endDistance);
+				vec3 scatteringRmeToEnd = Max0(scatteringFromRme * transmittance - Max0(scatteringFromEnd * transmittanceViewToEnd));
+
+				scattering += scatteringRmeToEnd * averageCloudTransmittance;
+				transmittance = transmittanceViewToEnd;
 			}
 
 			return mat2x3(scattering, transmittance);
@@ -577,6 +592,89 @@ uniform vec3 shadowLightVector;
 		return sunIlluminance * (diffuse + specular);
 	}
 
+	// Doens't handle stars or the sun/moon so not really the entire sky but I couldn't think of a better name for this function
+	void RenderSky(
+		vec3 viewPosition, vec3 viewVector, float dither,
+		out vec3 scattering, out vec3 transmittance
+	) {
+		transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector);
+		#if !defined CLOUDS3D || !defined DISTANT_VL
+		scattering  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector)  * sunIlluminance;
+		scattering += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
+		#endif
+
+		#if defined CLOUDS2D || defined CLOUDS3D
+		float lowerLimitDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_lowerLimitRadius).x;
+		if (lowerLimitDistance <= 0.0 || eyeAltitude >= CLOUDS3D_ALTITUDE_MIN) {
+			#ifdef CLOUDS3D
+			float clouds3DDistance = 0.0;
+			vec4 clouds3D = Render3DClouds(viewVector, dither, clouds3DDistance);
+
+			if (clouds3DDistance > 0.0) {
+				vec3 cloudsPosition = viewPosition + viewVector * clouds3DDistance;
+
+				// remove atmosphere occluded by clouds
+				vec3 transmittanceFromClouds = AtmosphereTransmittance(transmittanceLut, cloudsPosition, viewVector);
+				vec3 transmittanceToClouds = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, clouds3DDistance);//transmittance / transmittanceFromClouds;
+				vec3 scatteringFromClouds  = AtmosphereScattering(scatteringLut, cloudsPosition, viewVector, sunVector)  * sunIlluminance;
+				     scatteringFromClouds += AtmosphereScattering(scatteringLut, cloudsPosition, viewVector, moonVector) * moonIlluminance;
+
+				#ifdef DISTANT_VL
+				if (eyeAltitude < CLOUDS3D_ALTITUDE_MIN) {
+					scattering += CloudShadowedAtmosphere(viewPosition, viewVector, clouds3DDistance, dither)[0];
+					scattering += scatteringFromClouds * transmittanceToClouds * clouds3D.a;
+				} else {
+					// TODO: Do distant VL here as well
+					scattering += scatteringFromClouds * transmittanceToClouds * (clouds3D.a * averageCloudTransmittance - 1.0);
+				}
+				#else
+				if (eyeAltitude < CLOUDS3D_ALTITUDE_MIN) {
+					scattering -= scatteringFromClouds * transmittanceToClouds;
+					scattering *= averageCloudTransmittance;
+					scattering += scatteringFromClouds * transmittanceToClouds * clouds3D.a;
+				} else {
+					scattering += scatteringFromClouds * transmittanceToClouds * (clouds3D.a * averageCloudTransmittance - 1.0);
+				}
+				#endif
+
+				// apply clouds
+				scattering += clouds3D.rgb * transmittanceToClouds;
+				transmittance *= clouds3D.a;
+			}
+			#endif
+
+			#ifdef CLOUDS2D
+			float clouds2DDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_planetRadius + CLOUDS2D_ALTITUDE).y;
+
+			if (clouds2DDistance > 0.0) {
+				vec4 clouds2D = Calculate2DClouds(viewVector, dither);
+				vec3 cloudsPosition = viewPosition + viewVector * clouds2DDistance;
+
+				// remove atmosphere occluded by clouds
+				vec3 transmittanceFromClouds = AtmosphereTransmittance(transmittanceLut, cloudsPosition, viewVector);
+				vec3 transmittanceToClouds = transmittance / transmittanceFromClouds;
+				vec3 scatteringFromClouds  = AtmosphereScattering(scatteringLut, cloudsPosition, viewVector, sunVector)  * sunIlluminance;
+				     scatteringFromClouds += AtmosphereScattering(scatteringLut, cloudsPosition, viewVector, moonVector) * moonIlluminance;
+
+				scattering += scatteringFromClouds * transmittanceToClouds * (clouds2D.a - 1.0);
+
+				// apply clouds
+				scattering += clouds2D.rgb * transmittanceToClouds;
+				transmittance *= clouds2D.a;
+			}
+			#endif
+		} else {
+			#ifdef CLOUDS3D
+			#ifdef DISTANT_VL
+			scattering = CloudShadowedAtmosphere(viewPosition, viewVector, lowerLimitDistance, dither)[0];
+			#else
+			scattering *= averageCloudTransmittance;
+			#endif
+			#endif
+		}
+		#endif
+	}
+
 	//------------------------------------------------------------------------//
 
 	void main() {
@@ -652,115 +750,20 @@ uniform vec3 shadowLightVector;
 		      dither = fract(dither + LinearBayer16(frameCounter));
 		#endif
 
-		vec3 viewPosition  = vec3(0.0, atmosphere_planetRadius + eyeAltitude, 0.0);
+		vec3 viewPosition = vec3(0.0, atmosphere_planetRadius + eyeAltitude, 0.0);
 
 		float depth = texture(depthtex1, screenCoord).x;
 		if (depth >= 1.0) {
 			vec3 viewVector = mat3(gbufferModelViewInverse) * GetViewDirection(screenCoord, gbufferProjectionInverse);
 
 			vec3 color = vec3(0.0);
-			color  = CalculateStars(color, viewVector);
-			color  = CalculateSun(color, viewVector, sunVector);
-			color  = CalculateMoon(color, viewVector, moonVector);
-			color *= AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector);
+			color = CalculateStars(color, viewVector);
+			color = CalculateSun(color, viewVector, sunVector);
+			color = CalculateMoon(color, viewVector, moonVector);
 
-			float cloudTransmittance = 1.0;
-			#ifdef CLOUDS3D
-				vec3 scattering = vec3(0.0);
-
-				float lowerLimitDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_lowerLimitRadius).x;
-				if (lowerLimitDistance < 0.0) {
-					#ifdef DISTANT_VL
-						float clouds3DDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_planetRadius + CLOUDS3D_ALTITUDE_MIN).y;
-						#if DISTANT_VL_RANGE <= 0
-							float vlEndDistance = clouds3DDistance;
-						#else
-							float vlEndDistance = min(clouds3DDistance, DISTANT_VL_RANGE * 1e3);
-						#endif
-
-						mat2x3 distantVl = CloudShadowedAtmosphere(viewPosition, viewVector, vlEndDistance, dither);
-						scattering = distantVl[0];
-						vec3 transmittance = distantVl[1];
-
-						vec3 vlEndPosition = vlEndDistance * viewVector + viewPosition;
-						vec3 atmosphereScattering  = AtmosphereScattering(scatteringLut, vlEndPosition, viewVector, sunVector ) * sunIlluminance;
-						     atmosphereScattering += AtmosphereScattering(scatteringLut, vlEndPosition, viewVector, moonVector) * moonIlluminance;
-						scattering += atmosphereScattering * transmittance * averageCloudTransmittance;
-					#else
-						scattering  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
-						scattering += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
-					#endif
-
-					#ifdef CLOUDS3D
-						#ifdef DISTANT_VL
-							transmittance *= AtmosphereTransmittance(transmittanceLut, vlEndPosition, viewVector, Max0(clouds3DDistance - vlEndDistance));
-						#else
-							scattering *= averageCloudTransmittance;
-							float clouds3DDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_planetRadius + CLOUDS3D_ALTITUDE_MIN).y;
-
-							vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, clouds3DDistance);
-							vec3 atmosphereScattering;
-						#endif
-
-						vec3 clouds3DPosition = clouds3DDistance * viewVector + viewPosition;
-						atmosphereScattering  = AtmosphereScattering(scatteringLut, clouds3DPosition, viewVector, sunVector ) * sunIlluminance;
-						atmosphereScattering += AtmosphereScattering(scatteringLut, clouds3DPosition, viewVector, moonVector) * moonIlluminance;
-						scattering -= atmosphereScattering * transmittance * averageCloudTransmittance;
-
-						float temp = 0.0;
-						vec4 clouds3D = Render3DClouds(viewVector, dither, temp);
-						scattering += clouds3D.rgb * transmittance; transmittance *= clouds3D.a;
-						cloudTransmittance *= clouds3D.a;
-						color = color * clouds3D.a + scattering;
-
-						color += atmosphereScattering * transmittance;
-					#else
-						color = color + scattering;
-					#endif
-				} else {
-					#ifdef DISTANT_VL
-						#if DISTANT_VL_RANGE <= 0
-							float vlEndDistance = lowerLimitDistance;
-						#else
-							float vlEndDistance = min(lowerLimitDistance, DISTANT_VL_RANGE * 1e3);
-						#endif
-
-						mat2x3 distantVl = CloudShadowedAtmosphere(viewPosition, viewVector, vlEndDistance, dither);
-						color += distantVl[0];
-						vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, vlEndDistance);
-
-						vec3 vlEndPosition = vlEndDistance * viewVector + viewPosition;
-						vec3 atmosphereScattering  = AtmosphereScattering(scatteringLut, vlEndPosition, viewVector, sunVector ) * sunIlluminance;
-						     atmosphereScattering += AtmosphereScattering(scatteringLut, vlEndPosition, viewVector, moonVector) * moonIlluminance;
-						color += atmosphereScattering * transmittance * averageCloudTransmittance;
-					#else
-						scattering  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
-						scattering += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
-
-						color += scattering * averageCloudTransmittance;
-					#endif
-				}
-			#else
-				// Atmosphere
-				color += AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
-				color += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
-			#endif
-
-			#ifdef CLOUDS2D
-				float clouds2DDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_planetRadius + CLOUDS2D_ALTITUDE).y;
-
-				vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, clouds2DDistance) * cloudTransmittance;
-
-				vec3 clouds2DPosition = clouds2DDistance * viewVector + viewPosition;
-				vec3 atmosphereScattering  = AtmosphereScattering(scatteringLut, clouds2DPosition, viewVector, sunVector ) * sunIlluminance;
-				     atmosphereScattering += AtmosphereScattering(scatteringLut, clouds2DPosition, viewVector, moonVector) * moonIlluminance;
-				color -= atmosphereScattering * transmittance;
-
-				vec4 clouds2D = Calculate2DClouds(viewVector, dither);
-				color += clouds2D.rgb * transmittance; transmittance *= clouds2D.a;
-
-				color += atmosphereScattering * transmittance;
-			#endif
+			vec3 scattering, transmittance;
+			RenderSky(viewPosition, viewVector, dither, scattering, transmittance);
+			color = color * transmittance + scattering;
 
 			skyEncode = EncodeRGBE8(color);
 		} else {
@@ -773,64 +776,8 @@ uniform vec3 shadowLightVector;
 		if (gl_FragCoord.x < cmp.x && gl_FragCoord.y < cmp.y) {
 			vec3 viewVector = UnprojectSky(screenCoord, SKY_IMAGE_LOD);
 
-			#if defined CLOUDS2D || defined CLOUDS3D
-				float lowerLimitDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_lowerLimitRadius).x;
-				if (lowerLimitDistance < 0.0) {
-					skyImage  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
-					skyImage += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
-
-					#ifdef CLOUDS3D
-						skyImage *= averageCloudTransmittance;
-
-						float clouds3DDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_planetRadius + CLOUDS3D_ALTITUDE_MIN).y;
-						vec3  clouds3DPosition = clouds3DDistance * viewVector + viewPosition;
-
-						vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, clouds3DDistance);
-						vec3 atmosphereScattering;
-
-						atmosphereScattering  = AtmosphereScattering(scatteringLut, clouds3DPosition, viewVector, sunVector ) * sunIlluminance;
-						atmosphereScattering += AtmosphereScattering(scatteringLut, clouds3DPosition, viewVector, moonVector) * moonIlluminance;
-						skyImage -= atmosphereScattering * transmittance * averageCloudTransmittance;
-
-						float temp = 0.0;
-						vec4 clouds3D = Render3DClouds(viewVector, 0.5, temp);
-						skyImage += clouds3D.rgb * transmittance; transmittance *= clouds3D.a;
-
-						skyImage += atmosphereScattering * transmittance;
-					#endif
-
-					#ifdef CLOUDS2D
-						float clouds2DDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_planetRadius + CLOUDS2D_ALTITUDE).y;
-						vec3  clouds2DPosition = clouds2DDistance * viewVector + viewPosition;
-
-						#ifdef CLOUDS3D
-							transmittance *= AtmosphereTransmittance(transmittanceLut, clouds3DPosition, viewVector, clouds2DDistance - clouds3DDistance);
-						#else
-							vec3 transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, clouds2DDistance);
-							vec3 atmosphereScattering;
-						#endif
-
-						atmosphereScattering  = AtmosphereScattering(scatteringLut, clouds2DPosition, viewVector, sunVector ) * sunIlluminance;
-						atmosphereScattering += AtmosphereScattering(scatteringLut, clouds2DPosition, viewVector, moonVector) * moonIlluminance;
-						skyImage -= atmosphereScattering * transmittance;
-
-						vec4 clouds2D = Calculate2DClouds(viewVector, 0.5);
-						skyImage += clouds2D.rgb * transmittance; transmittance *= clouds2D.a;
-
-						skyImage += atmosphereScattering * transmittance;
-					#endif
-				} else {
-					skyImage  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
-					skyImage += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
-
-					#ifdef CLOUDS3D
-						skyImage *= averageCloudTransmittance;
-					#endif
-				}
-			#else
-				skyImage  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector ) * sunIlluminance;
-				skyImage += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
-			#endif
+			vec3 tmp;
+			RenderSky(viewPosition, viewVector, 0.5, skyImage, tmp);
 		} else {
 			skyImage = vec3(0.0);
 		}
