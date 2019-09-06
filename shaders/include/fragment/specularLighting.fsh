@@ -11,7 +11,7 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 	/* NdotL modified to fade to 0 only when the light is fully occluded (rather than when light is only halfway occluded)
 	float sinLightRadius = sin(angularRadius);
 	return brdf * Clamp01((NdotL + sinLightRadius) / (1.0 + sinLightRadius));
-	//*/ return brdf * NdotL;
+	//*/ return brdf * Clamp01(NdotL);
 }
 
 //--//

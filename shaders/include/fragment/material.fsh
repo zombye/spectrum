@@ -47,7 +47,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 		material.translucency = vec3(isFoliage);
 	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_OPBR
 		material.albedo       = baseTex;
-		materail.metalness    = specTex.g;
+		material.metalness    = specTex.g;
 		material.roughness    = Pow2(1.0 - specTex.r);
 		material.porosity     = 0.0;
 		material.n            = F0ToIor(mix(vec3(specTex.r), baseTex, specTex.g)) * airMaterial.n;
