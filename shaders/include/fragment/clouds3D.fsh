@@ -5,6 +5,7 @@
 #define CLOUDS3D_STEPS_VIEW 10 // [5 10 20 50]
 #define CLOUDS3D_STEPS_SUN 5 // [5 10 20 50]
 #define CLOUDS3D_STEPS_SKY 2 // [2 5 10]
+//#define CLOUDS3D_ALTERNATE_SKYLIGHT
 
 #define CLOUDS3D_MIN_TRANSMITTANCE 0.01 // Minimum transmittance before raymarch is stopped. After the raymarch, transmittance is then re-mapped so this value becomes 0.
 
@@ -158,7 +159,13 @@ void Calculate3DCloudsScattering(
 	float sunPathOpticalDepth = viewOpticalDepth + sunOpticalDepth;
 	float sunPathTransmittance = exp(-sunPathOpticalDepth);
 
+	#ifdef CLOUDS3D_ALTERNATE_SKYLIGHT
+	vec3 skyDir = GenerateUnitVector(Hash2(position));
+	if (skyDir.y < 0.0) { skyDir.y = -skyDir.y; }
+	float skyOpticalDepth = Calculate3DCloudsOpticalDepth(position, skyDir, dither, CLOUDS3D_STEPS_SKY, 1.5);
+	#else
 	float skyOpticalDepth = Calculate3DCloudsOpticalDepth(position, vec3(0.0, 1.0, 0.0), dither, CLOUDS3D_STEPS_SKY);
+	#endif
 	float skyPathOpticalDepth = viewOpticalDepth + skyOpticalDepth;
 	float skyPathTransmittance = exp(-skyPathOpticalDepth);
 
@@ -236,7 +243,7 @@ vec4 Render3DClouds(
 		float stepOpticalDepth = CLOUDS3D_ATTENUATION_COEFFICIENT * stepSize * stepDensity;
 
 		Calculate3DCloudsScattering(
-			rayPosition, viewVector, VdotL, Hash1(i + dither),
+			rayPosition, viewVector, VdotL, Hash1(rayPosition),
 			opticalDepth, stepOpticalDepth,
 			scatteringSun, scatteringSky
 		);

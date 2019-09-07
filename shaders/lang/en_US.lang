@@ -259,10 +259,12 @@ option.CLOUDS2D_USE_WORLD_TIME=Use World Time
 
 screen.clouds3D=3D Clouds
 option.CLOUDS3D=3D Clouds
+option.CLOUDS3D_DETAIL_NOISE_OCTAVES=Detail Noise Octaves
 option.CLOUDS3D_STEPS_VIEW=Visibility Steps
 option.CLOUDS3D_STEPS_SUN=Sunlight Steps
+option.CLOUDS3D_ALTERNATE_SKYLIGHT=Alternate Skylight
+option.CLOUDS3D_ALTERNATE_SKYLIGHT.comment=More realistic but noisier way of doing skylight. Can be very noisy in some cases!
 option.CLOUDS3D_STEPS_SKY=Skylight Steps
-option.CLOUDS3D_DETAIL_NOISE_OCTAVES=Detail Noise Octaves
 
 option.CLOUDS3D_STATIC_COVERAGE=Coverage
 option.CLOUDS3D_USE_WORLD_TIME=Use World Time
