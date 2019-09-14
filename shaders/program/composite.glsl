@@ -177,6 +177,8 @@ uniform vec3 shadowLightVector;
 		#endif
 	#endif
 
+	#include "/include/shared/phaseFunctions.glsl"
+
 	#include "/include/shared/atmosphere/density.glsl"
 	#include "/include/shared/atmosphere/phase.glsl"
 

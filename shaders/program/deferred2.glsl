@@ -84,9 +84,11 @@ uniform vec3 shadowLightVector;
 #include "/include/utility.glsl"
 #include "/include/utility/colorspace.glsl"
 #include "/include/utility/encoding.glsl"
+#include "/include/utility/math.glsl"
 #include "/include/utility/sampling.glsl"
 
 #include "/include/shared/celestialConstants.glsl"
+#include "/include/shared/phaseFunctions.glsl"
 #include "/include/shared/skyProjection.glsl"
 
 #include "/include/shared/atmosphere/constants.glsl"
@@ -190,7 +192,6 @@ uniform vec3 shadowLightVector;
 	#include "/include/utility/complex.glsl"
 	#include "/include/utility/dithering.glsl"
 	#include "/include/utility/geometry.glsl"
-	#include "/include/utility/math.glsl"
 	#include "/include/utility/noise.glsl"
 	#include "/include/utility/packing.glsl"
 	#include "/include/utility/rotation.glsl"

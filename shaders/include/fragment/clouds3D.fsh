@@ -141,13 +141,6 @@ float Calculate3DCloudsOpticalDepth(vec3 rayPosition, vec3 rayDirection, float s
 	return CLOUDS3D_ATTENUATION_COEFFICIENT * stepSize * densitySum;
 }
 
-float PhaseHenyeyGreenstein(float cosTheta, float g) {
-	const float norm = 0.25 / pi;
-
-	float gg = g * g;
-	return (norm - norm * gg) * pow(1.0 + gg - 2.0 * g * cosTheta, -1.5);
-}
-
 void Calculate3DCloudsScattering(
 	vec3 position, vec3 direction, float VdotL, float dither,
 	float viewOpticalDepth, float stepOpticalDepth, float stepCoefficient,
@@ -175,7 +168,7 @@ void Calculate3DCloudsScattering(
 	scatteringSky += CLOUDS3D_SCATTERING_ALBEDO * (0.25/pi) * (skyPathTransmittance - skyPathTransmittance * stepTransmittance);
 	//*/
 
-	//* approximated multiple scattering, based on an approximation I found in a frostbite pdf
+	//* approximated multiple scattering
 	//*
 	float sunPath = 0.0, skyPath = 0.0;
 	for (int n = 0; n < CLOUDS3D_MSA_N; ++n) {
@@ -187,8 +180,9 @@ void Calculate3DCloudsScattering(
 	//*/
 	/*
 	const float scatterStrength = 2.0;
-	float sunPath = exp(-viewOpticalDepth) * pow(1.0 + scatterStrength * sunOpticalDepth, -1.0 / scatterStrength);
-	float skyPath = exp(-viewOpticalDepth) * pow(1.0 + scatterStrength * skyOpticalDepth, -1.0 / scatterStrength);
+	const float slope = 0.3;
+	float sunPath = exp(-viewOpticalDepth) * pow(1.0 + slope * scatterStrength * sunOpticalDepth, -1.0 / scatterStrength);
+	float skyPath = exp(-viewOpticalDepth) * pow(1.0 + slope * scatterStrength * skyOpticalDepth, -1.0 / scatterStrength);
 	//*/
 	/*
 	float sunPath = exp(-viewOpticalDepth) * exp(-sqrt(2.0 * sunOpticalDepth + 1.0) + 1.0);

@@ -1,15 +1,6 @@
 #if !defined INCLUDE_FRAGMENT_FOG
 #define INCLUDE_FRAGMENT_FOG
 
-float PhaseHenyeyGreenstein(float cosTheta, float g) {
-	const float norm = 0.25 / pi;
-
-	float gg = g * g;
-	return (norm - norm * gg) * pow(1.0 + gg - 2.0 * g * cosTheta, -1.5);
-}
-
-//----------------------------------------------------------------------------//
-
 #ifdef VL_AIR
 
 #define SEA_LEVEL 63 // [4 63]
@@ -190,20 +181,6 @@ vec3 CalculateAirFog(vec3 background, vec3 startPosition, vec3 endPosition, vec3
 	return background * transmittance + scattering;
 }
 
-float FournierForandPhase(float cosPhi, float n, float mu) {
-	float phi = acos(cosPhi);
-
-	// Not sure if this is correct.
-	float v = (3.0 - mu) / 2.0;
-	float delta = (4.0 / (3.0 * Pow2(n - 1))) * Pow2(sin(phi / 2.0));
-	float delta180 = 4.0 / (3.0 * Pow2(n - 1));
-
-	float p1 = 1.0 / (4.0 * pi * Pow2(1.0 - delta) * pow(delta, v));
-	float p2 = v * (1.0 - delta) - (1.0 - pow(delta, v)) + (delta * (1.0 - pow(delta, v)) - v * (1.0 - delta)) / Pow2(sin(phi / 2.0));
-	float p3 = ((1.0 - pow(delta180, v)) / (16.0 * pi * (delta180 - 1.0) * pow(delta180, v))) * (3.0 * cosPhi * cosPhi - 1.0);
-	return p1 * p2 + p3;
-}
-
 #ifdef VL_WATER
 vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, vec3 viewVector, float LoV, float skylight, float dither, bool sky) {
 	vec3 waterScatteringAlbedo = SrgbToLinear(vec3(WATER_SCATTERING_R, WATER_SCATTERING_G, WATER_SCATTERING_B) / 255.0);
@@ -213,7 +190,7 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 
 	//#define sunlightPhase isotropicPhase
 	#ifdef WATER_REALISTIC_PHASE_FUNCTION
-	float sunlightPhase = FournierForandPhase(LoV, 1.4, 4.4); // Accurate-ish for water
+	float sunlightPhase = PhaseFournierForand(LoV, 1.4, 4.4); // Accurate-ish for water
 	#else
 	float sunlightPhase = PhaseHenyeyGreenstein(LoV, 0.5);
 	#endif

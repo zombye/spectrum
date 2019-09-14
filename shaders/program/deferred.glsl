@@ -91,6 +91,7 @@ uniform vec3 shadowLightVector;
 
 #include "/include/shared/celestialConstants.glsl"
 #define moonIlluminance (moonIlluminance * NIGHT_SKY_BRIGHTNESS)
+#include "/include/shared/phaseFunctions.glsl"
 
 #include "/include/shared/atmosphere/constants.glsl"
 #include "/include/shared/atmosphere/lookup.glsl"
