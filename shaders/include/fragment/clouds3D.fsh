@@ -5,7 +5,7 @@
 #define CLOUDS3D_STEPS_VIEW 10 // [5 10 20 50]
 #define CLOUDS3D_STEPS_SUN 5 // [5 10 20 50]
 #define CLOUDS3D_STEPS_SKY 2 // [2 5 10]
-//#define CLOUDS3D_ALTERNATE_SKYLIGHT
+#define CLOUDS3D_ALTERNATE_SKYLIGHT
 
 #define CLOUDS3D_MIN_TRANSMITTANCE 0.01 // Minimum transmittance before raymarch is stopped. After the raymarch, transmittance is then re-mapped so this value becomes 0.
 
@@ -26,7 +26,7 @@
 #define CLOUDS3D_ALTITUDE_MAX (CLOUDS3D_ALTITUDE + CLOUDS3D_THICKNESS)
 
 // shading
-#define CLOUDS3D_POWDER_STRENGTH 0.7
+#define CLOUDS3D_POWDER_STRENGTH 0.6
 
 #define CLOUDS3D_ATTENUATION_COEFFICIENT (0.2 * 500.0 / CLOUDS3D_THICKNESS)
 #define CLOUDS3D_SCATTERING_ALBEDO 1.0
@@ -169,32 +169,13 @@ void Calculate3DCloudsScattering(
 	//*/
 
 	//* approximated multiple scattering
-	//*
-	float sunPath = 0.0, skyPath = 0.0;
-	for (int n = 0; n < CLOUDS3D_MSA_N; ++n) {
-		float odScale = pow(CLOUDS3D_MSA_A, n);
-
-		sunPath += exp(-viewOpticalDepth - odScale * sunOpticalDepth) / CLOUDS3D_MSA_N;
-		skyPath += exp(-viewOpticalDepth - odScale * skyOpticalDepth) / CLOUDS3D_MSA_N;
-	}
-	//*/
-	/*
-	const float scatterStrength = 2.0;
+	const float scatterStrength = 1.5;
 	const float slope = 0.3;
 	float sunPath = exp(-viewOpticalDepth) * pow(1.0 + slope * scatterStrength * sunOpticalDepth, -1.0 / scatterStrength);
 	float skyPath = exp(-viewOpticalDepth) * pow(1.0 + slope * scatterStrength * skyOpticalDepth, -1.0 / scatterStrength);
-	//*/
-	/*
-	float sunPath = exp(-viewOpticalDepth) * exp(-sqrt(2.0 * sunOpticalDepth + 1.0) + 1.0);
-	float skyPath = exp(-viewOpticalDepth) * exp(-sqrt(2.0 * skyOpticalDepth + 1.0) + 1.0);
-	//*/
-	/*
-	float sunPath = exp(-viewOpticalDepth) * Max0((1.0 - exp(-2.0 * sunOpticalDepth)) / (2.0 * sunOpticalDepth));
-	float skyPath = exp(-viewOpticalDepth) * Max0((1.0 - exp(-2.0 * skyOpticalDepth)) / (2.0 * skyOpticalDepth));
-	//*/
 
-	float fakePowder = 1.0 - CLOUDS3D_POWDER_STRENGTH * exp(-50.0 * stepCoefficient);
-	float sharedpart = 3.0 * CLOUDS3D_SCATTERING_ALBEDO * fakePowder * (1.0 - stepTransmittance);
+	float fakePowder = 1.0 - CLOUDS3D_POWDER_STRENGTH * exp(-70.0 * stepCoefficient);
+	float sharedpart = 2.0 * CLOUDS3D_SCATTERING_ALBEDO * fakePowder * (1.0 - stepTransmittance);
 
 	float sunPhase = mix(
 		PhaseHenyeyGreenstein(VdotL,  pow(0.8, sunOpticalDepth + 1.0)),
@@ -202,9 +183,10 @@ void Calculate3DCloudsScattering(
 		0.5
 	);
 	#ifdef CLOUDS3D_ALTERNATE_SKYLIGHT
-	float skyPhase = mix(
-		PhaseHenyeyGreenstein(dot(direction, skyDir),  pow(0.8, skyPathOpticalDepth + 1.0)),
-		PhaseHenyeyGreenstein(dot(direction, skyDir), -pow(0.5, skyPathOpticalDepth + 1.0)),
+	// having a multiply by 2 here gives a closer result to actually sampling the sky in each direction
+	float skyPhase = 2.0 * mix(
+		PhaseHenyeyGreenstein(dot(direction, skyDir),  pow(0.8, skyOpticalDepth + 1.0)),
+		PhaseHenyeyGreenstein(dot(direction, skyDir), -pow(0.5, skyOpticalDepth + 1.0)),
 		0.5
 	);
 	#else
