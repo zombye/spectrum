@@ -50,7 +50,7 @@ float Get3DCloudsDensity(vec3 position) {
 
 	const int octaves2D = CLOUDS3D_NOISE_OCTAVES_2D;
 
-	vec2 noisePos2D  = position.xz * (1.0 / (CLOUDS3D_SCALE * CLOUDS3D_THICKNESS)) - cloudsTime;
+	vec2 noisePos2D  = position.xz * (1.0 / (CLOUDS3D_SCALE * CLOUDS3D_THICKNESS)) - 1.65 * cloudsTime;
 	     noisePos2D -= (0.2 / CLOUDS3D_SCALE) * cloudAltitude * cloudAltitude;
 
 	float noise2D = GetNoise(noisePos2D);
@@ -179,14 +179,14 @@ void Calculate3DCloudsScattering(
 
 	float sunPhase = mix(
 		PhaseHenyeyGreenstein(VdotL,  pow(0.8, sunOpticalDepth + 1.0)),
-		PhaseHenyeyGreenstein(VdotL, -pow(0.5, sunOpticalDepth + 1.0)),
+		PhaseHenyeyGreenstein(VdotL, -pow(0.35, sunOpticalDepth + 1.0)),
 		0.5
 	);
 	#ifdef CLOUDS3D_ALTERNATE_SKYLIGHT
 	// having a multiply by 2 here gives a closer result to actually sampling the sky in each direction
 	float skyPhase = 2.0 * mix(
 		PhaseHenyeyGreenstein(dot(direction, skyDir),  pow(0.8, skyOpticalDepth + 1.0)),
-		PhaseHenyeyGreenstein(dot(direction, skyDir), -pow(0.5, skyOpticalDepth + 1.0)),
+		PhaseHenyeyGreenstein(dot(direction, skyDir), -pow(0.35, skyOpticalDepth + 1.0)),
 		0.5
 	);
 	#else
