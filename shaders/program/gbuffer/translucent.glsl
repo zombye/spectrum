@@ -309,28 +309,7 @@ uniform vec3 shadowLightVector;
 
 
 	#ifdef SSR_MULTILAYER
-		/*
-		#if defined VL_AIR || defined VL_WATER
-			#ifdef SHADOW_COLORED
-				vec3 ReadShadowMaps(vec3 shadowCoord) {
-					float shadow0 = textureLod(shadowtex0, shadowCoord.st, 0.0).r;
-					      shadow0 = shadow0 < 1.0 ? step(shadowCoord.z, shadow0) : 1.0;
-					float shadow1 = textureLod(shadowtex1, shadowCoord.st, 0.0).r;
-					      shadow1 = shadow1 < 1.0 ? step(shadowCoord.z, shadow1) : 1.0;
-					vec4  shadowC = textureLod(shadowcolor1, shadowCoord.st, 0.0);
-					      shadowC.rgb = SrgbToLinear(shadowC.rgb);
-
-					// Best looking method I've found so far.
-					return (shadowC.rgb * shadowC.a - shadowC.a) * (-shadow1 * shadow0 + shadow1) + shadow1;
-				}
-			#else
-				float ReadShadowMaps(vec3 shadowCoord) {
-					float shadowSample = textureLod(shadowtex1, shadowCoord.st, 0.0).r;
-					return shadowSample < 1.0 ? step(shadowCoord.z, shadowSample) : 1.0;
-				}
-			#endif
-		#endif
-		*/
+		#include "/include/shared/phaseFunctions.glsl"
 
 		#include "/include/shared/atmosphere/density.glsl"
 		#include "/include/shared/atmosphere/phase.glsl"
