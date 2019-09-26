@@ -44,6 +44,9 @@ float CalculateWaterWaves(vec3 position) {
 	      float height     = WATER_WAVES_WAVELENGTH * WATER_WAVES_WAVE_HEIGHT_RATIO / pi;
 	const float gain       = WATER_WAVES_WAVE_HEIGHT_GAIN * WATER_WAVES_WAVELENGTH_GAIN;
 
+	const float phaseNoiseScale = 0.5;
+	const float phaseNoiseSpeed = 0.5;
+
 	const float angle = 2.6;
 	const mat2 rotation = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
 
@@ -52,12 +55,16 @@ float CalculateWaterWaves(vec3 position) {
 	float waves = 0.0;
 	for (int i = 0; i < iterations; ++i) {
 		float k = tau / wavelength; // angular wavenumber (radians per metre)
-		float w = sqrt(g * k); // angular frequency  (radians per second)
+		float w = sqrt(g * k); // angular frequency (radians per second)
 
 		// as it turns out, projected caustics need a lot of precision to work right
 		// this part can get pretty bad in that regard if you don't modulo the camera position and time like this
-		vec2 np = position.xz / wavelength + mod(camPos / wavelength, 64.0);
-		float phaseNoise = GetSmoothNoise(vec2(np.x, np.y - mod(0.7 * w * time / wavelength, 64.0))) * wavelength * 0.8;
+		float pMul = (2.0 * phaseNoiseScale) / wavelength;
+		float tMul = (2.0 * phaseNoiseScale * phaseNoiseSpeed / tau) * (w / wavelength);
+		vec2 np = pMul * position.xz + mod(pMul * camPos, 256.0);
+		np.y -= mod(tMul * time, 256.0);
+
+		float phaseNoise = GetSmoothNoise(np) * wavelength * 0.8;
 		float phase = k * (position.z + mod(camPos.y, wavelength) + phaseNoise) - mod(w * time, tau);
 
 		float sharpness = pow(pi * height / wavelength, 1.0 - WATER_WAVES_SHARPENING);
