@@ -21,9 +21,9 @@ vec3 Rotate(vec3 vector, vec3 from, vec3 to) {
 
 	float cosine = dot(from, to);
 	vec3 axis = cross(from, to);
-	float cosecant = inversesqrt(dot(axis, axis));
+	float cosecantSquared = 1.0 / dot(axis, axis);
 
-	return cosine * vector + cross(axis, vector) + (cosecant - cosecant * cosine) * cosecant * dot(axis, vector) * axis;
+	return cosine * vector + cross(axis, vector) + (cosecantSquared - cosecantSquared * cosine) * dot(axis, vector) * axis;
 }
 
 mat2 GetRotationMatrix(float angle) {
@@ -47,13 +47,14 @@ mat3 GetRotationMatrix(vec3 from, vec3 to) {
 	float cosine = dot(from, to);
 	vec3 axis = cross(to, from);
 
-	vec3 unitAxis = axis * inversesqrt(dot(axis, axis));
-	vec3 tmp = unitAxis - unitAxis * cosine;
+	float tmp = 1.0 / dot(axis, axis);
+	      tmp = tmp - tmp * cosine;
+	vec3 tmpv = axis * tmp;
 
 	return mat3(
-		unitAxis.x * tmp.x + cosine, unitAxis.x * tmp.y - axis.z, unitAxis.x * tmp.z + axis.y,
-		unitAxis.y * tmp.x + axis.z, unitAxis.y * tmp.y + cosine, unitAxis.y * tmp.z - axis.x,
-		unitAxis.z * tmp.x - axis.y, unitAxis.z * tmp.y + axis.x, unitAxis.z * tmp.z + cosine
+		axis.x * tmpv.x + cosine, axis.x * tmpv.y - axis.z, axis.x * tmpv.z + axis.y,
+		axis.y * tmpv.x + axis.z, axis.y * tmpv.y + cosine, axis.y * tmpv.z - axis.x,
+		axis.z * tmpv.x - axis.y, axis.z * tmpv.y + axis.x, axis.z * tmpv.z + cosine
 	);
 }
 
