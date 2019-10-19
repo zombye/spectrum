@@ -246,7 +246,7 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 
 		float shadowcolor0Alpha = texture(shadowcolor0, shadowCoord.xy).a;
 		if (shadowcolor0Alpha > 0.5/255.0) {
-			float waterDepth = SHADOW_DEPTH_RADIUS * Max0(shadowCoord.z - textureLod(shadowtex0, shadowCoord.xy, 0.0).r);
+			float waterDepth = 2.0 * SHADOW_DEPTH_RADIUS * Max0(shadowCoord.z - textureLod(shadowtex0, shadowCoord.xy, 0.0).r);
 
 			if (waterDepth > 0.0) {
 				lightingSun *= exp(-baseAttenuationCoefficient * fogDensity * waterDepth);
@@ -266,13 +266,9 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 		transmittance *= stepTransmittance;
 	}
 
-	//--//
-
-	vec3 stepTransmittedFraction = Clamp01((stepTransmittance - 1.0) / -stepOpticalDepth);
-
 	vec3 scattering  = scatteringSun * sunlightPhase * illuminanceShadowlight;
 	     scattering += scatteringSky * isotropicPhase * illuminanceSky * skylight;
-	     scattering *= waterScatteringAlbedo * stepOpticalDepth * stepTransmittedFraction;
+	     scattering *= waterScatteringAlbedo * (1.0 - stepTransmittance);
 
 	//--//
 

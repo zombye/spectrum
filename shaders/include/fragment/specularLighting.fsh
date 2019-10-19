@@ -38,7 +38,7 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 		bool intersected       = true;
 
 		if (NdotL > 0.0) { // Raytrace if not self-intersecting
-			intersected      = RaytraceIntersection(hitPosition, position[1], rayDirection, SSR_RAY_STEPS, SSR_RAY_REFINEMENTS);
+			intersected      = IntersectSSRay(hitPosition, position[1], rayDirection, SSR_RAY_STRIDE);
 			hitPositionView  = intersected ? ScreenSpaceToViewSpace(hitPosition, gbufferProjectionInverse) : rayDirection * 100.0;
 			hitPositionScene = mat3(gbufferModelViewInverse) * hitPositionView + gbufferModelViewInverse[3].xyz;
 		}
@@ -88,7 +88,11 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 
 			vec3 reflectionSample = TraceSsrRay(sampler, position, rayDirection, NdotL, roughness, skyFade, dither);
 
+			#ifdef TOTAL_INTERNAL_REFLECTION
 			reflectionSample *= FresnelNonpolarized(MdotV, isEyeInWater == 1 && isWater ? ComplexVec3(vec3(1.333), vec3(0.0)) : ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(n, k));
+			#else
+			reflectionSample *= FresnelNonpolarized(MdotV, ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(n, k));
+			#endif
 			reflectionSample *= G2OverG1SmithGGX(NdotV, NdotL, roughnessSquared);
 
 			reflection += reflectionSample;

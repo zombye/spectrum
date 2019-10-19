@@ -252,6 +252,11 @@ uniform vec3 shadowLightVector;
 				refractedPosition[2] = mat3(gbufferModelViewInverse) * refractedPosition[1] + gbufferModelViewInverse[3].xyz;
 
 				refractedDirectionClamped = normalize(refractedPosition[2] - frontPosition[2]);
+			} else {
+				refractedPosition[0] = vec3(ViewSpaceToScreenSpace(mat3(gbufferModelView) * refractedDirection, gbufferProjection).xy, 1.0);
+				refractedPosition[1] = ScreenSpaceToViewSpace(refractedPosition[0], gbufferProjectionInverse);
+				refractedPosition[2] = mat3(gbufferModelViewInverse) * refractedPosition[1] + gbufferModelViewInverse[3].xyz;
+				refractedDirectionClamped = refractedDirection;
 			}
 		#else
 			float refractedDistance = distance(frontPosition[2], backPosition[2]);
@@ -325,7 +330,11 @@ uniform vec3 shadowLightVector;
 			vec2 lightmap = Unpack2x8(colortex0Sample.b);
 			vec3 normal   = DecodeNormal(Unpack2x8(colortex1Sample.b) * 2.0 - 1.0);
 
+			#ifdef TOTAL_INTERNAL_REFLECTION
 			vec3 eyeN = isEyeInWater == 1 ? waterMaterial.n : airMaterial.n;
+			#else
+			vec3 eyeN = airMaterial.n;
+			#endif
 			#if REFRACTION_MODE != REFRACTION_OFF
 				if (frontPosition[0].z != backPosition[0].z) {
 					// Refract

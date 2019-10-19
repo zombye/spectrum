@@ -72,10 +72,10 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 	//--// Vertex Functions //------------------------------------------------//
 
 	const float K = 14.0;
-	const float calibration = exp2(CAMERA_EXPOSURE_BIAS) * K / 100.0;
+	const float calibration = exp2(CAMERA_AUTOEXPOSURE_BIAS) * K / 100.0;
 
-	const float minExposure = exp2(CAMERA_EXPOSURE_BIAS) * pi /  dot(lumacoeff_rec709, sunIlluminance);
-	const float maxExposure = exp2(CAMERA_EXPOSURE_BIAS) * pi / (dot(lumacoeff_rec709, moonIlluminance) * NIGHT_SKY_BRIGHTNESS);
+	const float minExposure = exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi /  dot(lumacoeff_rec709, sunIlluminance);
+	const float maxExposure = 0.02 * exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi / (dot(lumacoeff_rec709, moonIlluminance) * NIGHT_SKY_BRIGHTNESS);
 
 	#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_HISTOGRAM
 		float CalculateHistogramExposure() {
@@ -161,7 +161,9 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 
 			l /= n > 0.0 ? n : 1.0;
 
-			return clamp(calibration / l, minExposure, maxExposure);
+			const float a =     calibration / minExposure;
+			const float b = a - calibration / maxExposure;
+			return calibration / (a - b * exp(-l / b));
 		}
 	#endif
 
@@ -171,7 +173,9 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 			vec3 averageColor = ReadColorLod(vec2(0.5), maxLod);
 			float averageLuminance = dot(averageColor, lumacoeff_rec709);
 
-			return clamp(calibration / averageLuminance, minExposure, maxExposure);
+			const float a =     calibration / minExposure;
+			const float b = a - calibration / maxExposure;
+			return calibration / (a - b * exp(-averageLuminance / b));
 		}
 	#endif
 
@@ -207,7 +211,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 			previousExposure = clamp(previousExposure, minExposure, maxExposure);
 
 			// Determine how quickly to adjust
-			float exposureRate = targetExposure < previousExposure ? CAMERA_EXPOSURE_SPEED_BRIGHT : CAMERA_EXPOSURE_SPEED_DARK;
+			float exposureRate = targetExposure < previousExposure ? CAMERA_AUTOEXPOSURE_SPEED_BRIGHT : CAMERA_AUTOEXPOSURE_SPEED_DARK;
 
 			// Calculate final exposure
 			exposure = mix(targetExposure, previousExposure, exp(-exposureRate * frameTime));

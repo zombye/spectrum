@@ -7,7 +7,7 @@
 \*/
 
 //----------------------------------------------------------------------------//
-//--// 2D/4D conversion //----------------------------------------------------//
+//--// 2D/4D and 3D/4D conversion //------------------------------------------//
 
 vec2 LookupUv4DTo2D(vec4 coord, const ivec4 resolution) {
 	vec2 xy = coord.xy;
@@ -22,6 +22,14 @@ vec4 Lookup2DTo4D(ivec2 texel, const ivec4 resolution) {
 	vec2 uvZW = floor(vec2(texel.xy) / vec2(resolution.xy)) / resolution.zw;
 
 	return vec4(uvXY, uvZW);
+}
+
+vec3 LookupUv4DTo3D(vec4 coord, const ivec4 resolution) {
+	return vec3(coord.xy, coord.z + floor(coord.w) * resolution.z);
+}
+ivec3 LookupUv4DTo3D(ivec4 coord, const ivec4 resolution) {
+	coord.z += resolution.z * coord.w;
+	return coord.xyz;
 }
 
 //----------------------------------------------------------------------------//
@@ -46,30 +54,50 @@ float AtmosphereDistanceToLowerLimit(float R, float Mu) {
 vec2 AtmosphereTransmittanceLookupUv(float R, float Mu) {
 	const float H = sqrt(atmosphere_upperLimitRadiusSquared - atmosphere_lowerLimitRadiusSquared);
 
-	float rho = sqrt(R * R - atmosphere_lowerLimitRadiusSquared);
+	float rho = sqrt(Max0(R * R - atmosphere_lowerLimitRadiusSquared));
 
-	float d = AtmosphereDistanceToUpperLimit(R, Mu);
-	float dMin = atmosphere_upperLimitRadius - R;
-	float dMax = rho + H;
+	float uvMu;
+	float absHorizonMu = sqrt(1.0 - atmosphere_lowerLimitRadiusSquared / (R * R));
+	if (Mu < -absHorizonMu) {
+		float dMin = R - atmosphere_lowerLimitRadius; // distance to lower limit directly down
+		float dMax = sqrt(Max0(R * R - atmosphere_lowerLimitRadiusSquared)); // distance to lower limit at horizon
+		float d = AtmosphereDistanceToLowerLimit(R, Mu);
 
-	float uvMu = (d - dMin) / (dMax - dMin);
-	float uvR  = rho / H;
+		uvMu = AddUvMargin((d - dMin) / (dMax - dMin), transmittanceResolutionMu / 2) * 0.5;
+	} else {
+		float dMin = atmosphere_upperLimitRadius - R; // distance to upper limit directly up
+		float dMax = sqrt(Max0(R * R - atmosphere_lowerLimitRadiusSquared)) + H; // distance to upper limit at horizon
+		float d = AtmosphereDistanceToUpperLimit(R, Mu);
+
+		uvMu = AddUvMargin((d - dMin) / (dMax - dMin), transmittanceResolutionMu / 2) * 0.5 + 0.5;
+	}
+
+	float uvR = AddUvMargin(rho / H, transmittanceResolutionR);
 
 	return vec2(uvMu, uvR);
 }
 void AtmosphereTransmittanceLookupUvReverse(vec2 coord, out float R, out float Mu) {
 	float uvMu = coord.x;
-	float uvR  = coord.y;
+	float uvR  = RemoveUvMargin(coord.y, transmittanceResolutionR);
 
 	const float H = sqrt(atmosphere_upperLimitRadiusSquared - atmosphere_lowerLimitRadiusSquared);
 
 	float rho = H * uvR;
 	R = sqrt(rho * rho + atmosphere_lowerLimitRadiusSquared);
 
-	float dMin = atmosphere_upperLimitRadius - R;
-	float dMax = rho + H;
-	float d = dMin + uvMu * (dMax - dMin);
-	Mu = d == 0.0 ? 1.0 : (H * H - rho * rho - d * d) / (2.0 * R * d);
+	if (uvMu < 0.5) {
+		float dMin = R - atmosphere_lowerLimitRadius; // distance to lower limit directly down
+		float dMax = sqrt(R * R - atmosphere_lowerLimitRadiusSquared); // distance to lower limit at horizon
+		float d = RemoveUvMargin(uvMu * 2.0, transmittanceResolutionMu / 2) * (dMax - dMin) + dMin;
+
+		Mu = d > 0.0 ? (-R*R + atmosphere_lowerLimitRadiusSquared - d*d) / (2.0 * R * d) : -1.0;
+	} else {
+		float dMin = atmosphere_upperLimitRadius - R; // distance to upper limit directly up
+		float dMax = sqrt(R * R - atmosphere_lowerLimitRadiusSquared) + H; // distance to upper limit at horizon
+		float d = RemoveUvMargin(uvMu * 2.0 - 1.0, transmittanceResolutionMu / 2) * (dMax - dMin) + dMin;
+
+		Mu = d > 0.0 ? (-R*R + atmosphere_upperLimitRadiusSquared - d*d) / (2.0 * R * d) : 1.0;
+	}
 }
 
 vec4 AtmosphereScatteringLookupUv(float R, float Mu, float MuS, float V) {
@@ -81,7 +109,7 @@ vec4 AtmosphereScatteringLookupUv(float R, float Mu, float MuS, float V) {
 	float RMu = R * Mu;
 	float discriminant = RMu * RMu - R * R + atmosphere_lowerLimitRadiusSquared;
 	float uvMu = 0.5;
-	if (AtmosphereRayIntersectsLowerLimit(R, Mu)) {
+	if (Mu < 0.0 && discriminant >= 0.0) {
 		float d = -RMu - sqrt(discriminant);
 		float dMin = R - atmosphere_lowerLimitRadius;
 		float dMax = rho;

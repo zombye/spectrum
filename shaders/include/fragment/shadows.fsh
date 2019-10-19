@@ -50,7 +50,7 @@
 #endif
 
 #if   SHADOW_FILTER == SHADOW_FILTER_BILINEAR
-	vec3 BilinearFilter(vec3 shadowCoord, float distortionFactor, float biasMul, float biasAdd, out float waterFraction, out float waterDepth) {
+	vec3 BilinearFilter(vec3 shadowCoord, float distortionFactor, float biasMul, float biasAdd, out float waterFraction, out float waterDepth, out float avgDepth) {
 		// Separate integer & fractional coordinates
 		vec2 sampleUv = shadowCoord.xy;
 		vec2 iUv, fUv = modf(sampleUv * SHADOW_RESOLUTION + 0.5, iUv);
@@ -65,6 +65,7 @@
 
 		vec4 depth0 = textureGather(shadowtex0, sampleUv);
 		vec4 depth1 = textureGather(shadowtex1, sampleUv);
+		avgDepth = SumOf(depth1);
 
 		vec4 shadow0 = step(cmpDepth, depth0);
 		vec4 shadow1 = step(cmpDepth, depth1);
@@ -164,9 +165,10 @@
 	}
 	#endif
 
-	vec3 PercentageCloserFilter(vec3 position, float biasMul, float biasAdd, float dither, const float ditherSize, out float waterFraction, out float waterDepth) {
+	vec3 PercentageCloserFilter(vec3 position, float biasMul, float biasAdd, float dither, const float ditherSize, out float waterFraction, out float waterDepth, out float avgDepth) {
 		waterFraction = 0.0;
 		waterDepth = 0.0;
+		avgDepth = 0.0;
 
 		//--//
 
@@ -215,6 +217,7 @@
 
 				float depth0 = textureLod(shadowtex0, sampleUv0, 0.0).x;
 				float depth1 = textureLod(shadowtex1, sampleUv1, 0.0).x;
+				avgDepth += depth1;
 
 				float shadow0 = step(cmpDepth0, depth0);
 				float shadow1 = step(cmpDepth1, depth1);
@@ -242,6 +245,7 @@
 
 				vec4 depth0 = textureGather(shadowtex0, sampleUv);
 				vec4 depth1 = textureGather(shadowtex1, sampleUv);
+				avgDepth += SumOf(depth1) / 4.0;
 
 				vec4 shadow0 = step(cmpDepth, depth0);
 				vec4 shadow1 = step(cmpDepth, depth1);
@@ -269,6 +273,7 @@
 		waterFraction /= validSamples;
 
 		result /= samples;
+		avgDepth /= samples;
 
 		#if !defined SHADOW_COLORED && (SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS)
 			float penumbraFraction = Clamp01(unclampedFilterRadius / filterRadius);
@@ -281,38 +286,51 @@
 
 #ifdef SSCS
 	float ScreenSpaceContactShadow(mat3 position, float dither) {
-		dither = floor(dither * 4.0) * 0.25 + 0.25;
+		const uint stride = SSCS_STRIDE;
+		const uint maxSteps = SSCS_SAMPLES;
 
-		vec3 direction = ViewSpaceToScreenSpace(shadowLightVectorView * -position[1].z + position[1], gbufferProjection) - position[0];
-		#if SSCS_MODE == 1
-		     direction = direction * SSCS_STRIDE / MaxOf(abs(direction.xy * viewResolution));
-		#else
-		     direction = direction * gbufferProjection[1].y * SSCS_STRIDE / MaxOf(abs(direction.xy * viewResolution));
-		#endif
+		vec3 rayStep  = position[1] + abs(position[1].z) * shadowLightVectorView;
+		     rayStep  = ViewSpaceToScreenSpace(rayStep, gbufferProjection) - position[0];
+		     rayStep *= MinOf((step(0.0, rayStep) - position[0]) / rayStep);
 
-		vec3 rayPosition = position[0];
+		position[0].xy *= viewResolution;
+		rayStep.xy *= viewResolution;
 
-		for (int iteration = 0; iteration < SSCS_SAMPLES; ++iteration) {
-			rayPosition   += direction * (iteration == 0 ? dither : 1.0);
-			if (clamp(rayPosition, 0.0, 1.0) != rayPosition) break;
-			float linDepth = GetLinearDepth(depthtex1, rayPosition.xy);
-			float linZPos  = ScreenSpaceToViewSpace(rayPosition.z, gbufferProjectionInverse);
+		rayStep /= abs(abs(rayStep.x) < abs(rayStep.y) ? rayStep.y : rayStep.x);
 
-			if (linZPos < linDepth) { // linZPos and linDepth are negative
-				float difference  = abs((linDepth - linZPos) / linZPos);
-				#if SSCS_MODE == 1
-				      difference *= gbufferProjection[1].y;
-				#endif
+		vec2 stepsToEnd = (step(0.0, rayStep.xy) * viewResolution - position[0].xy) / rayStep.xy;
+		uint maxLoops = min(uint(ceil(min(min(stepsToEnd.x, stepsToEnd.y), MaxOf(viewResolution)) / float(stride))), maxSteps);
 
-				if (difference < 0.02) { return smoothstep(0.75, 1.0, (iteration + dither) / SSCS_SAMPLES); }
-			}
+		vec3 startPosition = position[0];
+
+		bool hit = false;
+		float ditherp = floor(stride * fract(Bayer8(gl_FragCoord.xy) + fract((phi - 1.0) * frameCounter)) + 1.0);
+		for (uint i = 0u; i < maxLoops && !hit; ++i) {
+			float pixelSteps = float(i * stride) + ditherp;
+			position[0] = startPosition + pixelSteps * rayStep;
+
+			// Z at current step & one step towards -Z
+			float maxZ = position[0].z;
+			float minZ = rayStep.z > 0.0 && i == 0u ? startPosition.z : position[0].z - float(stride) * abs(rayStep.z);
+
+			if (1.0 < minZ || maxZ < 0.0) { break; }
+
+			// Requiring intersection from BOTH interpolated & noninterpolated depth prevents pretty much all false occlusion.
+			float depth = texelFetch(depthtex1, ivec2(position[0].xy), 0).r;
+			float ascribedDepth = AscribeDepth(depth, 1e-2 * (i == 0u ? ditherp : float(stride)) * gbufferProjectionInverse[1].y);
+			float depthInterp = ViewSpaceToScreenSpace(GetLinearDepth(depthtex1, position[0].xy * viewPixelSize), gbufferProjection);
+			float ascribedDepthInterp = AscribeDepth(depthInterp, 1e-2 * (i == 0u ? ditherp : float(stride)) * gbufferProjectionInverse[1].y);
+
+			hit = maxZ >= depth && minZ <= ascribedDepth
+			&& maxZ >= depthInterp && minZ <= ascribedDepthInterp
+			&& depth > 0.65 && depth < 1.0; // don't count hand and sky (todo: allow hits on hand when ray starts on hand)
 		}
 
-		return 1.0;
+		return float(!hit);
 	}
 #endif
 
-vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither, const float ditherSize) {
+vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither, const float ditherSize, out float sssDepth) {
 	normal = mat3(shadowModelView) * normal;
 
 	if (normal.z < 0.0 && !translucent) { return vec3(0.0); } // Early-exit
@@ -350,6 +368,8 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 			float shadow0 = step(shadowCoord.z, depth0);
 			float shadow1 = step(shadowCoord.z, depth1);
 
+			sssDepth = depth1;
+
 			waterDepth = depth0;
 			waterFraction *= shadow1 - shadow0 * shadow1;
 
@@ -361,13 +381,15 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 		}
 	#elif SHADOW_FILTER == SHADOW_FILTER_BILINEAR
 		float waterFraction, waterDepth;
-		vec3 shadows = BilinearFilter(shadowCoord, distortionFactor, biasMul, biasAdd, waterFraction, waterDepth);
+		vec3 shadows = BilinearFilter(shadowCoord, distortionFactor, biasMul, biasAdd, waterFraction, waterDepth, sssDepth);
 	#elif SHADOW_FILTER == SHADOW_FILTER_PCF || SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
 		float waterFraction, waterDepth;
-		vec3 shadows = PercentageCloserFilter(shadowClip, biasMul, biasAdd, dither, ditherSize, waterFraction, waterDepth);
+		vec3 shadows = PercentageCloserFilter(shadowClip, biasMul, biasAdd, dither, ditherSize, waterFraction, waterDepth, sssDepth);
 	#endif
 
-	waterDepth = SHADOW_DEPTH_RADIUS * (shadowCoord.z - waterDepth);
+	sssDepth = 2.0 * SHADOW_DEPTH_RADIUS * (shadowCoord.z - sssDepth);
+
+	waterDepth = 2.0 * SHADOW_DEPTH_RADIUS * (shadowCoord.z - waterDepth);
 	if (waterFraction > 0) {
 		#ifdef UNDERWATER_ADAPTATION
 			float fogDensity = isEyeInWater == 1 ? fogDensity : 0.1;
@@ -387,7 +409,7 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 	}
 
 	#ifdef SSCS
-		if (shadows.r + shadows.g + shadows.b > 0.0 && !translucent) {
+		if (shadows.r + shadows.g + shadows.b > 0.0) {
 			shadows *= ScreenSpaceContactShadow(position, dither);
 		}
 	#endif

@@ -95,12 +95,6 @@ uniform vec2 viewPixelSize;
 			color = LowlightDesaturate(color, exposure);
 		#endif
 
-		color *= mat3( // Apply color matrix before tonemapping
-			COLORMATRIX_R_TO_R, COLORMATRIX_G_TO_R, COLORMATRIX_B_TO_R,
-			COLORMATRIX_R_TO_G, COLORMATRIX_G_TO_G, COLORMATRIX_B_TO_G,
-			COLORMATRIX_R_TO_B, COLORMATRIX_G_TO_B, COLORMATRIX_B_TO_B
-		);
-
 		color = Max0(color);
 
 		const mat3 coneOverlapMatrix2Deg = mat3(

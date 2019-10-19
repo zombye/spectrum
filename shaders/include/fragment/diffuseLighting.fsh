@@ -42,22 +42,35 @@ vec3 DiffuseHammonAmbient(float NoV, vec3 diffuseAlbedo, float roughness) {
 	return multi * diffuseAlbedo + single;
 }
 
-vec3 SubsurfaceApprox(float NoL, float LoV, vec3 albedo, vec3 translucency) {
-	return (1.0 - albedo) * translucency * abs(NoL) / tau;
+vec3 SubsurfaceApprox(float NoL, float LoV, vec3 albedo, vec3 translucency, float sssDepth) {
+	sssDepth = max(sssDepth, 0.0);
+	float phase = 0.25 / pi; // Should use like a HG phase function here and adjust g same way I do for clouds
+	return Clamp01(exp((albedo * 0.5 - 1.0) * sssDepth / translucency)) * phase;
 }
 
 float CalculateBlocklightFalloff(float blocklight) {
+	if (blocklight >= 1.0) { return 1.0; } // Return 1 for "emissive" stuff as I currently don't handle emission from lightmap properly
+
+	// Light falloff calculation for block light sources.
+	// Uses a realistic falloff where the light is the surface of a sphere, then remaps it to hit 0 at the end.
+	// Would really like if Minecraft's lightmaps extended further though. Would look so much better.
+
 	const float lightmapRange = 15.0;
-	const float lightSize     = BLOCK_LIGHT_SIZE;
-	const float lightmapScale = lightmapRange / lightSize;
+	const float lightDiameter = BLOCK_LIGHT_SIZE;
+	const float lightRadius = lightDiameter / 2.0;
 
-	const float cmp   = lightmapScale * 0.5 - 0.5;
-	const float sqMul = 4.0 / ((lightmapScale + 1.0) * (lightmapScale + 1.0));
-	const float sqAdd = -sqMul * lightmapScale;
+	// Illuminance integral, assuming NdotL = 1 since we don't know the actual direction of the light.
+	// Leaves out luminance multiplier, that should be done outside of this function
+	float lightDistance = lightmapRange * (1.0 - blocklight);
+	float illuminance = (pi * lightRadius * lightRadius) / Pow2(lightDistance + lightRadius);
 
-	float falloff = lightmapScale - lightmapScale * blocklight;
-	      falloff = falloff < cmp ? 1.0 / (falloff + 1.0) : sqMul * falloff + sqAdd;
-	return falloff * falloff;
+	// subtract illuminance at end so it reaches 0 and scale to keep illuminance at start same as before
+	const float minIlluminance = (pi * lightRadius * lightRadius) / pow(lightmapRange + lightRadius, 2.0);
+	const float maxIlluminance = pi;
+	const float scale = maxIlluminance / (maxIlluminance - minIlluminance);
+	illuminance = illuminance * scale - (minIlluminance * scale);
+
+	return illuminance;
 }
 
 vec3 CalculateDiffuseLighting(
@@ -71,6 +84,7 @@ vec3 CalculateDiffuseLighting(
 	// Lighting information from before this function is calculated
 	vec3 shadows,
 	vec3 bounced, // Only from the shadow light
+	float sssDepth, // Depth to use for subsurface scattering
 	vec3 skylight,
 	vec2 lightmap,
 	float blocklightShading,
@@ -89,9 +103,9 @@ vec3 CalculateDiffuseLighting(
 			float falloff = lightmap.y * exp(6.0 * (lightmap.y - 1.0));
 
 			vec3 diffuse    = DiffuseHammon(NoL, NoH, NoV, LoV, material.albedo, material.roughness);
-			vec3 subsurface = SubsurfaceApprox(NoL, -LoV, material.albedo, material.translucency);
+			vec3 subsurface = SubsurfaceApprox(NoL, -LoV, material.albedo, material.translucency, sssDepth);
 
-			diffuseLighting += ((diffuse + subsurface) * shadows + bounced) * illuminanceShadowlight * falloff;
+			diffuseLighting += (diffuse * shadows + subsurface + bounced) * illuminanceShadowlight * falloff;
 
 			#ifdef GLOBAL_LIGHT_USE_AO
 				diffuseLighting += falloff * hemisphereDiffuse * skylight;
@@ -103,12 +117,12 @@ vec3 CalculateDiffuseLighting(
 	#else
 		// Sunlight
 		vec3 diffuse    = DiffuseHammon(NoL, NoH, NoV, LoV, material.albedo, material.roughness);
-		vec3 subsurface = SubsurfaceApprox(NoL, -LoV, material.albedo, material.translucency);
+		vec3 subsurface = SubsurfaceApprox(NoL, -LoV, material.albedo, material.translucency, sssDepth);
 
 		#ifdef GLOBAL_LIGHT_USE_AO
-			diffuseLighting += illuminanceShadowlight * ((diffuse * ao + subsurface) * shadows + bounced);
+			diffuseLighting += illuminanceShadowlight * (diffuse * ao * shadows + subsurface + bounced);
 		#else
-			diffuseLighting += illuminanceShadowlight * ((diffuse + subsurface) * shadows + bounced);
+			diffuseLighting += illuminanceShadowlight * (diffuse * shadows + subsurface + bounced);
 		#endif
 
 		// Skylight
@@ -122,7 +136,7 @@ vec3 CalculateDiffuseLighting(
 	// Block light
 	if (lightmap.x > 0.0) {
 		float falloff = CalculateBlocklightFalloff(lightmap.x);
-		vec3  color   = mix(Blackbody(BLOCK_LIGHT_TEMPERATURE), vec3(1.0), falloff);
+		vec3  color   = mix(Blackbody(BLOCK_LIGHT_TEMPERATURE), vec3(1.0), falloff / pi);
 
 		#ifdef BLOCK_LIGHT_USE_AO
 			falloff *= ao;

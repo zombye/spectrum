@@ -27,7 +27,7 @@ uniform sampler2D colortex6; // Sky Scattering Image
 uniform sampler2D colortex5; // Misc encoded stuff
 
 uniform sampler2D depthtex0; // Sky Transmittance LUT
-uniform sampler2D depthtex2; // Sky Scattering LUT
+uniform sampler3D depthtex2; // Sky Scattering LUT
 #define transmittanceLut depthtex0
 #define scatteringLut depthtex2
 
@@ -215,6 +215,7 @@ uniform vec3 shadowLightVector;
 		s.xy = mix(s.wx, s.zy, f.x);
 		return mix(s.x,  s.y,  f.y) * gbufferProjectionInverse[3].z;
 	}
+	#include "/include/fragment/raytracer.fsh"
 
 	#include "/include/fragment/material.fsh"
 	#include "/include/fragment/brdf.fsh"
@@ -227,7 +228,6 @@ uniform vec3 shadowLightVector;
 
 	#include "/include/fragment/clouds3D.fsh"
 
-	#include "/include/fragment/raytracer.fsh"
 
 	//--// Fragment Functions //----------------------------------------------//
 
@@ -389,14 +389,14 @@ uniform vec3 shadowLightVector;
 				         + skylightNegX * wNeg.x + skylightNegY * wNeg.y + skylightNegZ * wNeg.z;
 			}
 
-			vec3 shadows = vec3(0.0), bounce = vec3(0.0);
+			vec3 shadows = vec3(0.0), bounce = vec3(0.0); float sssDepth = 0.0;
 			#ifdef GLOBAL_LIGHT_FADE_WITH_SKYLIGHT
 				if (lightmap.y > 0.0) {
 					float cloudShadow = GetCloudShadows(position[2]);
 					bool translucent = material.translucency.r + material.translucency.g + material.translucency.b > 0.0;
 					shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
 					if (shadows.r > 0.0 && (NoL > 0.0 || translucent)) {
-						shadows *= CalculateShadows(position, normalFlat, translucent, dither, ditherSize);
+						shadows *= CalculateShadows(position, normalFlat, translucent, dither, ditherSize, sssDepth);
 					}
 
 					#ifdef RSM
@@ -413,7 +413,7 @@ uniform vec3 shadowLightVector;
 				bool translucent = material.translucency.r + material.translucency.g + material.translucency.b > 0.0;
 				shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
 				if (shadows.r > 0.0 && (NoL > 0.0 || translucent)) {
-					shadows *= CalculateShadows(position, normalFlat, translucent, dither, ditherSize);
+					shadows *= CalculateShadows(position, normalFlat, translucent, dither, ditherSize, sssDepth);
 				}
 
 				#ifdef RSM
@@ -426,7 +426,7 @@ uniform vec3 shadowLightVector;
 				bounce *= cloudShadow * ao;
 			#endif
 
-			color = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, bounce, skylight, lightmap, blocklightShading, ao);
+			color = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, bounce, sssDepth, skylight, lightmap, blocklightShading, ao);
 
 			shadowsOut = vec4(LinearToSrgb(shadows), 1.0);
 			#endif

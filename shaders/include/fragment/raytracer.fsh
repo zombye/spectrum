@@ -1,136 +1,54 @@
 #if !defined INCLUDE_FRAGMENT_RAYTRACER
 #define INCLUDE_FRAGMENT_RAYTRACER
 
-//#define RAYTRACER_HQ
-
-bool RaytraceIntersection(inout vec3 position, vec3 startVS, vec3 direction, int steps, int refinements) {
-	bool doRefinements = refinements > 0;
-	int refinement = 0;
-
-	#ifdef RAYTRACER_HQ
-		int refinementIteration = 0;
-	#endif
-
-	//*
-	vec3 increment  = direction * abs(startVS.z) + startVS;
-	     increment  = ViewSpaceToScreenSpace(increment, gbufferProjection) - position;
-	     increment *= MinOf((step(0.0, increment) - position) / increment) / steps;
-	//*/
-	/*
-	vec3 clipPlaneIntersection = vec3(direction.xy / direction.z, 1.0) * ((direction.z < 0.0 ? -far : -near) - startVS.z) + startVS;
-	     clipPlaneIntersection = ViewSpaceToScreenSpace(clipPlaneIntersection, gbufferProjection);
-	vec3 increment  = clipPlaneIntersection - position;
-	     increment *= min(MinOf((step(0.0, increment.xy) - position.xy) / increment.xy), 1.0);
-	     increment /= steps;
-	//*/
-	float stepSize = length(increment);
-
-	position += increment;
-
-	for (int i = 0; i < steps; ++i) {
-		// Not interpolating seems to give better results
-		float depth = texelFetch(depthtex1, ivec2(floor(position.xy * viewResolution)), 0).r;
-
-		if (depth < position.z) {
-			if (position.z - depth <= stepSize) {
-				if (doRefinements) {
-					if (++refinement > refinements) {
-						position.z = depth;
-						return position.z < 1.0;
-					}
-
-					increment /= 2.0;
-					stepSize  /= 2.0;
-					position  -= increment;
-					#ifdef RAYTRACER_HQ
-						steps *= 2; i = i * 2 - 1;
-						refinementIteration = i;
-					#else
-						i -= 2;
-					#endif
-
-					continue;
-				} else {
-					position.z = depth;
-					return position.z < 1.0;
-				}
-			}
-		}
-
-		#ifdef RAYTRACER_HQ
-			if (refinement > 0 && (i - refinementIteration) == 2) {
-				increment *= 2.0;
-				stepSize  *= 2.0;
-				steps /= 2; i /= 2;
-				--refinement;
-			}
-		#endif
-
-		position += increment;
-	}
-
-	return false;
+float AscribeDepth(float depth, float ascribeAmount) {
+	depth = 1.0 - 2.0 * depth;
+	depth = (depth - gbufferProjection[2].z) / (1.0 + ascribeAmount) + gbufferProjection[2].z;
+	return 0.5 - 0.5 * depth;
 }
 
-bool RaytraceIntersection(inout vec3 position, vec3 startVS, vec3 direction, float dither, float range, int steps, int refinements) {
-	bool doRefinements = refinements > 0;
-	int refinement = 0;
+bool IntersectSSRay(
+	inout vec3 position, // Starting position in screen-space. This gets set to the hit position, also in screen-space.
+	vec3 startVS, // Starting position in view-space
+	vec3 rayDirection, // Ray direction in view-space
+	const uint stride // Stride, in pixels. Should be >= 1.
+) {
+	vec3 rayStep  = startVS + abs(startVS.z) * rayDirection;
+	     rayStep  = ViewSpaceToScreenSpace(rayStep, gbufferProjection) - position;
+	     rayStep *= MinOf((step(0.0, rayStep) - position) / rayStep);
 
-	#ifdef RAYTRACER_HQ
-		int refinementIteration = 0;
-	#endif
+	position.xy *= viewResolution;
+	rayStep.xy *= viewResolution;
 
-	vec3 increment = direction * (direction.z > 0.0 ? min(-0.5 * startVS.z / direction.z, range) : range) + startVS;
-	     increment = (ViewSpaceToScreenSpace(increment, gbufferProjection) - position) / steps;
-	float stepSize = length(increment);
+	rayStep /= abs(abs(rayStep.x) < abs(rayStep.y) ? rayStep.y : rayStep.x);
 
-	position += increment * dither;
+	vec2 stepsToEnd = (step(0.0, rayStep.xy) * viewResolution - position.xy) / rayStep.xy;
+	uint maxSteps = uint(ceil(min(min(stepsToEnd.x, stepsToEnd.y), MaxOf(viewResolution)) / float(stride)));
 
-	for (int i = 0; i < steps; ++i) {
-		if (Clamp01(position.xy) != position.xy) { break; }
+	vec3 startPosition = position;
 
-		// Not interpolating seems to give better results
-		float depth = texelFetch(depthtex1, ivec2(floor(position.xy * viewResolution)), 0).r;
+	bool hit = false;
+	float ditherp = floor(stride * fract(Bayer8(gl_FragCoord.xy) + fract((phi - 1.0) * frameCounter)) + 1.0);
+	for (uint i = 0u; i < maxSteps && !hit; ++i) {
+		float pixelSteps = float(i * stride) + ditherp;
+		position = startPosition + pixelSteps * rayStep;
 
-		if (depth < position.z) {
-			if (position.z - depth <= stepSize) {
-				if (doRefinements) {
-					if (++refinement > refinements) {
-						position.z = depth;
-						return position.z < 1.0;
-					}
+		// Z at current step & one step towards -Z
+		float maxZ = position.z;
+		float minZ = rayStep.z > 0.0 && i == 0u ? startPosition.z : position.z - float(stride) * abs(rayStep.z);
 
-					increment /= 2.0;
-					stepSize  /= 2.0;
-					position  -= increment;
-					#ifdef RAYTRACER_HQ
-						steps *= 2; i = i * 2 - 1;
-						refinementIteration = i;
-					#else
-						i -= 2;
-					#endif
+		if (1.0 < minZ || maxZ < 0.0) { break; }
 
-					continue;
-				} else {
-					position.z = depth;
-					return position.z < 1.0;
-				}
-			}
-		}
+		// Could also check interpolated depth here, would prevent the few remaining possible false intersections.
+		float depth = texelFetch(depthtex1, ivec2(position.xy), 0).r;
+		float ascribedDepth = AscribeDepth(depth, 5e-3 * (i == 0u ? ditherp : float(stride)) * gbufferProjectionInverse[1].y);
 
-		#ifdef RAYTRACER_HQ
-			if (refinement > 0 && (i - refinementIteration) == 2) {
-				increment *= 2.0;
-				stepSize  *= 2.0;
-				steps /= 2; i /= 2;
-				--refinement;
-			}
-		#endif
-
-		position += increment;
+		hit = maxZ >= depth && minZ <= ascribedDepth && depth < 1.0;
 	}
 
-	return false;
+	position.xy *= viewPixelSize;
+
+	return hit;
 }
 
 #endif

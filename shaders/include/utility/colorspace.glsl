@@ -1,6 +1,28 @@
 #if !defined INCLUDE_UTILITY_COLORSPACE
 #define INCLUDE_UTILITY_COLORSPACE
 
+/*\
+ *   r      g      b      w
+ * x 0.6400 0.3000 0.1500 0.3127
+ * y 0.3300 0.6000 0.0600 0.3290
+ * z 0.0300 0.1000 0.7900 0.3583
+ * Y 0.2126 0.7152 0.0722 1.0000
+ * 
+ * X = (Y / y) * x
+ * Y = Y
+ * Z = (Y / y) * (1 - x - y) = (Y / y) * z
+ * 
+ * X = (r * (0.2126 / 0.3300) * 0.6400) + (g * (0.7152 / 0.6000) * 0.3000) + (b * (0.0722 / 0.0600) * 0.1500)
+ * Y = (r *  0.2126                   ) + (g *  0.7152                   ) + (b *  0.0722                   )
+ * Z = (r * (0.2126 / 0.3300) * 0.0300) + (g * (0.7152 / 0.6000) * 0.1000) + (b * (0.0722 / 0.0600) * 0.7900)
+\*/
+const mat3 RgbToXyz = mat3(
+	vec3((0.2126 / 0.3300) * 0.6400, (0.7152 / 0.6000) * 0.3000, (0.0722 / 0.0600) * 0.1500),
+	vec3( 0.2126                   ,  0.7152                   ,  0.0722                   ),
+	vec3((0.2126 / 0.3300) * 0.0300, (0.7152 / 0.6000) * 0.1000, (0.0722 / 0.0600) * 0.7900)
+);
+const mat3 XyzToRgb = inverse(RgbToXyz);
+
 const vec3 lumacoeff_rec709 = vec3(0.2126, 0.7152, 0.0722);
 const vec3 srgbPrimaryWavelengthsNanometers = vec3(612.5, 549.0, 451.0); // Approximate
 
@@ -15,15 +37,6 @@ vec3 RgbToYcocg(vec3 rgb) {
 vec3 YcocgToRgb(vec3 ycocg) {
 	float tmp = ycocg.x - ycocg.z;
 	return vec3(tmp + ycocg.y, ycocg.x + ycocg.z, tmp - ycocg.y);
-}
-
-vec3 XyzToRgb(vec3 xyz) {
-	const mat3 mat = mat3(
-		 3.2409699419,-1.5373831776,-0.4986107603,
-		-0.9692436363, 1.8759675015, 0.0415550574,
-		 0.0556300797,-0.2039769589, 1.0569715142
-	);
-	return xyz * mat;
 }
 
 float LinearToSrgb(float color) {

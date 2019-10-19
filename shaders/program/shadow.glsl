@@ -7,6 +7,7 @@
 
 #include "/settings.glsl"
 
+#define SHADOW_DISABLE_ALPHA_MIPMAP
 #define SHADOW_BACKFACE_CULLING // This causes light to pass through terrain as side faces on chunks aren't rendered even if the neighboring chunk on that side isn't rendered either.
 //#define BEACON_BEAM_SHADOWS
 
@@ -134,7 +135,7 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Functions //----------------------------------------------//
 
-	#if CAUSTICS != CAUSTICS_OFF
+	#if defined PROCEDURAL_WATER && CAUSTICS != CAUSTICS_OFF
 	float CalculateProjectedCaustics(vec3 position, vec3 normal) {
 		// calculate (squared) original area
 		vec3 dpdx = dFdx(position), dpdy = dFdy(position);
@@ -154,6 +155,7 @@ uniform vec3 shadowLightVector;
 	#endif
 
 	void main() {
+		#ifdef PROCEDURAL_WATER
 		if (blockId == 8 || blockId == 9) {
 			shadowcolor1Write.rgb = vec3(1.0);
 			shadowcolor1Write.a   = 0.0;
@@ -168,18 +170,26 @@ uniform vec3 shadowLightVector;
 			#if CAUSTICS == CAUSTICS_HIGH
 				shadowcolor0Write.xy = EncodeNormal(waterNormal) * 0.5 + 0.5;
 			#endif
-		} else {
-			shadowcolor1Write = texture(tex, textureCoordinates);
-			if (shadowcolor1Write.a < 0.102) { discard; }
+		} else
+		#endif
+		{
+			#ifdef SHADOW_DISABLE_ALPHA_MIPMAP
+				shadowcolor1Write.a = textureLod(tex, textureCoordinates, 0).a;
+				if (shadowcolor1Write.a < 0.102) { discard; }
+				shadowcolor1Write.rgb = texture(tex, textureCoordinates).rgb;
+			#else
+				shadowcolor1Write = texture(tex, textureCoordinates);
+				if (shadowcolor1Write.a < 0.102) { discard; }
+			#endif
 			shadowcolor1Write.rgb *= tint;
 
 			shadowcolor0Write.w = 0.0;
-			#if CAUSTICS == CAUSTICS_HIGH
+			#if defined PROCEDURAL_WATER && CAUSTICS == CAUSTICS_HIGH
 				shadowcolor0Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
 			#endif
 		}
 
-		#if CAUSTICS != CAUSTICS_HIGH
+		#if defined PROCEDURAL_WATER && CAUSTICS != CAUSTICS_HIGH
 			shadowcolor0Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
 		#endif
 		shadowcolor0Write.z = lightmapCoordinates.y;

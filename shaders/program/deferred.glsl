@@ -25,7 +25,7 @@ uniform sampler3D colortex7; // 3D noise
 uniform sampler2D noisetex;
 
 uniform sampler2D depthtex0; // Sky Transmittance LUT
-uniform sampler2D depthtex2; // Sky Scattering LUT
+uniform sampler3D depthtex2; // Sky Scattering LUT
 #define transmittanceLut depthtex0
 #define scatteringLut depthtex2
 

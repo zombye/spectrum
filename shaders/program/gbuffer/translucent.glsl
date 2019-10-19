@@ -359,7 +359,7 @@ uniform vec3 shadowLightVector;
 			#define ReadTexture(sampler) texture(sampler, textureCoordinates)
 		#endif
 
-		#ifndef USE_WATER_TEXTURE
+		#ifdef PROCEDURAL_WATER
 			if (blockId == 8 || blockId == 9) {
 				baseTex = vec4(0.0);
 				specTex = vec4(0.0);
@@ -378,7 +378,7 @@ uniform vec3 shadowLightVector;
 		specTex = ReadTexture(specular);
 		normal = ReadTexture(normals).rgb * 2.0 - (254.0 / 255.0);
 
-		#ifndef USE_WATER_TEXTURE
+		#ifdef PROCEDURAL_WATER
 			}
 		#endif
 
@@ -400,7 +400,11 @@ uniform vec3 shadowLightVector;
 		float NoH = (NoL + NoV) * rcpLen_LV;
 		float VoH = LoV * rcpLen_LV + rcpLen_LV;
 
+		#ifdef TOTAL_INTERNAL_REFLECTION
 		float fresnel = FresnelDielectric(abs(NoV), (isEyeInWater == 1 ? 1.333 : 1.000275) / material.n.x);
+		#else
+		float fresnel = FresnelDielectric(abs(NoV), airMaterial.n.x / material.n.x);
+		#endif
 		float totalOpacity = baseTex.a * (1.0 - fresnel) + fresnel;
 
 		#if defined PARALLAX && defined PARALLAX_SHADOWS
@@ -418,13 +422,14 @@ uniform vec3 shadowLightVector;
 			         + skylightNegX * wNeg.x + skylightNegY * wNeg.y + skylightNegZ * wNeg.z;
 		}
 
+		float sssDepth = 0.0;
 		#ifdef GLOBAL_LIGHT_FADE_WITH_SKYLIGHT
-			vec3 shadows = vec3(0.0), vec3 bounce = vec3(0.0);
+			vec3 shadows = vec3(0.0), bounce = vec3(0.0);
 			if (lightmapCoordinates.y > 0.0) {
 				float cloudShadow = GetCloudShadows(position[2]);
 				shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
 				if (shadows.r > 0.0 && (NoL > 0.0 || translucent)) {
-					shadows *= CalculateShadows(position, tbn[2], translucent, dither, ditherSize);
+					shadows *= CalculateShadows(position, tbn[2], translucent, dither, ditherSize, sssDepth);
 				}
 
 				bounce  = CalculateFakeBouncedLight(normal, shadowLightVector);
@@ -435,24 +440,24 @@ uniform vec3 shadowLightVector;
 			float cloudShadow = GetCloudShadows(position[2]);
 			vec3 shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
 			if (shadows.r > 0.0 && (NoL > 0.0 || translucent)) {
-				shadows *= CalculateShadows(position, tbn[2], translucent, dither, ditherSize);
+				shadows *= CalculateShadows(position, tbn[2], translucent, dither, ditherSize, sssDepth);
 			}
 
 			vec3 bounce  = CalculateFakeBouncedLight(normal, shadowLightVector);
 			     bounce *= lightmapCoordinates.y * lightmapCoordinates.y * lightmapCoordinates.y;
 			     bounce *= cloudShadow * vertexAo;
 		#endif
-		shadowsOut = vec4(LinearToSrgb(shadows), 1.0);
+		shadowsOut = vec4(Clamp01(LinearToSrgb(shadows)), 1.0);
 
 		float blocklightShading = 1.0; // TODO
 
 		material.albedo *= baseTex.a;
-		colortex3Write.rgb  = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, bounce, skylight, lightmapCoordinates, blocklightShading, vertexAo);
+		colortex3Write.rgb  = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, bounce, sssDepth, skylight, lightmapCoordinates, blocklightShading, vertexAo);
 		#ifdef SSR_MULTILAYER
 		colortex3Write.rgb += CalculateEnvironmentReflections(colortex4, position, normal, NoV, material.roughness, material.n, material.k, 1.0, blockId == 8 || blockId == 9, dither, ditherSize);
 		#endif
 		colortex3Write.rgb += material.emission;
-		colortex3Write.a    = totalOpacity;
+		colortex3Write.a    = Clamp01(totalOpacity);
 		#if defined MOTION_BLUR || defined TAA
 			velocity.rgb = vec3(gl_FragCoord.xy * viewPixelSize, gl_FragCoord.z) - ((previousScreenPosition.xyz / previousScreenPosition.w) * 0.5 + 0.5);
 			velocity.a = 1.0;

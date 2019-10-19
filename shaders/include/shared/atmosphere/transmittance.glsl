@@ -1,35 +1,34 @@
 #if !defined INCLUDE_SHARED_ATMOSPHERE_TRANSMITTANCE
 #define INCLUDE_SHARED_ATMOSPHERE_TRANSMITTANCE
 
-vec3 AtmosphereTransmittance(sampler2D sampler, float coreDistance, float cosViewZenithAngle) {
-	ivec2 resolution = textureSize(sampler, 0);
+vec3 AtmosphereTransmittance(sampler2D sampler, float R, float Mu) {
+	if (R > atmosphere_upperLimitRadius) {
+		float discriminant = R * R * (Mu * Mu - 1.0) + atmosphere_upperLimitRadiusSquared;
+		bool intersectsUpperLimit = Mu < 0.0 && discriminant >= 0.0;
 
-	vec2 coord = AtmosphereTransmittanceLookupUv(coreDistance, cosViewZenithAngle);
-	     coord = AddUvMargin(coord, resolution);
+		if (!intersectsUpperLimit) {
+			return vec3(1.0);
+		} else {
+			float d = -R * Mu - sqrt(discriminant);
 
-	coord = coord * resolution - 0.5;
-	ivec2 i = ivec2(floor(coord));
-	vec2 f = coord - i;
-
-	vec3 s0 = DecodeRGBE8(texelFetch(sampler, i + ivec2(0,0), 0));
-	vec3 s1 = DecodeRGBE8(texelFetch(sampler, i + ivec2(1,0), 0));
-	vec3 s2 = DecodeRGBE8(texelFetch(sampler, i + ivec2(0,1), 0));
-	vec3 s3 = DecodeRGBE8(texelFetch(sampler, i + ivec2(1,1), 0));
-
-	return mix(mix(s0, s1, f.x), mix(s2, s3, f.x), f.y);
-}
-vec3 AtmosphereTransmittance(sampler2D sampler, float coreDistance, float cosViewZenithAngle, float distance) {
-	// Transmittance from A to B is same as transmittance from B to A
-	// Transmittance over a distance should always be done from the lowest point to the highest point.
-
-	float endR  = sqrt(distance * distance + 2 * coreDistance * cosViewZenithAngle * distance + coreDistance * coreDistance);
-	float endMu = (coreDistance * cosViewZenithAngle + distance) / endR;
-
-	if (endR < coreDistance && cosViewZenithAngle < 0.0) {
-		return AtmosphereTransmittance(sampler, endR, -endMu) / AtmosphereTransmittance(sampler, coreDistance, -cosViewZenithAngle);
-	} else {
-		return AtmosphereTransmittance(sampler, coreDistance, cosViewZenithAngle) / AtmosphereTransmittance(sampler, endR, endMu);
+			// move r, mu, mus, to atmosphere starting point
+			float newR = sqrt(d * d + 2.0 * R * Mu * d + R * R);
+			Mu = (R * Mu + d) / newR;
+			R = newR;
+		}
 	}
+
+	vec2 coord = AtmosphereTransmittanceLookupUv(R, Mu);
+
+	return texture(sampler, coord).rgb / atmosphere_valueScale;
+}
+vec3 AtmosphereTransmittance(sampler2D sampler, float R, float Mu, float distance) {
+	// Transmittance from A to B is same as transmittance from B to A
+
+	float endR  = sqrt(distance * distance + 2 * R * Mu * distance + R * R);
+	float endMu = (R * Mu + distance) / endR;
+
+	return AtmosphereTransmittance(sampler, R, Mu) / AtmosphereTransmittance(sampler, endR, endMu);
 }
 vec3 AtmosphereTransmittance(sampler2D sampler, vec3 position, vec3 direction) {
 	float coreDistance = length(position);

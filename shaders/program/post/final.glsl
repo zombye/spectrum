@@ -48,11 +48,6 @@ uniform sampler2D depthtex2;
 		float luminance = dot(color, lumacoeff_rec709);
 		return color * pow(luminance, float(GAMMA_LUMINANCE) / float(GAMMA_CHROMINANCE)) / luminance;
 	}
-	vec3 Lift(vec3 color) {
-		const vec3 liftSrgb = vec3(LIFT_R, LIFT_G, LIFT_B) / 255.0;
-		vec3 lift = sign(liftSrgb) * SrgbToLinear(abs(liftSrgb));
-		return color * (1.0 - lift) + lift;
-	}
 
 	#ifdef LUT
 		vec3 LookupColor(sampler2D lookupTable, vec3 color) {
@@ -81,7 +76,6 @@ uniform sampler2D depthtex2;
 
 		// Minor color grading
 		color = Gamma(color);
-		color = Lift(color);
 
 		// Convert to output color space
 		color = Clamp01(color);

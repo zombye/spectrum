@@ -6,6 +6,9 @@
 float GetNoise(sampler2D noiseSampler, vec2 position) {
 	return texture(noiseSampler, position / 256.0).x;
 }
+vec2 GetNoise2(sampler2D noiseSampler, vec2 position) {
+	return texture(noiseSampler, position / 256.0).xy;
+}
 vec2 GetNoise2HQ(sampler2D noiseSampler, vec2 position) {
 	vec2  f = fract(position);
 	ivec2 i = ivec2(position - f);
@@ -54,6 +57,7 @@ float GetNoiseSmooth(sampler2D noiseSampler, vec3 position) {
 
 // Using defines so noisetex isn't a required uniform
 #define GetNoise(pos) GetNoise(noisetex, pos)
+#define GetNoise2(pos) GetNoise2(noisetex, pos)
 #define GetNoise2HQ(pos) GetNoise2HQ(noisetex, pos)
 #define GetNoiseSmooth(pos) GetNoiseSmooth(noisetex, pos)
 
