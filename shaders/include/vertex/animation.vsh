@@ -1,34 +1,6 @@
 #if !defined INCLUDE_VERTEX_ANIMATION
 #define INCLUDE_VERTEX_ANIMATION
 
-vec4 TextureBicubic(sampler2D sampler, vec2 coord) {
-	ivec2 res = textureSize(sampler, 0);
-
-	coord = coord * res - 0.5;
-
-	vec2 f = fract(coord);
-	coord -= f;
-
-	vec2 ff = f * f;
-
-	vec2 w0 = ff * f;
-	vec2 w3 = 1.0 - f; w3 *= w3 * w3;
-	vec2 w1 = w3 + 6.0 * f - 2.0 * w0;
-	vec2 w2 = 3.0 * w0 + 4.0 - 6.0 * ff;
-
-	vec4 s = vec4(w3, w1) + vec4(w2, w0);
-	vec4 c = coord.xyxy + vec4(w2, w0) / s;
-	c.xy -= 0.5; c.zw += 1.5;
-	c /= res.xyxy;
-
-	vec2 m = s.zw / (s.xy + s.zw);
-	return mix(
-		mix(texture(sampler, c.xy), texture(sampler, c.zy), m.x),
-		mix(texture(sampler, c.xw), texture(sampler, c.zw), m.x),
-		m.y
-	);
-}
-
 vec3 AnimatePlant(
 	vec3  scenePosition,
 	vec3  worldPosition,

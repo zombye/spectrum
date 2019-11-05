@@ -11,6 +11,22 @@ float CalculateDistortionFactor(vec2 position) {
 	#endif
 }
 
+#if !defined PROGRAM_SHADOW
+float CalculateDistortionDerivative(vec2 position) {
+	float x = length(position);
+	#ifdef SHADOW_INFINITE_RENDER_DISTANCE
+		return SHADOW_DISTORTION_AMOUNT_INVERSE / Pow2(x + SHADOW_DISTORTION_AMOUNT_INVERSE);
+	#else
+		float a = exp(SHADOW_DISTORTION_AMOUNT_INVERSE);
+		float b = exp(1.0) - a;
+
+		float num   =      log(x * b + a)  * (x * b + a) - x * b;
+		float denom = Pow2(log(x * b + a)) * (x * b + a);
+		return num / denom;
+	#endif
+}
+#endif
+
 vec2 DistortShadowSpace(vec2 position) {
 	return position * CalculateDistortionFactor(position);
 }

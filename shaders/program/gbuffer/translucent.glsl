@@ -425,8 +425,9 @@ uniform vec3 shadowLightVector;
 		float sssDepth = 0.0;
 		#ifdef GLOBAL_LIGHT_FADE_WITH_SKYLIGHT
 			vec3 shadows = vec3(0.0), bounce = vec3(0.0);
+			float cloudShadow = 0.0;
 			if (lightmapCoordinates.y > 0.0) {
-				float cloudShadow = GetCloudShadows(position[2]);
+				cloudShadow = GetCloudShadows(position[2]);
 				shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
 				if (shadows.r > 0.0 && (NoL > 0.0 || translucent)) {
 					shadows *= CalculateShadows(position, tbn[2], translucent, dither, ditherSize, sssDepth);
@@ -452,7 +453,7 @@ uniform vec3 shadowLightVector;
 		float blocklightShading = 1.0; // TODO
 
 		material.albedo *= baseTex.a;
-		colortex3Write.rgb  = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, bounce, sssDepth, skylight, lightmapCoordinates, blocklightShading, vertexAo);
+		colortex3Write.rgb  = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, cloudShadow, bounce, sssDepth, skylight, lightmapCoordinates, blocklightShading, vertexAo);
 		#ifdef SSR_MULTILAYER
 		colortex3Write.rgb += CalculateEnvironmentReflections(colortex4, position, normal, NoV, material.roughness, material.n, material.k, 1.0, blockId == 8 || blockId == 9, dither, ditherSize);
 		#endif

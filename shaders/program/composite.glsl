@@ -70,6 +70,9 @@ uniform sampler2D shadowcolor1;
 
 uniform vec2 viewResolution;
 uniform vec2 viewPixelSize;
+
+uniform float frameR1;
+
 uniform vec2 taaOffset;
 
 uniform vec3 sunVector;
@@ -306,7 +309,7 @@ uniform vec3 shadowLightVector;
 		const float ditherSize = 32.0 * 32.0;
 		float dither = Bayer32(gl_FragCoord.st);
 		#ifdef TAA
-		      dither = fract(dither + LinearBayer16(frameCounter));
+		      dither = fract(dither + frameR1);
 		#endif
 
 		vec3 transparentFlatNormal = normalize(cross(dFdx(frontPosition[2]), dFdy(frontPosition[2])));
@@ -376,6 +379,24 @@ uniform vec3 shadowLightVector;
 				// Apply transparents
 				vec4 transparentSurfaceCol = texture(colortex3, screenCoord);
 				color = color * (1.0 - transparentSurfaceCol.a) + transparentSurfaceCol.rgb;
+			} else if (wetness > 0.01) {
+				// rain puddles, idk where to do these tbh but here works
+				vec3 flatNormal = DecodeNormal(Unpack2x8(colortex1Sample.a) * 2.0 - 1.0);;
+
+				float rainMask  = 1.0 - Pow2(LinearStep(1.0, 0.01, wetness));
+				      rainMask *= Clamp01(lightmap.y * 15.0);
+				      rainMask *= LinearStep(0.5, 0.9, normal.y);
+
+				float noise  = TextureBicubic(noisetex, fract(0.5 * (backPosition[2].xz + cameraPosition.xz) / 256.0)).x;
+				      noise += TextureBicubic(noisetex, fract(1.0 * (backPosition[2].xz + cameraPosition.xz) / 256.0)).x * 0.5;
+				      noise /= 1.5;
+
+				float wetMask = Clamp01(Clamp01(noise * 1.7) + rainMask - 1.0);
+				float puddleMask = LinearStep(0.9, 0.95, Clamp01(noise * 1.5) - 0.1 + LinearStep(0.5, 1.0, rainMask)*0.1);
+
+				material.n += 0.3 * LinearStep(0.3, 0.9, wetMask);
+				material.roughness *= (1.0 - puddleMask) * pow(1.0 - wetMask * 0.75, 2.0) + puddleMask * 0.01;
+				normal = normalize(mix(normal, flatNormal, puddleMask));
 			}
 
 			// Specular

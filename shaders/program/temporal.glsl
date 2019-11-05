@@ -75,7 +75,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 	const float calibration = exp2(CAMERA_AUTOEXPOSURE_BIAS) * K / 100.0;
 
 	const float minExposure = exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi /  dot(lumacoeff_rec709, sunIlluminance);
-	const float maxExposure = 0.02 * exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi / (dot(lumacoeff_rec709, moonIlluminance) * NIGHT_SKY_BRIGHTNESS);
+	const float maxExposure = 0.03 * exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi / (dot(lumacoeff_rec709, moonIlluminance) * NIGHT_SKY_BRIGHTNESS);
 
 	#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_HISTOGRAM
 		float CalculateHistogramExposure() {

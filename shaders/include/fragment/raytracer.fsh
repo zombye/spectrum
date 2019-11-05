@@ -28,7 +28,7 @@ bool IntersectSSRay(
 	vec3 startPosition = position;
 
 	bool hit = false;
-	float ditherp = floor(stride * fract(Bayer8(gl_FragCoord.xy) + fract((phi - 1.0) * frameCounter)) + 1.0);
+	float ditherp = floor(stride * fract(Bayer8(gl_FragCoord.xy) + frameR1) + 1.0);
 	for (uint i = 0u; i < maxSteps && !hit; ++i) {
 		float pixelSteps = float(i * stride) + ditherp;
 		position = startPosition + pixelSteps * rayStep;

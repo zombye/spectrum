@@ -50,7 +50,7 @@
 #endif
 
 #if   SHADOW_FILTER == SHADOW_FILTER_BILINEAR
-	vec3 BilinearFilter(vec3 shadowCoord, float distortionFactor, float biasMul, float biasAdd, out float waterFraction, out float waterDepth, out float avgDepth) {
+	vec3 BilinearFilter(vec3 shadowCoord, float distortionFactor, float distortionDerivative, float biasMul, float biasAdd, out float waterFraction, out float waterDepth, out float avgDepth) {
 		// Separate integer & fractional coordinates
 		vec2 sampleUv = shadowCoord.xy;
 		vec2 iUv, fUv = modf(sampleUv * SHADOW_RESOLUTION + 0.5, iUv);
@@ -58,7 +58,7 @@
 
 		// Bias
 		float cmpDepth = shadowCoord.z;
-		float bias = 2.0 / (SHADOW_RESOLUTION * Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE));
+		float bias = 2.0 / (SHADOW_RESOLUTION * distortionDerivative);
 		cmpDepth += biasMul * bias + biasAdd;
 
 		//--//
@@ -202,13 +202,15 @@
 				vec2 sampleUv0 = sampleDist.x * dir + position.xy;
 				vec2 sampleUv1 = sampleDist.y * dir + position.xy;
 
+				float distortionDerivative0 = CalculateDistortionDerivative(sampleUv0);
+				float distortionDerivative1 = CalculateDistortionDerivative(sampleUv1);
 				float distortionFactor0 = CalculateDistortionFactor(sampleUv0);
 				float distortionFactor1 = CalculateDistortionFactor(sampleUv1);
 				sampleUv0 = sampleUv0 * distortionFactor0 * 0.5 + 0.5;
 				sampleUv1 = sampleUv1 * distortionFactor1 * 0.5 + 0.5;
 
-				float bias0 = 1.0 / (SHADOW_RESOLUTION * Pow2(distortionFactor0 * SHADOW_DISTORTION_AMOUNT_INVERSE)) + sampleDist.x;
-				float bias1 = 1.0 / (SHADOW_RESOLUTION * Pow2(distortionFactor1 * SHADOW_DISTORTION_AMOUNT_INVERSE)) + sampleDist.y;
+				float bias0 = 1.0 / (SHADOW_RESOLUTION * distortionDerivative0) + sampleDist.x;
+				float bias1 = 1.0 / (SHADOW_RESOLUTION * distortionDerivative1) + sampleDist.y;
 
 				float cmpDepth0 = biasMul * bias0 + referenceDepth;
 				float cmpDepth1 = biasMul * bias1 + referenceDepth;
@@ -234,10 +236,11 @@
 				float sampleDist = filterRadius * inversesqrt(samples) * sqrt(i + dither2);
 
 				vec2 sampleUv = sampleDist * dir + position.xy;
+				float distortionDerivative = CalculateDistortionDerivative(sampleUv);
 				float distortionFactor = CalculateDistortionFactor(sampleUv);
 				sampleUv = sampleUv * distortionFactor * 0.5 + 0.5;
 
-				float bias = 2.0 / (SHADOW_RESOLUTION * Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE)) + sampleDist;
+				float bias = 2.0 / (SHADOW_RESOLUTION * distortionDerivative) + sampleDist;
 
 				float cmpDepth = biasMul * bias + referenceDepth;
 
@@ -304,7 +307,7 @@
 		vec3 startPosition = position[0];
 
 		bool hit = false;
-		float ditherp = floor(stride * fract(Bayer8(gl_FragCoord.xy) + fract((phi - 1.0) * frameCounter)) + 1.0);
+		float ditherp = floor(stride * fract(Bayer8(gl_FragCoord.xy) + frameR1) + 1.0);
 		for (uint i = 0u; i < maxLoops && !hit; ++i) {
 			float pixelSteps = float(i * stride) + ditherp;
 			position[0] = startPosition + pixelSteps * rayStep;
@@ -344,7 +347,7 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 		if (distanceFade >= 1.0) { return vec3(1.0); } // Early-exit
 	#endif
 
-	float biasMul  = SHADOW_DISTORTION_AMOUNT_INVERSE / (-2.0 * SHADOW_DEPTH_RADIUS);
+	float biasMul  = 1.0 / (-2.0 * SHADOW_DEPTH_RADIUS);
 	      biasMul *= SumOf(abs(normalize(normal.xy)) * vec2(shadowProjectionInverse[0].x, shadowProjectionInverse[1].y));
 	      biasMul *= sqrt(Clamp01(1.0 - normal.z * normal.z)) / abs(normal.z);
 
@@ -353,6 +356,7 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 	      biasAdd = biasAdd - biasAdd * SHADOW_DISTORTION_AMOUNT_INVERSE;
 
 	vec3 shadowCoord = shadowClip;
+	float distortionDerivative = CalculateDistortionDerivative(shadowClip.xy);
 	float distortionFactor = CalculateDistortionFactor(shadowClip.xy);
 	shadowCoord.xy *= distortionFactor;
 	shadowCoord     = shadowCoord * 0.5 + 0.5;
@@ -360,7 +364,7 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 	#if   SHADOW_FILTER == SHADOW_FILTER_NONE
 		float waterFraction = step(0.5/255.0, texture(shadowcolor0, shadowCoord.xy).a), waterDepth;
 		vec3 shadows; {
-			shadowCoord.z += biasMul * (1.0 / (SHADOW_RESOLUTION * Pow2(distortionFactor * SHADOW_DISTORTION_AMOUNT_INVERSE))) + biasAdd;
+			shadowCoord.z += biasMul * (1.0 / (SHADOW_RESOLUTION * distortionDerivative)) + biasAdd;
 
 			float depth0 = textureLod(shadowtex0, shadowCoord.xy, 0.0).r;
 			float depth1 = textureLod(shadowtex1, shadowCoord.xy, 0.0).r;
@@ -381,7 +385,7 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 		}
 	#elif SHADOW_FILTER == SHADOW_FILTER_BILINEAR
 		float waterFraction, waterDepth;
-		vec3 shadows = BilinearFilter(shadowCoord, distortionFactor, biasMul, biasAdd, waterFraction, waterDepth, sssDepth);
+		vec3 shadows = BilinearFilter(shadowCoord, distortionFactor, distortionDerivative, biasMul, biasAdd, waterFraction, waterDepth, sssDepth);
 	#elif SHADOW_FILTER == SHADOW_FILTER_PCF || SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
 		float waterFraction, waterDepth;
 		vec3 shadows = PercentageCloserFilter(shadowClip, biasMul, biasAdd, dither, ditherSize, waterFraction, waterDepth, sssDepth);

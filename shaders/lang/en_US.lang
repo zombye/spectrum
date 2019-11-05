@@ -219,8 +219,8 @@ option.CAUSTICS_DITHERED.comment=This should usually be left on.
 
 option.BLOOM=Bloom
 option.BLOOM_AMOUNT=Bloom Strength
-option.GAMMA_LUMINANCE=Luminance Gamma
-option.GAMMA_CHROMINANCE=Chrominance Gamma
+option.CONTRAST=Contrast
+option.SATURATION=Saturation
 option.LOWLIGHT_DESATURATION=Lowlight Desaturation
 option.LOWLIGHT_NOISE=Lowlight Noise
 option.CONE_OVERLAP_SIMULATION=Cone Overlap Simulation

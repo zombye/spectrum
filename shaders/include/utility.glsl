@@ -137,4 +137,55 @@ vec3 ThinFilmInterference(float filmThickness, float filmRefractiveIndex, float 
 	return 2.0 * abs(cos(opd * pi / wavelengths));
 }
 
+/*\
+ * returns coords & weights for sampling with bicubic filtering
+ * use if you need to do so multiple times in the same location (or different locations an integer number of pixels away)
+ * or if you need to do some custom stuff to the individual samples
+ *
+ * coord needs to be in pixels with integers at pixel centers
+ * you can convert to this from normal coords with this:
+ * coord = coord * resolution - 0.5
+ *
+ * use c & m like this:
+ * mix(mix(texture(sampler, c.xy), texture(sampler, c.zy).x, m.x),
+ *     mix(texture(sampler, c.xw), texture(sampler, c.zw).x, m.x),
+ *     m.y);
+ * remember that c will also be with integers at pixel centers
+ * you can convert this to normal coords like this:
+ * c = (c + 0.5) / resolution.xyxy
+\*/
+void FastBicubicCM(vec2 coord, out vec4 c, out vec2 m) {
+	vec2 f = fract(coord);
+	coord -= f;
+
+	vec2 ff = f * f;
+
+	vec2 w0 = ff * f;
+	vec2 w3 = 1.0 - f; w3 *= w3 * w3;
+	vec2 w1 = w3 + 6.0 * f - 2.0 * w0;
+	vec2 w2 = 3.0 * w0 + 4.0 - 6.0 * ff;
+
+	vec4 s = vec4(w3, w1) + vec4(w2, w0);
+	c = coord.xyxy + vec4(w2, w0) / s;
+	c.xy -= 1.0; c.zw += 1.0;
+
+	m = s.zw / (s.xy + s.zw);
+}
+vec4 TextureBicubic(sampler2D sampler, vec2 coord) {
+	ivec2 res = textureSize(sampler, 0);
+
+	coord = coord * res - 0.5;
+
+	vec4 c; vec2 m;
+	FastBicubicCM(coord, c, m);
+
+	c = (c + 0.5) / res.xyxy;
+
+	return mix(
+		mix(texture(sampler, c.xy), texture(sampler, c.zy), m.x),
+		mix(texture(sampler, c.xw), texture(sampler, c.zw), m.x),
+		m.y
+	);
+}
+
 #endif

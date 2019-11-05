@@ -83,6 +83,7 @@ vec3 CalculateDiffuseLighting(
 	Material material,
 	// Lighting information from before this function is calculated
 	vec3 shadows,
+	float cloudShadows,
 	vec3 bounced, // Only from the shadow light
 	float sssDepth, // Depth to use for subsurface scattering
 	vec3 skylight,
@@ -105,7 +106,7 @@ vec3 CalculateDiffuseLighting(
 			vec3 diffuse    = DiffuseHammon(NoL, NoH, NoV, LoV, material.albedo, material.roughness);
 			vec3 subsurface = SubsurfaceApprox(NoL, -LoV, material.albedo, material.translucency, sssDepth);
 
-			diffuseLighting += (diffuse * shadows + subsurface + bounced) * illuminanceShadowlight * falloff;
+			diffuseLighting += (diffuse * shadows + subsurface * cloudShadows + bounced) * illuminanceShadowlight * falloff;
 
 			#ifdef GLOBAL_LIGHT_USE_AO
 				diffuseLighting += falloff * hemisphereDiffuse * skylight;
@@ -120,9 +121,9 @@ vec3 CalculateDiffuseLighting(
 		vec3 subsurface = SubsurfaceApprox(NoL, -LoV, material.albedo, material.translucency, sssDepth);
 
 		#ifdef GLOBAL_LIGHT_USE_AO
-			diffuseLighting += illuminanceShadowlight * (diffuse * ao * shadows + subsurface + bounced);
+			diffuseLighting += illuminanceShadowlight * (diffuse * ao * shadows + subsurface * cloudShadows + bounced);
 		#else
-			diffuseLighting += illuminanceShadowlight * (diffuse * shadows + subsurface + bounced);
+			diffuseLighting += illuminanceShadowlight * (diffuse * shadows + subsurface * cloudShadows + bounced);
 		#endif
 
 		// Skylight

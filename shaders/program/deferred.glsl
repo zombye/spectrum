@@ -72,6 +72,9 @@ uniform mat4 shadowProjectionInverse;
 
 uniform vec2 viewResolution;
 uniform vec2 viewPixelSize;
+
+uniform float frameR1;
+
 uniform vec2 taaOffset;
 
 uniform vec3 sunVector;
@@ -748,7 +751,7 @@ uniform vec3 shadowLightVector;
 		const float ditherSize = 16.0 * 16.0;
 		float dither = Bayer16(gl_FragCoord.st);
 		#ifdef TAA
-		      dither = fract(dither + LinearBayer16(frameCounter));
+		      dither = fract(dither + frameR1);
 		#endif
 
 		vec3 viewPosition = vec3(0.0, atmosphere_planetRadius + eyeAltitude, 0.0);

@@ -71,6 +71,9 @@ uniform sampler2D shadowcolor0;
 
 uniform vec2 viewResolution;
 uniform vec2 viewPixelSize;
+
+uniform float frameR1;
+
 uniform vec2 taaOffset;
 
 uniform vec3 sunVector;
@@ -330,7 +333,7 @@ uniform vec3 shadowLightVector;
 		const float ditherSize = 8.0 * 8.0;
 		float dither = Bayer8(gl_FragCoord.st);
 		#ifdef TAA
-		      dither = fract(dither + LinearBayer16(frameCounter));
+		      dither = fract(dither + frameR1);
 		#endif
 
 		vec4 colortex0Sample = texture(colortex0, screenCoord);
@@ -391,8 +394,9 @@ uniform vec3 shadowLightVector;
 
 			vec3 shadows = vec3(0.0), bounce = vec3(0.0); float sssDepth = 0.0;
 			#ifdef GLOBAL_LIGHT_FADE_WITH_SKYLIGHT
+				float cloudShadow = 0.0;
 				if (lightmap.y > 0.0) {
-					float cloudShadow = GetCloudShadows(position[2]);
+					cloudShadow = GetCloudShadows(position[2]);
 					bool translucent = material.translucency.r + material.translucency.g + material.translucency.b > 0.0;
 					shadows = vec3(parallaxShadow * cloudShadow * (translucent ? 1.0 : step(0.0, NoL)));
 					if (shadows.r > 0.0 && (NoL > 0.0 || translucent)) {
@@ -426,7 +430,7 @@ uniform vec3 shadowLightVector;
 				bounce *= cloudShadow * ao;
 			#endif
 
-			color = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, bounce, sssDepth, skylight, lightmap, blocklightShading, ao);
+			color = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, cloudShadow, bounce, sssDepth, skylight, lightmap, blocklightShading, ao);
 
 			shadowsOut = vec4(LinearToSrgb(shadows), 1.0);
 			#endif

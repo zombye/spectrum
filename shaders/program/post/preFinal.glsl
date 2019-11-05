@@ -2,6 +2,10 @@
 
 #include "/settings.glsl"
 
+#define CONTRAST -0.1 // [-1 -0.9 -0.8 -0.7 -0.6 -0.5 -0.4 -0.3 -0.2 -0.1 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1]
+#define CONTRAST_MIDPOINT 0.14
+#define SATURATION 1 // [0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2]
+
 //--// Uniforms //------------------------------------------------------------//
 
 uniform sampler2D colortex3;
@@ -74,6 +78,29 @@ uniform vec2 viewPixelSize;
 		return (invSNR * noise * color + color) / (0.5 * invSNR + 1.0);
 	}
 
+	vec3 Contrast(vec3 color) {
+		float luminance = dot(color, RgbToXyz[1]);
+		float newLuminance = CONTRAST_MIDPOINT * pow(luminance / CONTRAST_MIDPOINT, exp2(CONTRAST));
+		return color * Max0(newLuminance / luminance);
+	}
+	vec3 Saturation(vec3 color) {
+		float luminance = dot(color, RgbToXyz[1]);
+		float minComp = MinOf(color), maxComp = MaxOf(color);
+
+		// compute the desired output saturation
+		//float originalSaturation = maxComp == 0.0 ? 0.0 : Clamp01(1.0 - minComp / maxComp);
+		float newSaturation = maxComp == 0.0 ? 0.0 : Clamp01(1.0 - pow(minComp / maxComp, SATURATION));
+
+		// compute fully saturated version of the color (if it exits)
+		vec3 saturatedColor = (maxComp - minComp) == 0.0 ? vec3(maxComp) : (color - minComp) / (maxComp - minComp);
+
+		// compute new color from saturated & non-saturated color
+		color  = mix(vec3(1.0), saturatedColor, newSaturation);
+		color *= luminance / dot(color, RgbToXyz[1]);
+
+		return color;
+	}
+
 	void main() {
 		#if defined MC_GL_RENDERER_RADEON // workaround for AMD driver bug(?) causing colortex0 to not get cleared
 		colortex0Write = vec4(0.0, 0.0, 0.0, 1.0);
@@ -94,6 +121,9 @@ uniform vec2 viewPixelSize;
 		#ifdef LOWLIGHT_DESATURATION
 			color = LowlightDesaturate(color, exposure);
 		#endif
+
+		color = Contrast(color);
+		color = Saturation(color);
 
 		color = Max0(color);
 

@@ -43,12 +43,6 @@ uniform sampler2D depthtex2;
 
 	//--// Fragment Functions //----------------------------------------------//
 
-	vec3 Gamma(vec3 color) {
-		color = pow(color, vec3(GAMMA_CHROMINANCE));
-		float luminance = dot(color, lumacoeff_rec709);
-		return color * pow(luminance, float(GAMMA_LUMINANCE) / float(GAMMA_CHROMINANCE)) / luminance;
-	}
-
 	#ifdef LUT
 		vec3 LookupColor(sampler2D lookupTable, vec3 color) {
 			const ivec2 lutTile = ivec2(8, 8); // 8x8=64 8x16=128 16x8=128 16x16=256
@@ -73,9 +67,6 @@ uniform sampler2D depthtex2;
 
 	void main() {
 		color = DecodeRGBE8(textureLod(colortex4, screenCoord, 0.0));
-
-		// Minor color grading
-		color = Gamma(color);
 
 		// Convert to output color space
 		color = Clamp01(color);
