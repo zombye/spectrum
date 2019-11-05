@@ -92,6 +92,7 @@ option.VL_AIR=Volumetric Lighting
 option.VL_AIR_STEPS=VL Steps
 option.DISTANT_VL=Distant VL
 option.FOG_AIR_DENSITY=Air Density Multiplier
+option.FOG_RAIN_DENSITY=Rain Fog Density
 
 ##--## Water Fog ##-----------------------------------------------------------##
 

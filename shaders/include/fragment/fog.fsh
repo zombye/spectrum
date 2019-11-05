@@ -15,10 +15,12 @@ float CalculateMistDensity(vec3 worldPosition) {
 	float heightFade = Pow4(smoothstep(32.0, 0.0, worldPosition.y - SEA_LEVEL));
 	float timeFade   = sunAngle < 0.5 ? Pow2(smoothstep(0.1, 0.0, sunAngle)) : smoothstep(0.5, 1.0, sunAngle);
 
+	float rainFactor = max(rainStrength, wetness) * FOG_RAIN_DENSITY; // TODO: make this a custom uniform
+
 	float noise = 2.0 * GetNoise(worldPosition / 3.5);
 	//float noise = 3.0 * Pow2(GetNoise(worldPosition / 3.5));
 
-	return heightFade * timeFade * noise;
+	return heightFade * timeFade * noise + rainFactor;
 }
 
 float GetDensity(vec3 worldPosition, int componentIndex) {

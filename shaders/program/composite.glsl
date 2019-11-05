@@ -12,6 +12,7 @@
 
 uniform float sunAngle;
 
+uniform float rainStrength;
 uniform float wetness;
 
 uniform float fogDensity = 0.1;
