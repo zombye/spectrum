@@ -137,6 +137,18 @@ float Calculate3DCloudsOpticalDepth(vec3 rayPosition, vec3 rayDirection, float s
 	return CLOUDS3D_ATTENUATION_COEFFICIENT * stepSize * densitySum;
 }
 
+float Phase3DClouds(float VdotL, float opticalDepth) {
+	const float backscatterWeight = 0.125;
+	const float peakWeight = 0.15;
+
+	float forwardsLobe  = PhaseHenyeyGreenstein(VdotL,  pow(0.35, opticalDepth + 1.0));
+	float backwardsLobe = PhaseHenyeyGreenstein(VdotL, -pow(0.35, opticalDepth + 1.0));
+	float mainLobes = mix(forwardsLobe, backwardsLobe, backscatterWeight);
+
+	float forwardsPeak  = PhaseHenyeyGreenstein(VdotL,  pow(0.95, opticalDepth + 1.0));
+	return mix(mainLobes, forwardsPeak, peakWeight);
+}
+
 void Calculate3DCloudsScattering(
 	vec3 position, vec3 direction, float VdotL, float dither,
 	float viewOpticalDepth, float stepOpticalDepth, float stepCoefficient,
@@ -173,18 +185,10 @@ void Calculate3DCloudsScattering(
 	float fakePowder = 1.0 - CLOUDS3D_POWDER_STRENGTH * exp(-70.0 * stepCoefficient);
 	float sharedpart = 2.0 * CLOUDS3D_SCATTERING_ALBEDO * fakePowder * (1.0 - stepTransmittance);
 
-	float sunPhase = mix(
-		PhaseHenyeyGreenstein(VdotL,  pow(0.8, sunOpticalDepth + 1.0)),
-		PhaseHenyeyGreenstein(VdotL, -pow(0.35, sunOpticalDepth + 1.0)),
-		0.5
-	);
+	float sunPhase = Phase3DClouds(VdotL, sunOpticalDepth);
 	#ifdef CLOUDS3D_ALTERNATE_SKYLIGHT
 	// having a multiply by 2 here gives a closer result to actually sampling the sky in each direction
-	float skyPhase = 2.0 * mix(
-		PhaseHenyeyGreenstein(dot(direction, skyDir),  pow(0.8, skyOpticalDepth + 1.0)),
-		PhaseHenyeyGreenstein(dot(direction, skyDir), -pow(0.35, skyOpticalDepth + 1.0)),
-		0.5
-	);
+	float skyPhase = 2.0 * Phase3DClouds(dot(direction, skyDir), skyOpticalDepth);
 	#else
 	const float skyPhase = 0.25 / pi;
 	#endif
