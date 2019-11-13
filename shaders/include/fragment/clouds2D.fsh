@@ -7,52 +7,42 @@
 
 #define CLOUDS2D_USE_WORLD_TIME
 
-#define CLOUDS2D_ALTITUDE 10000
+#define CLOUDS2D_ALTITUDE 4000
 #define CLOUDS2D_THICKNESS 500
 
-#define CLOUDS2D_ATTENUATION_COEFFICIENT 0.02
-#define CLOUDS2D_SCATTERING_ALBEDO 0.8
+#define CLOUDS2D_ATTENUATION_COEFFICIENT 0.1
+#define CLOUDS2D_SCATTERING_ALBEDO 0.99
 
 //--// Shape //---------------------------------------------------------------//
 
-vec2 GetDistortionNoise2(vec2 position) {
-	vec2 noise = GetNoise2HQ(position);
-	return SinCos(noise.x * tau) * (1.0 - noise.y * noise.y);
-}
-
 float Get2DCloudsDensity(vec2 position, float cloudsTime) {
-	//--// Main Noise
+	vec2 distortionPosition = position * 2e-4;
+	const int distortionOctaves = 4;
+	const float distortionGain = 0.5;
+	const float distortionFreqGain = 3.0;
 
-	vec2 distortionPosition = position * 8e-6 + cloudsTime * 0.1;
+	vec2 distortionNoise = GetNoise2(distortionPosition - 0.2 * cloudsTime) * 2.0 - 1.0;
+	for (int i = 0; i < distortionOctaves; ++i) {
+		vec2 noisePosition = exp2(log2(distortionFreqGain) * i) * (distortionPosition - 0.2 * cloudsTime * sqrt(i + 1.0));
+		distortionNoise += exp2(log2(distortionGain) * i) * (GetNoise2(noisePosition) * 2.0 - 1.0);
+	} distortionNoise *= 1.0 - distortionGain;
 
-	const int distortionOctaves = 10;
-	vec2 distortionNoise = GetDistortionNoise2(distortionPosition);
-	for (int i = 1; i < distortionOctaves; ++i) {
-		distortionPosition *= rotateGoldenAngle;
-		distortionPosition  = distortionPosition * 2.0 + cloudsTime * 0.1;
-		distortionNoise += GetDistortionNoise2(distortionPosition) * exp2(log2(0.52) * i);
-	}
+	const int octaves = 6;
+	const float gain = 0.4;
+	const float freqGain = 3.0;
 
-	//--// Distorted "main" noise
+	vec2 noisePosition = position * 2e-4 + distortionNoise * 0.2;
+	float noise = GetNoise(noisePosition - cloudsTime);
+	mat2 rot = freqGain * rotateGoldenAngle;
+	for (int i = 1; i < octaves; ++i) {
+		vec2 noisePosition = rot * (noisePosition - cloudsTime * sqrt(i + 1.0));
+		noise += GetNoise(noisePosition) * exp2(log2(gain) * i);
+		rot *= freqGain * rotateGoldenAngle;
+	} noise = noise * (1.0 - gain) + 0.5 * gain * exp2(log2(gain) * octaves);
+	noise *= noise * (3.0 - 2.0 * noise);
 
-	vec2 mainPosition  = (position + distortionNoise * 0.15 / 8e-6) * 4e-5 + cloudsTime;
-
-	const int mainOctaves = 6;
-
-	float mainNoise = GetNoise(mainPosition);
-	for (int i = 1; i < mainOctaves; ++i) {
-		mainPosition *= rotateGoldenAngle;
-		mainPosition = mainPosition * pi + cloudsTime;
-		mainNoise += GetNoise(mainPosition) * exp2(-i);
-	} mainNoise = mainNoise * 0.5 + (0.5 * exp2(-mainOctaves));
-
-	//--// Apply Coverage
-
-	float density  = Clamp01(mainNoise + CLOUDS2D_COVERAGE - 1.0);
-	      density *= density * (3.0 - 2.0 * density);
-	      density  = 1.0 - Pow2(1.0 - density);
-
-	return density;
+	float density = Clamp01(noise + CLOUDS2D_COVERAGE - 1.0);
+	return density * density;
 }
 
 //--// Lighting //------------------------------------------------------------//
@@ -68,72 +58,47 @@ float CloudsPhase2(float cosTheta, vec3 g, vec3 w) {
 	return dot(res, w) / (w.x + w.y + w.z);
 }
 
-vec3 Calculate2DCloudsSunlightAndMoonlight(vec3 position, vec3 viewVector, float viewRayLength, float density, float cloudsTime, float dither) {
+vec3 Calculate2DCloudsScattering(vec3 position, vec3 lowerPosition, vec3 viewVector, float viewRayLength, float density, float cloudsTime, float dither) {
 	const float upperAltitude = CLOUDS2D_ALTITUDE + CLOUDS2D_THICKNESS / 2.0;
 	const float lowerAltitude = CLOUDS2D_ALTITUDE - CLOUDS2D_THICKNESS / 2.0;
 
 	position.y += atmosphere_planetRadius;
 
-	float shadowStartDist   = RaySphereIntersection(position, shadowLightVector, atmosphere_planetRadius + lowerAltitude).y;
-	float shadowEndDist     = RaySphereIntersection(position, shadowLightVector, atmosphere_planetRadius + upperAltitude).y;
-	float stepSizeShadowing = (shadowStartDist > 0.0 ? shadowEndDist - shadowStartDist : shadowEndDist) / CLOUDS2D_SELFSHADOW_QUALITY;
+	float rayLength3D = RaySphereIntersection(lowerPosition, shadowLightVector, atmosphere_planetRadius + upperAltitude).y;
+	vec3 rayVector  = lowerPosition;
+	     rayVector += shadowLightVector * rayLength3D;
+	     rayVector += viewVector * RaySphereIntersection(rayVector, viewVector, atmosphere_planetRadius + lowerAltitude).y;
+	     rayVector  = rayVector - lowerPosition;
+
+	float stepSizeShadowing = rayLength3D / CLOUDS2D_SELFSHADOW_QUALITY;
 
 	float stepSize          = viewRayLength / CLOUDS2D_SELFSHADOW_QUALITY;
 	float stepOpticalDepth  = CLOUDS2D_ATTENUATION_COEFFICIENT * stepSize * density;
 
-	/* single-scattering
 	float stepTransmittance = exp(-stepOpticalDepth);
-	float stepScattering    = CLOUDS2D_SCATTERING_ALBEDO * (1.0 - stepTransmittance);
+	float stepScattering    = 1.5 * CLOUDS2D_SCATTERING_ALBEDO * (1.0 - stepTransmittance);
 	float densityMult       = CLOUDS2D_ATTENUATION_COEFFICIENT * stepSizeShadowing;
-	//*/
-	//* fake multiscattering
-	float stepTransmittance = exp((CLOUDS2D_SCATTERING_ALBEDO - 1.0) * stepOpticalDepth);
-	float stepScattering    = CLOUDS2D_SCATTERING_ALBEDO * (1.0 - stepTransmittance) / (1.0 - CLOUDS2D_SCATTERING_ALBEDO);
-	float densityMult       = (1.0 - CLOUDS2D_SCATTERING_ALBEDO) * CLOUDS2D_ATTENUATION_COEFFICIENT * stepSizeShadowing;
-	//*/
 
-	vec2 incrementSun  = stepSizeShadowing * sunVector.xz;
-	vec2 incrementMoon = stepSizeShadowing * moonVector.xz;
-	vec2 positionSun   = incrementSun  * dither + position.xz;
-	vec2 positionMoon  = incrementMoon * dither + position.xz;
+	vec2 rayStep     = rayVector.xz / CLOUDS2D_SELFSHADOW_QUALITY;
+	vec2 rayPosition = rayStep * dither + position.xz;
 
+	float scattering = 0.0, lightOpticalDepth = 0.0;
+	for (int i = 0; i < CLOUDS2D_SELFSHADOW_QUALITY; ++i) {
+		scattering *= stepTransmittance;
 
-	float scatteringSun = 0.0, scatteringMoon = 0.0, transmittanceSun = 1.0, transmittanceMoon = 1.0;
-	if (dot(position, sunVector) >= 0.0) {
-		for (int i = 0; i < CLOUDS2D_SELFSHADOW_QUALITY; ++i, positionSun += incrementSun, positionMoon += incrementMoon) {
-			transmittanceSun *= exp(-densityMult * Get2DCloudsDensity(positionSun, cloudsTime));
-			scatteringSun     = scatteringSun * stepTransmittance + transmittanceSun;
+		lightOpticalDepth += densityMult * Get2DCloudsDensity(rayPosition, cloudsTime);
 
-			transmittanceMoon *= exp(-densityMult * Get2DCloudsDensity(positionMoon, cloudsTime));
-			scatteringMoon    += transmittanceMoon;
-			transmittanceMoon *= stepTransmittance;
-		}
-	} else {
-		for (int i = 0; i < CLOUDS2D_SELFSHADOW_QUALITY; ++i, positionSun += incrementSun, positionMoon += incrementMoon) {
-			transmittanceSun *= exp(-densityMult * Get2DCloudsDensity(positionSun, cloudsTime));
-			scatteringSun    += transmittanceSun;
-			transmittanceSun *= stepTransmittance;
+		const float scatterStrength = 1.5, slope = 1.0;
+		scattering += stepScattering * pow(1.0 + slope * scatterStrength * lightOpticalDepth, -1.0 / scatterStrength);
 
-			transmittanceMoon *= exp(-densityMult * Get2DCloudsDensity(positionMoon, cloudsTime));
-			scatteringMoon     = scatteringMoon * stepTransmittance + transmittanceMoon;
-		}
+		rayPosition += rayStep;
 	}
 
-	scatteringSun  *= stepScattering;
-	scatteringMoon *= stepScattering;
+	vec3 lightColor  = sunAngle < 0.5 ? sunIlluminance : moonIlluminance;
+	     lightColor *= AtmosphereTransmittance(transmittanceLut, position, shadowLightVector);
+	     lightColor *= CloudsPhase2(dot(viewVector, sunVector), vec3(-0.1, 0.3, 0.9), vec3(0.3, 0.6, 0.1));
 
-	// TODO: Add shadows cast by other, more distant clouds, as an option.
-
-	vec3 sunlight   = sunIlluminance * AtmosphereTransmittance(transmittanceLut, position, sunVector);
-	     sunlight  *= CloudsPhase2(dot(viewVector, sunVector), vec3(-0.1, 0.3, 0.9), vec3(0.3, 0.6, 0.1));
-	vec3 moonlight  = moonIlluminance * AtmosphereTransmittance(transmittanceLut, position, moonVector);
-	     moonlight *= CloudsPhase2(dot(viewVector, moonVector), vec3(-0.1, 0.3, 0.9), vec3(0.3, 0.6, 0.1));
-
-	vec3 scattering = vec3(0.0);
-	scattering += scatteringSun  * sunlight;
-	scattering += scatteringMoon * moonlight;
-
-	return scattering;
+	return scattering * lightColor;
 }
 
 vec4 Calculate2DClouds(vec3 viewVector, float dither) {
@@ -148,11 +113,12 @@ vec4 Calculate2DClouds(vec3 viewVector, float dither) {
 
 	float centerDistance = (endDistance + startDistance) / 2.0;
 	vec3 centerPosition = viewPosition + viewVector * centerDistance;
+	vec3 lowerPosition = vec3(0.0, atmosphere_planetRadius + eyeAltitude, 0.0) + viewVector * startDistance;
 
 	#ifdef CLOUDS2D_USE_WORLD_TIME
-		float cloudsTime = 3.7 * TIME_SCALE * (worldDay % 128 + worldTime / 24000.0);
+		float cloudsTime = 2.0 * TIME_SCALE * (worldDay % 128 + worldTime / 24000.0);
 	#else
-		float cloudsTime = 3.7 * TIME_SCALE * (1.0 / 1200.0) * frameTimeCounter;
+		float cloudsTime = 2.0 * TIME_SCALE * (1.0 / 1200.0) * frameTimeCounter;
 	#endif
 
 	float density = Get2DCloudsDensity(centerPosition.xz, cloudsTime);
@@ -160,7 +126,7 @@ vec4 Calculate2DClouds(vec3 viewVector, float dither) {
 
 	float viewRayLength = endDistance - startDistance;
 
-	vec3 scattering = Calculate2DCloudsSunlightAndMoonlight(centerPosition, viewVector, viewRayLength, density, cloudsTime, dither);
+	vec3 scattering = Calculate2DCloudsScattering(centerPosition, lowerPosition, viewVector, viewRayLength, density, cloudsTime, dither);
 	float transmittance = exp(-CLOUDS2D_ATTENUATION_COEFFICIENT * density * viewRayLength);
 
 	return vec4(scattering, transmittance);

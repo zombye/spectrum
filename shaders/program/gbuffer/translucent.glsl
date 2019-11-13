@@ -6,6 +6,7 @@
 
 uniform float sunAngle;
 
+uniform float rainStrength;
 uniform float wetness;
 
 uniform float fogDensity = 0.1;
@@ -76,6 +77,9 @@ uniform sampler2D shadowcolor0;
 
 uniform vec2 viewResolution;
 uniform vec2 viewPixelSize;
+
+uniform float frameR1;
+
 uniform vec2 taaOffset;
 
 uniform vec3 shadowLightVectorView;
