@@ -28,6 +28,7 @@ uniform sampler2D colortex4; // Main color
 uniform sampler2D colortex5; // Image storing some stuff that would ideally be uniforms but currently can't be
 uniform sampler2D colortex6; // Sky Scattering Image
 uniform sampler2D colortex7; // Shadows
+
 uniform sampler2D noisetex;
 
 //--// Time uniforms
@@ -403,6 +404,7 @@ uniform vec3 shadowLightVector;
 			// Specular
 			if (material.n != eyeN) {
 				color *= 1.0 - material.metalness;
+				color += material.emission * material.metalness; // as emissive is done before this it needs to be readded here for metals
 
 				float NoV = dot(normal, -viewVector);
 
@@ -422,8 +424,6 @@ uniform vec3 shadowLightVector;
 					color += CalculateEnvironmentReflections(colortex4, frontPosition, normal, NoV, material.roughness, material.n, material.k, skylightFade, blockId == 8, dither, ditherSize);
 				#endif
 			}
-
-			color += material.emission;
 
 			// Eye to front fog
 			if (isEyeInWater == 1) { // Water fog
