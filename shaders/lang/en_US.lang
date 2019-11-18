@@ -46,9 +46,15 @@ suffix.CAMERA_SHUTTER_SPEED=s
 screen.motionBlur=Motion Blur
 
 option.CAMERA_IRIS_BLADE_COUNT=Iris Blades
-option.CAMERA_IRIS_BLADE_ROTATION=Iris Blade Angle
-suffix.CAMERA_IRIS_BLADE_ROTATION=°
+option.CAMERA_IRIS_BLADE_ROTATION=Blade Rotation
 option.CAMERA_IRIS_BLADE_ROUNDING=Blade Rounding
+
+option.CAMERA_ANAMORPHIC_SCALE=Anamorphic Scale
+option.CAMERA_ANAMORPHIC_SCALE.comment=Typical anamorphic lenses are 2:1. Normal lenses are 1:1.
+suffix.CAMERA_ANAMORPHIC_SCALE=:1
+
+option.CAMERA_LENS_DISTORTION=Lens Distortion
+option.CAMERA_CHROMATIC_ABBERATION=Chromatic Abberation
 
 ##--## Depth of Field
 

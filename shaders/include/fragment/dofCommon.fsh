@@ -1,4 +1,4 @@
-float CalculateFocalLength(float sensorHeight, float rcpTanHalfFov) {
+float CalculateFocalLength(float sensorSize, float rcpTanHalfFov) {
 	/*\
 	 * Projection mult from FOV is:
 	 * proj = 1 / tan(fieldOfView / 2)
@@ -16,7 +16,10 @@ float CalculateFocalLength(float sensorHeight, float rcpTanHalfFov) {
 	 * focalLength = sensorSize * proj / 2
 	\*/
 
-	return 0.5 * sensorHeight * rcpTanHalfFov;
+	return 0.5 * sensorSize * rcpTanHalfFov;
+}
+vec2 CalculateFocalLength(vec2 sensorSize, vec2 rcpTanHalfFov) {
+	return 0.5 * sensorSize * rcpTanHalfFov;
 }
 float CalculateApertureDiameter(float focalLength, float fStop) {
 	/*\
@@ -29,8 +32,14 @@ float CalculateApertureDiameter(float focalLength, float fStop) {
 
 	return focalLength / fStop;
 }
+vec2 CalculateApertureDiameter(vec2 focalLength, float fStop) {
+	return focalLength / fStop;
+}
 
 float CalculateCircleOfConfusion(float depth, float focus, float aperture, float focalLength) {
+	return aperture * focalLength * abs(depth - focus) / (depth * abs(focus - focalLength));
+}
+vec2 CalculateCircleOfConfusion(float depth, float focus, vec2 aperture, vec2 focalLength) {
 	return aperture * focalLength * abs(depth - focus) / (depth * abs(focus - focalLength));
 }
 

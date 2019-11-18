@@ -80,25 +80,28 @@ uniform vec2 taaOffset;
 	void main() {
 		#if defined DOF_SIMPLE || defined DOF_COMPLEX
 			const float sensorHeight = CAMERA_SENSOR_SIZE_MM * 1e-3;
-			float focalLength = CalculateFocalLength(sensorHeight, gbufferProjection[1].y);
-			float apertureDiameter = CalculateApertureDiameter(focalLength, CAMERA_FSTOP);
-			float apertureRadius = apertureDiameter / 2.0;
+			float sensorWidth = aspectRatio * sensorHeight;
+
+			vec2 sensorSize = vec2(sensorHeight, sensorWidth);
+			vec2 focalLength = CalculateFocalLength(sensorSize, Diagonal(gbufferProjection).xy);
+			vec2 apertureDiameter = CalculateApertureDiameter(focalLength, CAMERA_FSTOP);
+			vec2 apertureRadius = apertureDiameter / 2.0;
 
 			float depth = abs(ScreenSpaceToViewSpace(texture(depthtex1, screenCoord).r, gbufferProjectionInverse));
-			#ifdef CAMERA_AUTOFOCUS
+			#if CAMERA_FOCUS < 0
 				float focus = abs(ScreenSpaceToViewSpace(centerDepthSmooth, gbufferProjectionInverse));
 			#else
-				const float focus = CAMERA_FOCUS_DISTANCE;
+				const float focus = CAMERA_FOCUS;
 			#endif
 
-			float cocMetres = CalculateCircleOfConfusion(depth, focus, apertureRadius, focalLength);
-			float cocSensor = cocMetres / sensorHeight;
-			float cocPixels = cocSensor * viewResolution.y;
+			vec2 cocMetres = CalculateCircleOfConfusion(depth, focus, apertureRadius, focalLength);
+			vec2 cocSensor = cocMetres / sensorHeight;
+			vec2 cocPixels = cocSensor * viewResolution.y;
 		#endif
 
 		#ifdef DOF_SIMPLE
-			float lod = log2(2.0 * cocPixels / KERNEL_RADIUS);
-			float filterRadius = cocSensor / (KERNEL_RADIUS * aspectRatio);
+			float lod = log2(2.0 * MaxOf(cocPixels) / KERNEL_RADIUS);
+			float filterRadius = cocSensor.x / KERNEL_RADIUS;
 
 			vec4 valR = vec4(0), valG = vec4(0), valB = vec4(0);
 			for (int i = -KERNEL_RADIUS; i <= KERNEL_RADIUS; ++i) {
@@ -126,7 +129,7 @@ uniform vec2 taaOffset;
 			// Constants
 			const float bladeAngle     = tau / CAMERA_IRIS_BLADE_COUNT;
 			const float halfBladeAngle = bladeAngle / 2.0;
-			const float bladeRotation  = radians(float(CAMERA_IRIS_BLADE_ROTATION));
+			const float bladeRotation  = CAMERA_IRIS_BLADE_ROTATION * bladeAngle;
 
 			// Get distance to center and distance of diaphragm iris blades from center
 			vec2 position = (screenCoord * vec2(aspectRatio, 1.0)) * 2.0 - 1.0;

@@ -82,25 +82,25 @@ uniform vec2 taaOffset;
 				float cocSensor = texture(colortex0, screenCoord).a;
 				float cocPixels = cocSensor * viewResolution.y;
 			#else
-				const float sensorHeight = CAMERA_SENSOR_SIZE_MM * 1e-3;
-				float focalLength = CalculateFocalLength(sensorHeight, gbufferProjection[1].y);
-				float apertureDiameter = CalculateApertureDiameter(focalLength, CAMERA_FSTOP);
-				float apertureRadius = apertureDiameter / 2.0;
+				vec2 sensorSize = (1e-3 * CAMERA_SENSOR_SIZE_MM) * vec2(aspectRatio / CAMERA_ANAMORPHIC_SCALE, 1.0);
+				vec2 focalLength = CalculateFocalLength(sensorSize, Diagonal(gbufferProjection).xy);
+				vec2 apertureDiameter = CalculateApertureDiameter(focalLength, CAMERA_FSTOP);
+				vec2 apertureRadius = apertureDiameter / 2.0;
 
 				float depth = abs(ScreenSpaceToViewSpace(texture(depthtex1, screenCoord).r, gbufferProjectionInverse));
-				#ifdef CAMERA_AUTOFOCUS
+				#if CAMERA_FOCUS < 0
 					float focus = abs(ScreenSpaceToViewSpace(centerDepthSmooth, gbufferProjectionInverse));
 				#else
-					const float focus = CAMERA_FOCUS_DISTANCE;
+					const float focus = CAMERA_FOCUS;
 				#endif
 
-				float cocMetres = CalculateCircleOfConfusion(depth, focus, apertureRadius, focalLength);
-				float cocSensor = cocMetres / sensorHeight;
-				float cocPixels = cocSensor * viewResolution.y;
+				vec2 cocMetres = CalculateCircleOfConfusion(depth, focus, apertureRadius, focalLength);
+				vec2 cocSensor = cocMetres / sensorSize;
+				vec2 cocPixels = cocSensor * viewResolution;
 			#endif
 
 			#ifdef DOF_SIMPLE
-				float filterRadius = cocSensor / KERNEL_RADIUS;
+				float filterRadius = cocSensor.y / KERNEL_RADIUS;
 
 				vec4 valR = vec4(0), valG = vec4(0), valB = vec4(0);
 				for (int i = -KERNEL_RADIUS; i <= KERNEL_RADIUS; ++i) {
@@ -163,7 +163,7 @@ uniform vec2 taaOffset;
 			#endif
 
 			#ifndef DOF_SIMPLE
-				float lodSample = log2(2.0 * cocPixels * inversesqrt(DOF_SAMPLES));
+				float lodSample = log2(2.0 * MaxOf(cocPixels) * inversesqrt(DOF_SAMPLES));
 				float lodBokeh  = log2(viewResolution.y * inversesqrt(DOF_SAMPLES));
 
 				vec3 result = vec3(0.0), weight = vec3(0.0);
@@ -175,7 +175,7 @@ uniform vec2 taaOffset;
 					vec2 bokehCoord = (offset * 0.5 + 0.5) / vec2(aspectRatio, 1.0);
 					vec3 bokeh = textureLod(colortex0, bokehCoord, lodBokeh).rgb;
 
-					vec2 sampleCoord = screenCoord + offset * vec2(cocSensor / aspectRatio, cocSensor);
+					vec2 sampleCoord = screenCoord + offset * cocSensor;
 					result += textureLod(colortex3, sampleCoord, lodSample).rgb * bokeh;
 					weight += bokeh;
 				} result /= weight;

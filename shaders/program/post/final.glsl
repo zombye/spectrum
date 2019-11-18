@@ -9,6 +9,8 @@
 
 //--// Uniforms //------------------------------------------------------------//
 
+uniform float aspectRatio;
+
 uniform sampler2D colortex4;
 #ifdef LUT
 uniform sampler2D depthtex2;
@@ -43,6 +45,16 @@ uniform sampler2D depthtex2;
 
 	//--// Fragment Functions //----------------------------------------------//
 
+	vec2 LensDistortion(vec2 uv, float distortionAmt) {
+		vec2 sensorSize = (1e-3 * CAMERA_SENSOR_SIZE_MM) * vec2(aspectRatio / CAMERA_ANAMORPHIC_SCALE, 1.0);
+		uv = sensorSize * (uv - 0.5);
+
+		float d = dot(uv, uv) / dot(0.5 * sensorSize, 0.5 * sensorSize);
+		uv *= 1.0 + distortionAmt * d;
+
+		return uv / sensorSize + 0.5;
+	}
+
 	#ifdef LUT
 		vec3 LookupColor(sampler2D lookupTable, vec3 color) {
 			const ivec2 lutTile = ivec2(8, 8); // 8x8=64 8x16=128 16x8=128 16x16=256
@@ -66,7 +78,21 @@ uniform sampler2D depthtex2;
 	#endif
 
 	void main() {
-		color = DecodeRGBE8(textureLod(colortex4, screenCoord, 0.0));
+		if (CAMERA_LENS_DISTORTION != 0 || CAMERA_CHROMATIC_ABBERATION != 0) {
+			if (CAMERA_CHROMATIC_ABBERATION == 0) {
+				vec2 uv = LensDistortion(screenCoord, CAMERA_LENS_DISTORTION);
+				color = DecodeRGBE8(textureLod(colortex4, uv, 0.0));
+			} else {
+				vec2 uvR = LensDistortion(screenCoord, CAMERA_LENS_DISTORTION + CAMERA_CHROMATIC_ABBERATION);
+				vec2 uvG = LensDistortion(screenCoord, CAMERA_LENS_DISTORTION);
+				vec2 uvB = LensDistortion(screenCoord, CAMERA_LENS_DISTORTION - CAMERA_CHROMATIC_ABBERATION);
+				color.r = DecodeRGBE8(textureLod(colortex4, uvR, 0.0)).r;
+				color.g = DecodeRGBE8(textureLod(colortex4, uvG, 0.0)).g;
+				color.b = DecodeRGBE8(textureLod(colortex4, uvB, 0.0)).b;
+			}
+		} else {
+			color = DecodeRGBE8(textureLod(colortex4, screenCoord, 0.0));
+		}
 
 		// Convert to output color space
 		color = Clamp01(color);
