@@ -193,7 +193,7 @@ const int shadowMapResolution = 2048; // Default if not set: 1024 [512 768 1024 
 
 //--// Clouds
 
-//#define CLOUDS2D
+#define CLOUDS2D
 #define CLOUDS3D
 
 #define CLOUD_SHADOW_MAP_RESOLUTION 256

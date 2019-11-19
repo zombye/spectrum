@@ -3,24 +3,23 @@
 
 //--// Texture noise //-------------------------------------------------------//
 
-float GetNoise(sampler2D noiseSampler, vec2 position) {
-	return texture(noiseSampler, position / 256.0).x;
+vec4 GetNoise(sampler2D noiseSampler, vec2 position) {
+	return texture(noiseSampler, position / 256.0);
 }
-vec2 GetNoise2(sampler2D noiseSampler, vec2 position) {
-	return texture(noiseSampler, position / 256.0).xy;
-}
-vec2 GetNoise2HQ(sampler2D noiseSampler, vec2 position) {
-	vec2  f = fract(position);
-	ivec2 i = ivec2(position - f);
+vec4 GetNoiseHQ(sampler2D noiseSampler, vec2 position) {
+	vec2 f = fract(position);
+	vec2 i = (position - f) / 256.0;
 
-	vec4 samples0 = textureGather(noiseSampler, i / 256.0, 0);
-	vec4 samples1 = textureGather(noiseSampler, i / 256.0, 1);
+	vec4 samples0 = textureGather(noiseSampler, i, 0);
+	vec4 samples1 = textureGather(noiseSampler, i, 1);
+	vec4 samples2 = textureGather(noiseSampler, i, 2);
+	vec4 samples3 = textureGather(noiseSampler, i, 3);
 
 	vec4 w = f.xxyy;
 	w.yw = 1.0 - w.yw;
 	w = w.yxxy * w.zzww;
 
-	return vec2(dot(samples0, w), dot(samples1, w));
+	return vec4(dot(samples0, w), dot(samples1, w), dot(samples2, w), dot(samples3, w));
 }
 float GetNoise(sampler2D noiseSampler, vec3 position) {
 	float flr = floor(position.z);
@@ -31,35 +30,34 @@ float GetNoise(sampler2D noiseSampler, vec3 position) {
 	return mix(noise.x, noise.y, position.z - flr);
 }
 #if !defined PROGRAM_WATER && !defined PROGRAM_HAND_WATER
-vec2 GetNoise3D(sampler3D noiseSampler, vec3 position) {
-	return texture(noiseSampler, fract(position)).rg;
+vec4 GetNoise(sampler3D noiseSampler, vec3 position) {
+	return texture(noiseSampler, fract(position));
 }
 #endif
 
-float GetNoiseSmooth(sampler2D noiseSampler, vec2 position) {
+vec4 GetNoiseSmooth(sampler2D noiseSampler, vec2 position) {
 	vec2 flr  = floor(position);
 	vec2 frc  = position - flr;
 	     frc *= frc * (3.0 - 2.0 * frc);
 
-	vec2 coord = (flr.xy + frc.xy) / 256.0;
-	return texture(noiseSampler, coord).x;
+	return texture(noiseSampler, (flr + frc) / 256.0);
 }
 float GetNoiseSmooth(sampler2D noiseSampler, vec3 position) {
 	vec3 flr  = floor(position);
 	vec3 frc  = position - flr;
 	     frc *= frc * (3.0 - 2.0 * frc);
 
-	vec2 coord = ((flr.xy + frc.xy) / 256.0) + (flr.z * (97.0/256.0));
-	vec2 noise = texture(noiseSampler, coord).xy;
-
-	return mix(noise.x, noise.y, frc.z);
+	return GetNoise(noiseSampler, (flr + frc) / 256.0);
 }
+#if !defined PROGRAM_WATER && !defined PROGRAM_HAND_WATER
+vec4 GetNoiseSmooth(sampler3D noiseSampler, vec3 position) {
+	vec3 flr  = floor(position);
+	vec3 frc  = position - flr;
+	     frc *= frc * (3.0 - 2.0 * frc);
 
-// Using defines so noisetex isn't a required uniform
-#define GetNoise(pos) GetNoise(noisetex, pos)
-#define GetNoise2(pos) GetNoise2(noisetex, pos)
-#define GetNoise2HQ(pos) GetNoise2HQ(noisetex, pos)
-#define GetNoiseSmooth(pos) GetNoiseSmooth(noisetex, pos)
+	return GetNoise(noiseSampler, (flr + frc) / 64.0);
+}
+#endif
 
 //----------------------------------------------------------------------------//
 

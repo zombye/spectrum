@@ -10,7 +10,7 @@
 #define CLOUDS2D_ALTITUDE 4000
 #define CLOUDS2D_THICKNESS 500
 
-#define CLOUDS2D_ATTENUATION_COEFFICIENT 0.1
+#define CLOUDS2D_ATTENUATION_COEFFICIENT 0.04
 #define CLOUDS2D_SCATTERING_ALBEDO 0.99
 
 //--// Shape //---------------------------------------------------------------//
@@ -21,22 +21,22 @@ float Get2DCloudsDensity(vec2 position, float cloudsTime) {
 	const float distortionGain = 0.5;
 	const float distortionFreqGain = 3.0;
 
-	vec2 distortionNoise = GetNoise2(distortionPosition - 0.2 * cloudsTime) * 2.0 - 1.0;
+	vec2 distortionNoise = GetNoise(noisetex, distortionPosition - 0.2 * cloudsTime).xy * 2.0 - 1.0;
 	for (int i = 0; i < distortionOctaves; ++i) {
 		vec2 noisePosition = exp2(log2(distortionFreqGain) * i) * (distortionPosition - 0.2 * cloudsTime * sqrt(i + 1.0));
-		distortionNoise += exp2(log2(distortionGain) * i) * (GetNoise2(noisePosition) * 2.0 - 1.0);
+		distortionNoise += exp2(log2(distortionGain) * i) * (GetNoise(noisetex, noisePosition).xy * 2.0 - 1.0);
 	} distortionNoise *= 1.0 - distortionGain;
 
 	const int octaves = 6;
 	const float gain = 0.4;
 	const float freqGain = 3.0;
 
-	vec2 noisePosition = position * 2e-4 + distortionNoise * 0.2;
-	float noise = GetNoise(noisePosition - cloudsTime);
+	vec2 noisePosition = position * 2e-4 + distortionNoise * 0.2 + 97.0;
+	float noise = GetNoise(noisetex, noisePosition - cloudsTime).x;
 	mat2 rot = freqGain * rotateGoldenAngle;
 	for (int i = 1; i < octaves; ++i) {
 		vec2 noisePosition = rot * (noisePosition - cloudsTime * sqrt(i + 1.0));
-		noise += GetNoise(noisePosition) * exp2(log2(gain) * i);
+		noise += GetNoise(noisetex, noisePosition).x * exp2(log2(gain) * i);
 		rot *= freqGain * rotateGoldenAngle;
 	} noise = noise * (1.0 - gain) + 0.5 * gain * exp2(log2(gain) * octaves);
 	noise *= noise * (3.0 - 2.0 * noise);

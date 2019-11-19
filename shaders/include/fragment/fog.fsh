@@ -17,8 +17,8 @@ float CalculateMistDensity(vec3 worldPosition) {
 
 	float rainFactor = max(rainStrength, wetness) * FOG_RAIN_DENSITY; // TODO: make this a custom uniform
 
-	float noise = 2.0 * GetNoise(worldPosition / 3.5);
-	//float noise = 3.0 * Pow2(GetNoise(worldPosition / 3.5));
+	float noise = 2.0 * GetNoise(noisetex, worldPosition / 3.5);
+	//float noise = 3.0 * Pow2(GetNoise(noisetex, worldPosition / 3.5).x);
 
 	return heightFade * timeFade * noise + rainFactor;
 }
