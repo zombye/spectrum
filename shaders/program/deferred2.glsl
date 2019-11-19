@@ -239,18 +239,13 @@ uniform vec3 shadowLightVector;
 		return Clamp01(dot(centerNormal, sampleNormal)) * LinearStep(0.05, 0.0, planeDist);
 	}
 
-	void Filter(vec3 flatNormal, vec3 position, out vec4 hbao, out vec3 rsm) {
+	#ifdef HBAO
+	void Filter(vec3 flatNormal, vec3 position, out vec4 hbao) {
 		ivec2 res       = ivec2(viewResolution) / 2;
 		ivec2 fragCoord = ivec2(gl_FragCoord.st) / 2;
 		ivec2 shift     = ivec2(gl_FragCoord.st) % 2;
 
-		#ifdef HBAO
 		hbao = texelFetch(colortex5, fragCoord, 0);
-		#endif
-
-		#ifdef RSM
-		rsm = texelFetch(colortex5, fragCoord + ivec2(res.x, 0), 0).rgb;
-		#endif
 
 		float weightSum = 1.0;
 		for (int x = -4; x < 4; ++x) {
@@ -275,22 +270,15 @@ uniform vec3 shadowLightVector;
 				float weight  = CalculateSampleWeight(flatNormal, sampleNormal, mat3(gbufferModelViewInverse) * (samplePosition - position));
 				      weight *= (1.0 - 0.2 * abs(offset.x)) * (1.0 - 0.2 * abs(offset.y));
 
-				#ifdef HBAO
 				hbao += texelFetch(colortex5, sampleFragCoord, 0) * weight;
-				#endif
-
-				#ifdef RSM
-				rsm += texelFetch(colortex5, sampleFragCoord + ivec2(res.x, 0), 0).rgb * weight;
-				#endif
-
 				weightSum += weight;
 			}
 		}
 
 		hbao.xyz = normalize(hbao.xyz);
 		hbao.w /= weightSum;
-		rsm /= weightSum;
 	}
+	#endif
 
 	vec3 CalculateFakeBouncedLight(vec3 normal, vec3 lightVector) {
 		const vec3 groundAlbedo = vec3(0.1, 0.1, 0.1);
@@ -369,12 +357,13 @@ uniform vec3 shadowLightVector;
 			float NoH = (NoL + NoV) * rcpLen_LV;
 
 			// Lighting
-			#if defined HBAO || defined RSM
-			vec4 hbao; vec3 rsm;
-			Filter(normalFlat, position[1], hbao, rsm);
+			#ifdef RSM
+			vec3 rsm = texelFetch(colortex5, ivec2(gl_FragCoord.st) / 2 + ivec2(viewResolution.x / 2.0, 0), 0).rgb;
 			#endif
 
 			#ifdef HBAO
+				vec4 hbao;
+				Filter(normalFlat, position[1], hbao, rsm);
 				vec3 skyConeVector = hbao.xyz;
 				float ao = hbao.w;
 			#else

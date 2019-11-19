@@ -356,7 +356,7 @@ uniform vec3 shadowLightVector;
 
 			const float radiusSquared     = RSM_RADIUS * RSM_RADIUS;
 			const float perSampleArea     = pi * radiusSquared / RSM_SAMPLES;
-			const float sampleDistanceAdd = sqrt(perSampleArea / pi); // Added to sampleDistanceSquared to prevent fireflies
+			const float sampleDistanceAdd = sqrt((perSampleArea / RSM_SAMPLES) / pi); // Added to sampleDistanceSquared to prevent fireflies
 
 			vec3 projectionScale        = vec3(shadowProjection[0].x, shadowProjection[1].y, shadowProjection[2].z / SHADOW_DEPTH_SCALE);
 			vec3 projectionInverseScale = vec3(shadowProjectionInverse[0].x, shadowProjectionInverse[1].y, shadowProjectionInverse[2].z * SHADOW_DEPTH_SCALE);
@@ -366,11 +366,14 @@ uniform vec3 shadowLightVector;
 			vec3 shadowClip     = projectionScale * shadowPosition + shadowProjection[3].xyz;
 			vec3 shadowNormal   = mat3(shadowModelView) * normal;
 
+			mat2 rot = GetRotationMatrix(ditherSize * goldenAngle);
+
 			vec3 rsm = vec3(0.0);
 			vec2 dir = SinCos(dither * goldenAngle);
 			for (int i = 0; i < RSM_SAMPLES; ++i) {
-				vec2 sampleOffset = dir * offsetScale * sqrt((i + dither2) / RSM_SAMPLES);
-				dir *= rotateGoldenAngle;
+				float r = (i + dither2) / RSM_SAMPLES;
+				vec2 sampleOffset = dir * offsetScale * r;
+				dir *= rot;
 
 				vec3 sampleClip     = shadowClip;
 				     sampleClip.xy += sampleOffset;
@@ -391,12 +394,12 @@ uniform vec3 shadowLightVector;
 				vec3 sampleNormal = DecodeNormal(shadowcolor0Sample.rg * 2.0 - 1.0);
 
 				// Calculate BRDF (lambertian)
-				//float sampleIn  = 1.0; // We're sampling the lights projected area so this is just 1.
+				float sampleIn  = 2.0 * r; // Light's projected area for each sample
 				float sampleOut = Clamp01(dot(sampleNormal, -sampleVector)) / pi; // Divide by pi for energy conservation.
 				float bounceIn  = Clamp01(dot(shadowNormal,  sampleVector));
 				const float bounceOut = 1.0 / pi; // Divide by pi for energy conservation.
 
-				float brdf = sampleOut * bounceIn * bounceOut;
+				float brdf = sampleIn * sampleOut * bounceIn * bounceOut;
 
 				#ifdef RSM_LEAK_PREVENTION
 					float sampleSkylight = shadowcolor0Sample.b;
@@ -693,7 +696,7 @@ uniform vec3 shadowLightVector;
 		#ifdef RSM
 			if (screenCoord.x > 0.5 && screenCoord.y < 0.5) {
 				ivec2 tile, tileFragCoord; vec2 tileScreenCoord;
-				DitherTiles(fragCoord, 4, 2.0, tile, tileFragCoord, tileScreenCoord);
+				DitherTiles(fragCoord, 16, 2.0, tile, tileFragCoord, tileScreenCoord);
 				//tile = fragCoord % 8; tileFragCoord = fragCoord % ivec2(viewResolution / 2); tileScreenCoord = screenCoord * 2.0;
 
 				mat3 position;
@@ -708,8 +711,8 @@ uniform vec3 shadowLightVector;
 					vec3 normal = DecodeNormal(Unpack2x8(texelFetch(colortex1, tileFragCoord * 2, 0).a) * 2.0 - 1.0);
 					float skylight = Unpack2x8Y(texelFetch(colortex0, tileFragCoord * 2, 0).b);
 
-					const float ditherSize = 4.0 * 4.0;
-					float dither = Bayer4(tile);
+					const float ditherSize = 16.0 * 16.0;
+					float dither = Bayer16(tile);
 
 					halfres.rgb = ReflectiveShadowMaps(position[2], normal, skylight, dither, ditherSize);
 					halfres.a = 1.0;

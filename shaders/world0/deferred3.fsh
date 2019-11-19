@@ -3,4 +3,7 @@
 #define WORLD_OVERWORLD
 #define PROGRAM_DEFERRED3
 #define STAGE_FRAGMENT
-#include "/program/deferred3.glsl"
+
+#define FILTER_ITERATION 1
+
+#include "/program/rsmFilterIteration.glsl"

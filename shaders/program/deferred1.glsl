@@ -52,7 +52,7 @@ uniform vec2 viewPixelSize;
 		#ifdef RSM
 			if (screenCoord.x > 0.5 && screenCoord.y < 0.5) { // RSM
 				ivec2 tile, tileFragCoord; vec2 tileScreenCoord;
-				UnditherTiles(fragCoord, 4, 2.0, tile, tileFragCoord);
+				UnditherTiles(fragCoord, 16, 2.0, tile, tileFragCoord);
 
 				ivec2 quadResolution = ivec2(ceil(viewResolution / 2.0));
 				tileFragCoord.x += quadResolution.x;

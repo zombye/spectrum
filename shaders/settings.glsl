@@ -127,8 +127,8 @@
 //#define RSM
 #define RSM_BRIGHTNESS 1 // [1 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2 2.1 2.2 2.3 2.4 2.5 2.6 2.7 2.8 2.9 3]
 
-#define RSM_RADIUS 8 // [4 5 6 7 8 9 10 11 12 13 14 15 16]
-#define RSM_SAMPLES 60 // [30 40 60 80 120 160 240]
+#define RSM_RADIUS 15 // [4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30]
+#define RSM_SAMPLES 30 // [5 10 15 20 30 40 60 80 120 160 240]
 
 #define RSM_LEAK_PREVENTION // Minimizes light leaking from RSM. Doesn't always get it right, so in some scenes it might be better to disable it.
 
