@@ -89,9 +89,8 @@ vec3 CalculateWaterNormal(vec3 position) {
 	diffs.y = CalculateWaterWaves(position + vec3(-dist, 0.0,  dist));
 	diffs  -= CalculateWaterWaves(position + vec3(-dist, 0.0, -dist));
 
-	vec3 normal = vec3(-2.0 * dist, 4.0 * dist * dist, -2.0 * (dist * dist + dist));
-	normal.xz  *= diffs;
-	normal      = normalize(normal);
+	vec3 normal = vec3(-diffs.x, 2.0 * dist, -diffs.y);
+	     normal = normalize(normal);
 
 	return normal;
 }
