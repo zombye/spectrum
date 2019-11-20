@@ -363,7 +363,7 @@ uniform vec3 shadowLightVector;
 
 			#ifdef HBAO
 				vec4 hbao;
-				Filter(normalFlat, position[1], hbao, rsm);
+				Filter(normalFlat, position[1], hbao);
 				vec3 skyConeVector = hbao.xyz;
 				float ao = hbao.w;
 			#else

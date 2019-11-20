@@ -299,7 +299,7 @@ vec3 CalculateWaterFog(vec3 background, vec3 startPosition, vec3 endPosition, ve
 
 	//#define sunlightPhase isotropicPhase
 	#ifdef WATER_REALISTIC_PHASE_FUNCTION
-	float sunlightPhase = FournierForandPhase(LoV, 1.4, 4.4); // Accurate-ish for water
+	float sunlightPhase = PhaseFournierForand(LoV, 1.4, 4.4); // Accurate-ish for water
 	#else
 	float sunlightPhase = PhaseHenyeyGreenstein(LoV, 0.5);
 	#endif
