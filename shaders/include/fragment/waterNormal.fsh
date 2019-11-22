@@ -1,6 +1,8 @@
 #if !defined INCLUDE_FRAGMENT_WATERNORMAL
 #define INCLUDE_FRAGMENT_WATERNORMAL
 
+#define WATER_WAVES_HQ // approx. 2x more demanding, needed for projected caustics to look good (and makes it look a lot better when you don't have a lot of iterations)
+
 float GetSmoothNoise(vec2 coord) {
 	vec2 floored = floor(coord);
 
@@ -16,6 +18,43 @@ float GetSmoothNoise(vec2 coord) {
 	     weights.yw = 1.0 - weights.yw;
 	     weights   *= weights * (-2.0 * weights + 3.0);
 	return dot(samples, weights.yxxy * weights.zzww);
+}
+vec4 TextureBilinearHq(sampler2D sampler, vec2 coord) {
+	ivec2 res = textureSize(sampler, 0);
+	coord = coord * res - 0.5;
+	vec2 floored = floor(coord) / res;
+
+	vec4 samples0 = textureGather(sampler, floored, 0);
+	vec4 samples1 = textureGather(sampler, floored, 1);
+	vec4 samples2 = textureGather(sampler, floored, 2);
+	vec4 samples3 = textureGather(sampler, floored, 3);
+
+	vec4 weights    = fract(coord).xxyy;
+	     weights.yw = 1.0 - weights.yw;
+	     weights = weights.yxxy * weights.zzww;
+
+	return vec4(
+		dot(samples0, weights),
+		dot(samples1, weights),
+		dot(samples2, weights),
+		dot(samples3, weights)
+	);
+}
+vec4 TextureBicubicHq(sampler2D sampler, vec2 coord) {
+	ivec2 res = textureSize(sampler, 0);
+
+	coord = coord * res - 0.5;
+
+	vec4 c; vec2 m;
+	FastBicubicCM(coord, c, m);
+
+	c = (c + 0.5) / res.xyxy;
+
+	return mix(
+		mix(TextureBilinearHq(sampler, c.xy), TextureBilinearHq(sampler, c.zy), m.x),
+		mix(TextureBilinearHq(sampler, c.xw), TextureBilinearHq(sampler, c.zw), m.x),
+		m.y
+	);
 }
 
 float CalculateWaterWave(float phase, float height, float sharpness) {
@@ -44,38 +83,51 @@ float CalculateWaterWaves(vec3 position) {
 	      float height     = WATER_WAVES_WAVELENGTH * WATER_WAVES_WAVE_HEIGHT_RATIO / pi;
 	const float gain       = WATER_WAVES_WAVE_HEIGHT_GAIN * WATER_WAVES_WAVELENGTH_GAIN;
 
-	const float phaseNoiseScale = 0.5;
-	const float phaseNoiseSpeed = 0.5;
-
-	const float angle = 2.6;
-	const mat2 rotation = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+	const float windScale = 2.0;
 
 	vec2 camPos = cameraPosition.xz;
 
+	vec2 windNoisePos = (position.xz + camPos) / 12.0;
+	vec2 windDir = TextureBicubicHq(noisetex, windNoisePos / 256.0).xy * 4.0 - 2.0;
+
 	float waves = 0.0;
+	const float waveWidthRatio = 2.0;
 	for (int i = 0; i < iterations; ++i) {
 		float k = tau / wavelength; // angular wavenumber (radians per metre)
 		float w = sqrt(g * k); // angular frequency (radians per second)
 
 		// as it turns out, projected caustics need a lot of precision to work right
 		// this part can get pretty bad in that regard if you don't modulo the camera position and time like this
-		float pMul = (2.0 * phaseNoiseScale) / wavelength;
-		float tMul = (2.0 * phaseNoiseScale * phaseNoiseSpeed / tau) * (w / wavelength);
-		vec2 np = pMul * position.xz + mod(pMul * camPos, 256.0);
-		np.y -= mod(tMul * time, 256.0);
+		float pMul = 2.0 / wavelength;
+		float tMul = (2.0 / tau) * (w / wavelength);
+		#ifdef WATER_WAVES_HQ
+		vec2 np = pMul * position.xz + mod(pMul * camPos, vec2(waveWidthRatio, 1.0) * 256.0 / 2.0);
+		np.y -= mod(tMul * time, 256.0 / 2.0);
+		#else
+		vec2 np = pMul * position.xz + mod(pMul * camPos, vec2(waveWidthRatio, 1.0) * 256.0 / 1.333);
+		np.y -= mod(tMul * time, 256.0 / 1.333);
+		#endif
 
-		float phaseNoise = GetSmoothNoise(np) * wavelength * 0.8;
-		float phase = k * (position.z + mod(camPos.y, wavelength) + phaseNoise) - mod(w * time, tau);
+		np.x /= waveWidthRatio;
 
-		float sharpness = pow(pi * height / wavelength, 1.0 - WATER_WAVES_SHARPENING);
-		float wave = CalculateWaterWave(phase, height, sharpness);
+		float waveHeight = height * exp(windDir.y * windScale);
+		#ifdef WATER_WAVES_HQ
+		np *= 2.0; // seems to give "correct" results vs old sine based waves
+		float wave = waveHeight * TextureBicubicHq(noisetex, np / 256.0).x;
+		wave *= 3.0; // seems to give "correct" results vs old sine based waves
+		#else
+		np *= 1.333; // seems to give "correct" results vs old sine based waves
+		float wave = waveHeight * GetSmoothNoise(np);
+		wave *= 2.0; // seems to give "correct" results vs old sine based waves
+		#endif
 
 		waves -= wave;
 
-		wavelength *= wlGain;
-		height     *= gain;
-		position.xz = rotation * position.xz;
-		camPos      = rotation * camPos;
+		wavelength  *= wlGain;
+		height      *= gain;
+		position.xz *= rotateGoldenAngle;
+		camPos      *= rotateGoldenAngle;
+		windDir = rotateGoldenAngle * windDir;
 	}
 
 	return waves;
