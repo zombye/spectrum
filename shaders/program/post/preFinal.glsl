@@ -101,6 +101,34 @@ uniform vec2 viewPixelSize;
 		return color;
 	}
 
+	mat3 ChromaticAdaptationMatrix(vec3 sourceXYZ, vec3 destinationXYZ) {
+		const mat3 XyzToLms = mat3(
+			 0.7328, 0.4296,-0.1624,
+			-0.7036, 1.6975, 0.0061,
+			 0.0030, 0.0136, 0.9834
+		); // CAT02
+
+		vec3 sourceLMS = sourceXYZ * XyzToLms;
+		vec3 destinationLMS = destinationXYZ * XyzToLms;
+
+		vec3 tmp = destinationLMS / sourceLMS;
+
+		mat3 vonKries = mat3(
+			tmp.x, 0.0, 0.0,
+			0.0, tmp.y, 0.0,
+			0.0, 0.0, tmp.z
+		);
+
+		return (XyzToLms * vonKries) * inverse(XyzToLms);
+	}
+	vec3 WhiteBalance(vec3 color) {
+		vec3 sourceXYZ = Blackbody(WHITE_BALANCE) * RgbToXyz;
+		vec3 destinationXYZ = Blackbody(6500.0) * RgbToXyz;
+		mat3 matrix = RgbToXyz * ChromaticAdaptationMatrix(sourceXYZ, destinationXYZ) * XyzToRgb;
+
+		return color * matrix;
+	}
+
 	void main() {
 		#if defined MC_GL_RENDERER_RADEON // workaround for AMD driver bug(?) causing colortex0 to not get cleared
 		colortex0Write = vec4(0.0, 0.0, 0.0, 1.0);
@@ -121,6 +149,8 @@ uniform vec2 viewPixelSize;
 		#ifdef LOWLIGHT_DESATURATION
 			color = LowlightDesaturate(color, exposure);
 		#endif
+
+		color = WhiteBalance(color);
 
 		color = Contrast(color);
 		color = Saturation(color);
