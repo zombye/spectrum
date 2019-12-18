@@ -386,7 +386,7 @@ uniform vec3 shadowLightVector;
 				vec3 flatNormal = DecodeNormal(Unpack2x8(colortex1Sample.a) * 2.0 - 1.0);;
 
 				float rainMask  = 1.0 - Pow2(LinearStep(1.0, 0.01, wetness));
-				      rainMask *= Clamp01(lightmap.y * 15.0);
+				      rainMask *= Clamp01(lightmap.y * 15.0 - 13.5);
 				      rainMask *= LinearStep(0.5, 0.9, normal.y);
 
 				float noise  = TextureBicubic(noisetex, fract(0.5 * (backPosition[2].xz + cameraPosition.xz) / 256.0)).x;
