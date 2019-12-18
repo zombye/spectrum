@@ -75,7 +75,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 			material.emission     = baseTex * (1.0 - specTex.a) * float(specTex.a > 0.0) * BLOCK_LIGHT_LUMINANCE;
 			material.translucency = vec3(0.0);
 		}
-	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_LAB
+	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_1 || RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_2
 		bool isMetal = specTex.g > (229.5 / 255.0);
 		bool isPorous = specTex.b < (64.5 / 255.0);
 

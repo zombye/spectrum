@@ -348,23 +348,34 @@ uniform vec3 shadowLightVector;
 
 		#if !defined PROGRAM_BLOCK && !defined PROGRAM_ENTITIES
 			#ifdef SMOOTH_NORMALS
-				vec3 normal = ReadTextureSmooth(normals).rgb;
+				vec3 normal_ao = ReadTextureSmooth(normals).rgb;
 			#else
-				vec3 normal = ReadTexture(normals).rgb;
+				vec3 normal_ao = ReadTexture(normals).rgb;
 			#endif
-			normal = normal * 2.0 - (254.0 / 255.0);
-		#else
-			vec3 normal = vec3(0,0,1);
-		#endif
-		float normalLength = length(normal);
-		normal = tbn * normal / normalLength;
 
-		#if RESOURCE_FORMAT == RESOURCE_FORMAT_LAB
-			float textureAo = Clamp01(normalLength) * (255.0 / 238.0) - (17.0 / 238.0);
-			      textureAo = textureAo * textureAo;
-		#elif RESOURCE_FORMAT == RESOURCE_FORMAT_CONTINUUM2
-			float textureAo = Clamp01(normalLength);
+			#if RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_2
+				vec3 normal;
+				normal.xy = normal_ao.xy * 2.0 - (254.0 / 255.0);
+				normal.z = sqrt(Clamp01(1.0 - dot(normal.xy, normal.xy)));
+				normal = tbn * normal;
+
+				float textureAo = normal_ao.z;
+			#else
+				normal_ao = normal_ao * 2.0 - (254.0 / 255.0);
+				float normalLength = length(normal_ao);
+				vec3 normal = tbn * normal_ao / normalLength;
+
+				#if RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_1
+				float textureAo = Clamp01(normalLength) * (255.0 / 238.0) - (17.0 / 238.0);
+				      textureAo = textureAo * textureAo;
+				#elif RESOURCE_FORMAT == RESOURCE_FORMAT_CONTINUUM2
+				float textureAo = Clamp01(normalLength);
+				#else
+				const float textureAo = 1.0;
+				#endif
+			#endif
 		#else
+			vec3 normal = tbn[2];
 			const float textureAo = 1.0;
 		#endif
 
