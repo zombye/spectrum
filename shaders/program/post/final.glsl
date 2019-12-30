@@ -50,7 +50,7 @@ uniform sampler2D depthtex2;
 		uv = sensorSize * (uv - 0.5);
 
 		float d = dot(uv, uv) / dot(0.5 * sensorSize, 0.5 * sensorSize);
-		uv *= 1.0 + distortionAmt * d;
+		uv *= (1.0 + distortionAmt * d) / max(1.0 + CAMERA_LENS_DISTORTION, 1.0);
 
 		return uv / sensorSize + 0.5;
 	}
