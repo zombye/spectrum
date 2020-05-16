@@ -4,18 +4,10 @@
 vec3 ViewSpaceToScreenSpace(vec3 viewPosition, mat4 projection) {
 	vec3 screenPosition = vec3(projection[0].x, projection[1].y, projection[2].z) * viewPosition + projection[3].xyz;
 
-	#ifdef TAA
-		screenPosition.xy -= taaOffset * viewPosition.z;
-	#endif
-
 	return screenPosition * (0.5 / -viewPosition.z) + 0.5;
 }
 vec3 ScreenSpaceToViewSpace(vec3 screenPosition, mat4 projectionInverse) {
 	screenPosition = screenPosition * 2.0 - 1.0;
-
-	#ifdef TAA
-		screenPosition.xy -= taaOffset;
-	#endif
 
 	vec3 viewPosition  = vec3(vec2(projectionInverse[0].x, projectionInverse[1].y) * screenPosition.xy + projectionInverse[3].xy, projectionInverse[3].z);
 	     viewPosition /= projectionInverse[2].w * screenPosition.z + projectionInverse[3].w;

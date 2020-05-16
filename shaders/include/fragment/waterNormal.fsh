@@ -1,6 +1,7 @@
 #if !defined INCLUDE_FRAGMENT_WATERNORMAL
 #define INCLUDE_FRAGMENT_WATERNORMAL
 
+//#define WATER_OLD_WAVES
 #define WATER_WAVES_HQ // approx. 2x more demanding, needed for projected caustics to look good (and makes it look a lot better when you don't have a lot of iterations)
 
 float GetSmoothNoise(vec2 coord) {
@@ -57,6 +58,52 @@ vec4 TextureBicubicHq(sampler2D sampler, vec2 coord) {
 	);
 }
 
+//--//
+
+#ifdef WATER_OLD_WAVES
+struct waveParams {
+	vec2 inverseScale;
+	vec2 scaledTranslation;
+	vec2 skew;
+	float height;
+	bool sharpen;
+	float sharpenThreshold;
+	float sharpenMin;
+};
+
+float CalculateWaterWaveOld(vec2 pos, float waveTime, const waveParams params) {
+	pos = params.inverseScale * pos + params.scaledTranslation * waveTime;
+	pos = pos.yx * params.skew + pos;
+	float wave = GetSmoothNoise(pos);
+	if (params.sharpen) {
+		wave = 1.0 - AlmostIdentity(abs(wave * 2.0 - 1.0), params.sharpenThreshold, params.sharpenMin);
+	}
+	return wave * params.height;
+}
+
+float CalculateWaterWavesOld(vec3 position) {
+	float waveTime = frameTimeCounter * TIME_SCALE;
+
+	const waveParams[4] params = waveParams[4](
+		waveParams(1.0 / vec2(2.50, 3.33), vec2(2.40, 0.43) / vec2(2.50, 3.33), vec2(0.2, 1.3), 0.070,  true, 0.16, 0.08),
+		waveParams(1.0 / vec2(0.71, 1.11), vec2(0.91,-0.71) / vec2(0.71, 1.11), vec2(0.0,-1.2), 0.030, false, 0.16, 0.08),
+		waveParams(1.0 / vec2(0.26, 0.40), vec2(0.62, 0.26) / vec2(0.26, 0.40), vec2(0.0, 1.0), 0.010, false, 0.16, 0.08),
+		waveParams(1.0 / vec2(0.09, 0.20), vec2(0.22, 0.16) / vec2(0.09, 0.20), vec2(0.0, 0.3), 0.003, false, 0.16, 0.08)
+	);
+
+	position += cameraPosition;
+
+	float waves = 0.0;
+	for (int i = 0; i < params.length(); i++) {
+		waves += CalculateWaterWaveOld(position.xz, waveTime, params[i]) - params[i].height;
+	}
+
+	return waves;
+}
+#endif
+
+//--//
+
 float CalculateWaterWave(float phase, float height, float sharpness) {
 	// Trochoidal wave approximation
 	// Has peaks at 0 and throughs at height.
@@ -64,7 +111,7 @@ float CalculateWaterWave(float phase, float height, float sharpness) {
 	return height * pow(cos(phase) * 0.5 + 0.5, power);
 }
 float CalculateWaterWave(vec2 position, vec2 direction, float phaseOffset, float height, float wavelength, float sharpness, float time) {
-	const float g = 9.81;
+	const float g = WATER_WAVES_G;
 
 	float k = tau / wavelength; // angular wavenumber (radians per metre)
 	float w = sqrt(g * k);      // angular frequency (radians per second)
@@ -74,6 +121,9 @@ float CalculateWaterWave(vec2 position, vec2 direction, float phaseOffset, float
 }
 
 float CalculateWaterWaves(vec3 position) {
+	#ifdef WATER_OLD_WAVES
+	return CalculateWaterWavesOld(position);
+	#endif
 	float time = frameTimeCounter * TIME_SCALE;
 
 	const int   iterations = WATER_WAVES_COUNT;
@@ -146,6 +196,20 @@ vec3 CalculateWaterNormal(vec3 position) {
 
 	return normal;
 }
+vec3 CalculateWaterNormal(vec3 position, float strength) {
+	const float dist = 0.001;
+
+	vec2 diffs;
+	diffs.x = CalculateWaterWaves(position + vec3( dist, 0.0, -dist));
+	diffs.y = CalculateWaterWaves(position + vec3(-dist, 0.0,  dist));
+	diffs  -= CalculateWaterWaves(position + vec3(-dist, 0.0, -dist));
+	diffs *= strength;
+
+	vec3 normal = vec3(-diffs.x, 2.0 * dist, -diffs.y);
+	     normal = normalize(normal);
+
+	return normal;
+}
 
 #ifdef WATER_PARALLAX
 	vec3 CalculateWaterParallax(vec3 position, vec3 direction) {
@@ -177,6 +241,7 @@ vec3 CalculateWaterNormal(vec3 position) {
 		position = CalculateWaterParallax(position, tangentViewVector.xzy);
 
 		return CalculateWaterNormal(position).xzy;
+		//return CalculateWaterNormal(position, sqrt(1.0 - Pow4(1.0 - abs(normalize(tangentViewVector).z)))).xzy;
 	}
 #endif
 

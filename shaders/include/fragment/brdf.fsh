@@ -2,16 +2,24 @@
 #define INCLUDE_FRAGMENT_BRDF
 
 vec3 FresnelNonpolarized(float VdotH, ComplexVec3 n1, ComplexVec3 n2) {
-	ComplexVec3 eta       = ComplexDiv(n1, n2);
-	vec3        cosThetaI = vec3(VdotH);
-	float       sinThetaI = sqrt(Clamp01(1.0 - VdotH * VdotH));
-	ComplexVec3 sinThetaT = ComplexVec3(eta.r * sinThetaI, eta.i * sinThetaI);
-	ComplexVec3 cosThetaT = ComplexSqrt(ComplexSub(vec3(1.0), ComplexMul(sinThetaT, sinThetaT)));
+	ComplexVec3 eta = ComplexDiv(n1, n2);
 
-	vec3 sqrtRs = ComplexAbs(ComplexDiv(ComplexSub(ComplexMul(n1, cosThetaI), ComplexMul(n2, cosThetaT)), ComplexAdd(ComplexMul(n1, cosThetaI), ComplexMul(n2, cosThetaT))));
-	vec3 sqrtRp = ComplexAbs(ComplexDiv(ComplexSub(ComplexMul(n1, cosThetaT), ComplexMul(n2, cosThetaI)), ComplexAdd(ComplexMul(n1, cosThetaT), ComplexMul(n2, cosThetaI))));
+	float       cosThetaI = VdotH;
+	ComplexVec3 cosThetaT = ComplexSqrt(ComplexSub(1.0, ComplexMul(ComplexMul(eta, eta), 1.0 - cosThetaI * cosThetaI)));
 
-	return Clamp01((sqrtRs * sqrtRs + sqrtRp * sqrtRp) * 0.5);
+	ComplexVec3 RsNum = ComplexSub(ComplexMul(eta, cosThetaI), cosThetaT);
+	ComplexVec3 RsDiv = ComplexAdd(ComplexMul(eta, cosThetaI), cosThetaT);
+	//vec3 sqrtRs = ComplexAbs(RsNum) / ComplexAbs(RsDiv);
+	//vec3 Rs = sqrtRs * sqrtRs;
+	vec3 Rs = (RsNum.r * RsNum.r + RsNum.i * RsNum.i) / (RsDiv.r * RsDiv.r + RsDiv.i * RsDiv.i);
+
+	ComplexVec3 RpNum = ComplexSub(ComplexMul(eta, cosThetaT), cosThetaI);
+	ComplexVec3 RpDiv = ComplexAdd(ComplexMul(eta, cosThetaT), cosThetaI);
+	//vec3 sqrtRp = ComplexAbs(RpNum) / ComplexAbs(RpDiv);
+	//vec3 Rp = sqrtRp * sqrtRp;
+	vec3 Rp = (RpNum.r * RpNum.r + RpNum.i * RpNum.i) / (RpDiv.r * RpDiv.r + RpDiv.i * RpDiv.i);
+
+	return Clamp01((Rs + Rp) * 0.5);
 }
 float FresnelDielectric(float VdotH, float eta) { // H = N when no roughness
 	// Assumes non-polarized
@@ -83,9 +91,14 @@ vec3 CalculateSpecularBRDF(float NdotL, float NdotH, float NdotV, float VdotH, f
 
 // From https://www.guerrilla-games.com/read/decima-engine-advances-in-lighting-and-aa
 // Made radiusCos and RdotL inputs but otherwise essentially copy-pasted.
-float GetNdotHSquared(float radiusCos, float radiusTan, float NdotL, float NdotV, float VdotL, float RdotL) {
+// Also made newNdotL & newVdotL outputs so they can be used afterwards
+float GetNdotHSquared(float radiusCos, float radiusTan, float NdotL, float NdotV, float VdotL, float RdotL, out float newNdotL, out float newVdotL) {
 	// Early out if R falls within the disc
-	if (RdotL >= radiusCos) { return 1.0; }
+	if (RdotL >= radiusCos) {
+		newNdotL = 2.0 * NdotV - NdotV; // == dot(N, reflect(-V, N))
+		newVdotL = 2.0 * NdotV * NdotV - 1.0; // == dot(V, reflect(-V, N))
+		return 1.0;
+	}
 
 	float rOverLengthT = radiusCos * radiusTan * inversesqrt(1.0 - RdotL * RdotL);
 	float NoTr = rOverLengthT * (NdotV - RdotL * NdotL);
@@ -107,31 +120,43 @@ float GetNdotHSquared(float radiusCos, float radiusTan, float NdotL, float NdotV
 	VoTr = cosTheta * VoTr + sinTheta * VoBr; // use new T to update VoTr
 
 	// Calculate (N.H)^2 based on the bent light vector
-	float newNdotL = NdotL * radiusCos + NoTr;
-	float newVdotL = VdotL * radiusCos + VoTr;
+	newNdotL = NdotL * radiusCos + NoTr;
+	newVdotL = VdotL * radiusCos + VoTr;
 	float NdotH = NdotV + newNdotL;
 	float HoH = 2.0 * newVdotL + 2.0;
 	return Clamp01(NdotH * NdotH / HoH);
 }
-vec3 CalculateSpecularBRDFSphere(float NdotL, float NdotV, float VdotL, float VdotH, float alpha2, vec3 n, vec3 k, float angularRadius) {
-	// Specular fraction (fresnel)
-	vec3 f = FresnelNonpolarized(VdotH, ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(n, k));
+// Estimates normalization factor when using the above
+// Not really accurate, but it works well
+float EstimateNormalizationFactor(float alpha2, float lightAngularRadius) {
+	return alpha2 / (alpha2 + ConeAngleToSolidAngle(lightAngularRadius)/(2.0*pi));
+}
 
+vec3 CalculateSpecularBRDFSphere(float NdotL, float NdotV, float LdotV, float VdotH, float alpha2, vec3 n, vec3 k, float angularRadius) {
 	// Reflection direction
-	float RdotL = 2.0 * NdotV * NdotL - VdotL; // == dot(reflect(-V, N), L)
+	float RdotL = 2.0 * NdotV * NdotL - LdotV; // == dot(reflect(-V, N), L)
 	if (alpha2 < 0.25 / 65025.0) {
+		// Specular fraction (fresnel)
+		vec3 f = FresnelNonpolarized(VdotH, ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(n, k));
+
 		// No roughness, use mirror specular
 		return step(cos(angularRadius), RdotL) * f / ConeAngleToSolidAngle(angularRadius);
 	}
 
-	float NdotH = sqrt(GetNdotHSquared(cos(angularRadius), tan(angularRadius), NdotL, NdotV, VdotL, RdotL));
+	float NdotH = sqrt(GetNdotHSquared(cos(angularRadius), tan(angularRadius), NdotL, NdotV, LdotV, RdotL, NdotL, LdotV));
+	VdotH = (LdotV + 1.0) * inversesqrt(2.0 * LdotV + 2.0);
+
+	// Specular fraction (fresnel) for new H
+	vec3 f = FresnelNonpolarized(VdotH, ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(n, k));
 
 	NdotV = abs(NdotV);
 	// Geometry part
 	float d  = DistributionGGX(NdotH, alpha2);
 	float g2 = G2SmithGGX(NdotL, NdotV, alpha2);
 
-	return f * d * g2 / (4.0 * NdotL * NdotV);
+	float norm = EstimateNormalizationFactor(alpha2, angularRadius);
+
+	return norm * f * d * g2 / (4.0 * NdotL * NdotV);
 }
 
 #endif

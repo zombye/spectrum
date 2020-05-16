@@ -88,7 +88,7 @@ uniform vec3 shadowLightVector;
 //--// Shared Includes //-----------------------------------------------------//
 
 #include "/include/utility.glsl"
-#include "/include/utility/colorspace.glsl"
+#include "/include/utility/color.glsl"
 #include "/include/utility/encoding.glsl"
 #include "/include/utility/sampling.glsl"
 
@@ -286,8 +286,8 @@ uniform vec3 shadowLightVector;
 
 	#include "/include/utility/complex.glsl"
 	#include "/include/utility/dithering.glsl"
+	#include "/include/utility/fastMath.glsl"
 	#include "/include/utility/geometry.glsl"
-	#include "/include/utility/math.glsl"
 	#include "/include/utility/noise.glsl"
 	#include "/include/utility/packing.glsl"
 	#include "/include/utility/rotation.glsl"
@@ -452,7 +452,7 @@ uniform vec3 shadowLightVector;
 			     bounce *= lightmapCoordinates.y * lightmapCoordinates.y * lightmapCoordinates.y;
 			     bounce *= cloudShadow * vertexAo;
 		#endif
-		shadowsOut = vec4(Clamp01(LinearToSrgb(shadows)), 1.0);
+		shadowsOut = vec4(Clamp01(SrgbFromLinear(shadows)), 1.0);
 
 		float blocklightShading = 1.0; // TODO
 

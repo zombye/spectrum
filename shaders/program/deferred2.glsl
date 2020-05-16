@@ -85,9 +85,9 @@ uniform vec3 shadowLightVector;
 //--// Shared Includes //-----------------------------------------------------//
 
 #include "/include/utility.glsl"
-#include "/include/utility/colorspace.glsl"
+#include "/include/utility/color.glsl"
 #include "/include/utility/encoding.glsl"
-#include "/include/utility/math.glsl"
+#include "/include/utility/fastMath.glsl"
 #include "/include/utility/sampling.glsl"
 
 #include "/include/shared/celestialConstants.glsl"
@@ -358,7 +358,7 @@ uniform vec3 shadowLightVector;
 
 			// Lighting
 			#ifdef RSM
-			vec3 rsm = texelFetch(colortex5, ivec2(gl_FragCoord.st) / 2 + ivec2(viewResolution.x / 2.0, 0), 0).rgb;
+			vec3 rsm = texelFetch(colortex5, ivec2(gl_FragCoord.st) / 2 + ivec2(ceil(viewResolution.x / 2.0), 0), 0).rgb;
 			#endif
 
 			#ifdef HBAO
@@ -422,7 +422,7 @@ uniform vec3 shadowLightVector;
 			color = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, cloudShadow, bounce, sssDepth, skylight, lightmap, blocklightShading, ao);
 			color += material.emission;
 
-			shadowsOut = vec4(LinearToSrgb(shadows), 1.0);
+			shadowsOut = vec4(SrgbFromLinear(shadows), 1.0);
 			#endif
 		} else {
 			shadowsOut = vec4(0.0);

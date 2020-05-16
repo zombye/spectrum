@@ -86,9 +86,9 @@ uniform vec3 shadowLightVector;
 //--// Shared Includes //-----------------------------------------------------//
 
 #include "/include/utility.glsl"
-#include "/include/utility/colorspace.glsl"
+#include "/include/utility/color.glsl"
 #include "/include/utility/encoding.glsl"
-#include "/include/utility/math.glsl"
+#include "/include/utility/fastMath.glsl"
 #include "/include/utility/noise.glsl"
 #include "/include/utility/sampling.glsl"
 
@@ -407,7 +407,7 @@ uniform vec3 shadowLightVector;
 				#endif
 
 				vec4 sampleAlbedo = textureLod(shadowcolor1, sampleCoord, 0.0);
-				rsm += SrgbToLinear(sampleAlbedo.rgb) * sampleAlbedo.a * brdf / (sampleDistanceSquared + sampleDistanceAdd);
+				rsm += LinearFromSrgb(sampleAlbedo.rgb) * sampleAlbedo.a * brdf / (sampleDistanceSquared + sampleDistanceAdd);
 			}
 
 			return rsm * perSampleArea;

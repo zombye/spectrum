@@ -25,7 +25,7 @@ Material airMaterial   = Material(vec3(0.0), 0.0, 0.002, 0.0, vec3(1.000275), ve
 Material waterMaterial = Material(vec3(0.0), 0.0, 0.002, 0.0, vec3(1.333000), vec3(0.0), vec3(0.0), vec3(1.0));
 
 Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
-	baseTex = SrgbToLinear(baseTex);
+	baseTex = LinearFromSrgb(baseTex);
 
 	#ifdef PROCEDURAL_WATER
 		if (id == 8 || id == 9) {
@@ -75,7 +75,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 			material.emission     = baseTex * (1.0 - specTex.a) * float(specTex.a > 0.0) * BLOCK_LIGHT_LUMINANCE;
 			material.translucency = vec3(0.0);
 		}
-	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_1 || RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_2
+	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_1 || RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_2 || RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_3
 		bool isMetal = specTex.g > (229.5 / 255.0);
 		bool isPorous = specTex.b < (64.5 / 255.0);
 
@@ -117,7 +117,11 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 				material.k = vec3(0.0);
 			}
 		} else {
+			#if RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_3
+			material.n = F0ToIor(specTex.g) * airMaterial.n;
+			#else
 			material.n = F0ToIor(specTex.g * specTex.g) * airMaterial.n;
+			#endif
 			material.k = vec3(0.0);
 		}
 	#elif RESOURCE_FORMAT == RESOURCE_FORMAT_WIP
@@ -127,7 +131,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 		material.metalness    = float(isMetal);
 		material.roughness    = Pow2(1.0 - specTex.r);
 		material.porosity     = 1.0;
-		material.n            = F0ToIor(isMetal ? baseTex : vec3(SrgbToLinear(specTex.g))) * airMaterial.n;
+		material.n            = F0ToIor(isMetal ? baseTex : vec3(LinearFromSrgb(specTex.g))) * airMaterial.n;
 		material.k            = vec3(0.0);
 		material.emission     = vec3(0.0); //emisTex.rgb * BLOCK_LIGHT_LUMINANCE;
 		material.translucency = vec3(isTranslucent);

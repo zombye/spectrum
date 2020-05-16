@@ -1,9 +1,11 @@
 #if !defined INCLUDE_FRAGMENT_RAYTRACER
 #define INCLUDE_FRAGMENT_RAYTRACER
 
+#define SSR_DEPTH_LENIENCY 5 // [1 2 5 10 20 50 100 200 500]
+
 float AscribeDepth(float depth, float ascribeAmount) {
 	depth = 1.0 - 2.0 * depth;
-	depth = (depth - gbufferProjection[2].z) / (1.0 + ascribeAmount) + gbufferProjection[2].z;
+	depth = (depth + gbufferProjection[2].z * ascribeAmount) / (1.0 + ascribeAmount);
 	return 0.5 - 0.5 * depth;
 }
 
@@ -20,30 +22,80 @@ bool IntersectSSRay(
 	position.xy *= viewResolution;
 	rayStep.xy *= viewResolution;
 
-	rayStep /= abs(abs(rayStep.x) < abs(rayStep.y) ? rayStep.y : rayStep.x);
+	rayStep /= MaxOf(abs(rayStep.xy));
 
-	vec2 stepsToEnd = (step(0.0, rayStep.xy) * viewResolution - position.xy) / rayStep.xy;
-	uint maxSteps = uint(ceil(min(min(stepsToEnd.x, stepsToEnd.y), MaxOf(viewResolution)) / float(stride)));
+	float ditherp = floor(stride * fract(Bayer8(gl_FragCoord.xy) + frameR1) + 1.0);
 
-	vec3 startPosition = position;
+	// (Pixel-size) steps to edge of screen or near/far plane along each axis
+	vec3 stepsToEnd = (step(0.0, rayStep) * vec3(viewResolution - 1.0, 1.0) - position) / rayStep;
+	stepsToEnd.z += float(stride); // Add stride to z, ensures we intersect anything near the far plane
+	float tMax = min(MinOf(stepsToEnd), MaxOf(viewResolution));
+
+	vec3 rayOrigin = position;
+
+	float ascribeAmount = SSR_DEPTH_LENIENCY * float(stride) * viewPixelSize.y * gbufferProjectionInverse[1].y;
 
 	bool hit = false;
-	float ditherp = floor(stride * fract(Bayer8(gl_FragCoord.xy) + frameR1) + 1.0);
-	for (uint i = 0u; i < maxSteps && !hit; ++i) {
-		float pixelSteps = float(i * stride) + ditherp;
-		position = startPosition + pixelSteps * rayStep;
+	float t = ditherp;
+	while (t < tMax && !hit) {
+		float stepStride = t == ditherp ? ditherp : float(stride);
+
+		// Not enough precision along Z to simply add stepStride * rayStep to position.
+		// Might be feasible if depth is reversed.
+		position = rayOrigin + t * rayStep;
 
 		// Z at current step & one step towards -Z
+		// Using this specifically seems to prevent most false intersections
 		float maxZ = position.z;
-		float minZ = rayStep.z > 0.0 && i == 0u ? startPosition.z : position.z - float(stride) * abs(rayStep.z);
-
-		if (1.0 < minZ || maxZ < 0.0) { break; }
+		float minZ = position.z - stepStride * abs(rayStep.z);
 
 		// Could also check interpolated depth here, would prevent the few remaining possible false intersections.
-		float depth = texelFetch(depthtex1, ivec2(position.xy), 0).r;
-		float ascribedDepth = AscribeDepth(depth, 5e-3 * (i == 0u ? ditherp : float(stride)) * gbufferProjectionInverse[1].y);
+		float depth = texelFetch(depthtex1, ivec2(position.xy), 0).x;
+		float ascribedDepth = AscribeDepth(depth, ascribeAmount);
 
-		hit = maxZ >= depth && minZ <= ascribedDepth && depth < 1.0;
+		// Intersection test
+		hit = maxZ >= depth && minZ <= ascribedDepth;
+
+		// Optionally check that depth is < 1 if we don't want to intersect the sky
+		//hit = hit && depth < 1.0;
+
+		if (!hit) { t += float(stride); }
+	}
+
+	if (hit) {
+		// Eventually I want to implement a better algo here.
+		// I have an idea for one that might be better, which looks at the bits of stride.
+		// From that it then decides how far to step in each direction.
+		// For now though this is good enough.
+
+		bool refhit = true;
+		float refstride = stride;
+		for (int i = 0; i < findMSB(stride); ++i) {
+			t += (refhit ? -1.0 : 1.0) * (refstride *= 0.5);
+			position = rayOrigin + t * rayStep;
+
+			// Z at current step & one step towards -Z
+			// Using this specifically seems to prevent most false intersections
+			float maxZ = position.z;
+			float minZ = position.z - stride * abs(rayStep.z);
+
+			// Could also check interpolated depth here, would prevent the few remaining possible false intersections.
+			float depth = texelFetch(depthtex1, ivec2(position.xy), 0).x;
+			float ascribedDepth = AscribeDepth(depth, ascribeAmount);
+
+			// Intersection test
+			refhit = maxZ >= depth && minZ <= ascribedDepth;
+
+			// Optionally check that depth is < 1 if we don't want to intersect the sky
+			//hit = hit && depth < 1.0;
+		}
+
+		/* This is skipped as in some cases it results in excessive flickering with TAA
+		if (!refhit) {
+			t += 1.0;
+			position = rayOrigin + t * rayStep;
+		}
+		//*/
 	}
 
 	position.xy *= viewPixelSize;

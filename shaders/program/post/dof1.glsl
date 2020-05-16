@@ -68,7 +68,7 @@ uniform vec2 taaOffset;
 
 	#include "/include/utility.glsl"
 	#include "/include/utility/encoding.glsl"
-	#include "/include/utility/math.glsl"
+	#include "/include/utility/fastMath.glsl"
 	#include "/include/utility/packing.glsl"
 	#include "/include/utility/spaceConversion.glsl"
 

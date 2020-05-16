@@ -116,9 +116,9 @@ vec4 Calculate2DClouds(vec3 viewVector, float dither) {
 	vec3 lowerPosition = vec3(0.0, atmosphere_planetRadius + eyeAltitude, 0.0) + viewVector * startDistance;
 
 	#ifdef CLOUDS2D_USE_WORLD_TIME
-		float cloudsTime = 2.0 * TIME_SCALE * (worldDay % 128 + worldTime / 24000.0);
+		float cloudsTime = 5.0 * TIME_SCALE * (worldDay % 128 + worldTime / 24000.0);
 	#else
-		float cloudsTime = 2.0 * TIME_SCALE * (1.0 / 1200.0) * frameTimeCounter;
+		float cloudsTime = 5.0 * TIME_SCALE * (1.0 / 1200.0) * frameTimeCounter;
 	#endif
 
 	float density = Get2DCloudsDensity(centerPosition.xz, cloudsTime);

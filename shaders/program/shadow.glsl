@@ -129,7 +129,7 @@ uniform vec3 shadowLightVector;
 
 	#include "/include/utility.glsl"
 	#include "/include/utility/encoding.glsl"
-	#include "/include/utility/math.glsl"
+	#include "/include/utility/fastMath.glsl"
 
 	#include "/include/fragment/waterNormal.fsh"
 

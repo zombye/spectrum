@@ -43,7 +43,7 @@ uniform vec2 viewPixelSize;
 	//--// Fragment Includes //-----------------------------------------------//
 
 	#include "/include/utility.glsl"
-	#include "/include/utility/colorspace.glsl"
+	#include "/include/utility/color.glsl"
 	#include "/include/utility/encoding.glsl"
 	#include "/include/utility/noise.glsl"
 

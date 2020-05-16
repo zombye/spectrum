@@ -46,7 +46,7 @@ uniform vec3 shadowLightVector;
 //--// Shared Includes //-----------------------------------------------------//
 
 #include "/include/utility.glsl"
-#include "/include/utility/colorspace.glsl"
+#include "/include/utility/color.glsl"
 
 //--// Shared Functions //----------------------------------------------------//
 
@@ -74,14 +74,14 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 	const float K = 14.0;
 	const float calibration = exp2(CAMERA_AUTOEXPOSURE_BIAS) * K / 100.0;
 
-	const float minExposure = exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi /  dot(lumacoeff_rec709, sunIlluminance);
-	const float maxExposure = 0.03 * exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi / (dot(lumacoeff_rec709, moonIlluminance) * NIGHT_SKY_BRIGHTNESS);
+	const float minExposure = exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi /  dot(sunIlluminance, RgbToXyz[1]);
+	const float maxExposure = 0.03 * exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi / (dot(moonIlluminance, RgbToXyz[1]) * NIGHT_SKY_BRIGHTNESS);
 
 	#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_HISTOGRAM
 		float CalculateHistogramExposure() {
 			float maxLod = MaxOf(ceil(log2(viewResolution)));
 			vec3 averageColor = ReadColorLod(vec2(0.5), maxLod);
-			float averageLuminance = dot(averageColor, lumacoeff_rec709);
+			float averageLuminance = dot(averageColor, RgbToXyz[1]);
 
 			return clamp(1.0 / averageLuminance, minExposure / calibration, maxExposure / calibration);
 		}
@@ -106,7 +106,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 				for (int y = 0; y < samples.y; ++y) {
 					vec2 samplePos = (vec2(x, y) + 0.5) / samples;
 					vec3 colorSample = ReadColorLod(samplePos, sampleLod);
-					float luminanceSample = dot(colorSample, lumacoeff_rec709) * histogramExposure;
+					float luminanceSample = dot(colorSample, RgbToXyz[1]) * histogramExposure;
 
 					float bin = HistogramBinFromLuminance(luminanceSample);
 					      bin = clamp(bin, 0, HISTOGRAM_BINS - 1);
@@ -171,7 +171,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 		float CalculateTargetExposureSimple() {
 			float maxLod = MaxOf(ceil(log2(viewResolution)));
 			vec3 averageColor = ReadColorLod(vec2(0.5), maxLod);
-			float averageLuminance = dot(averageColor, lumacoeff_rec709);
+			float averageLuminance = dot(averageColor, RgbToXyz[1]);
 
 			const float a =     calibration / minExposure;
 			const float b = a - calibration / maxExposure;
@@ -246,7 +246,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 	//--// Fragment Includes //-----------------------------------------------//
 
 	#include "/include/utility/dithering.glsl"
-	#include "/include/utility/math.glsl"
+	#include "/include/utility/fastMath.glsl"
 	#include "/include/utility/spaceConversion.glsl"
 	#include "/include/utility/textRendering.fsh"
 
@@ -409,14 +409,8 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 			vec3 history = SampleTextureCatmullRom(colortex3, reprojectedPosition.xy, viewResolution).rgb;
 			     history = max(history / historyExposure, 0.0);
 
-			#ifdef TAA_YCoCg
-				// Convert current & history to YCoCg
-				current = RgbToYcocg(current);
-				history = RgbToYcocg(history);
-			#endif
-
 			// Don't blend if reprojecting an off-screen position
-			float blendWeight = clamp(reprojectedPosition.xy, 0.0, 1.0) == reprojectedPosition.xy ? 0.97 : 0.0;
+			vec3 blendWeight = vec3(clamp(reprojectedPosition.xy, 0.0, 1.0) == reprojectedPosition.xy ? 0.97 : 0.0);
 
 			// Reduce blend weight when not in the pixel center to reduce blurring
 			vec2 pixelCenterDist = 1.0 - abs(2.0 * fract(reprojectedPosition.xy * viewResolution) - 1.0);
@@ -433,49 +427,42 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 				vec3 bl = ReadColor(viewPixelSize * vec2(-1, 1) + screenCoord);
 				vec3 bm = ReadColor(viewPixelSize * vec2( 0, 1) + screenCoord);
 				vec3 br = ReadColor(viewPixelSize * vec2( 1, 1) + screenCoord);
-				#ifdef TAA_YCoCg
-					tl = RgbToYcocg(tl);
-					tc = RgbToYcocg(tc);
-					tr = RgbToYcocg(tr);
-					ml = RgbToYcocg(ml);
-					mr = RgbToYcocg(mr);
-					bl = RgbToYcocg(bl);
-					bm = RgbToYcocg(bm);
-					br = RgbToYcocg(br);
-				#endif
 
 				// Min/Avg/Max of nearest 5 + nearest 9
 				vec3 min5  = min(min(min(min(tc, ml),  mc),  mr), bm);
 				vec3 min9  = min(min(min(min(tl, tr), min5), bl), br);
-				vec3 avg5  =  tc + ml +  mc  + mr + bm;
-				vec3 avg9  = (tl + tr + avg5 + bl + br) / 9.0;
-				     avg5 *= 0.2;
+				vec3 avg5  =  2 * tc      + 2 * ml      + 2 * mc      + 2 * mr      + 2 * bm;
+				vec3 asq5  =  4 * tc * tc + 4 * ml * ml + 4 * mc * mc + 4 * mr * mr + 4 * bm * bm;
+				vec3 avg9  = (tl      + tr      + avg5 + bl      + br     ) / 14.0;
+				vec3 asq9  = (tl * tl + tr * tr + asq5 + bl * bl + br * br) / 14.0;
 				vec3 max5  = max(max(max(max(tc, ml),  mc),  mr), bm);
 				vec3 max9  = max(max(max(max(tl, tr), min5), bl), br);
 
 				// "Rounded" min/avg/max (avg of values for nearest 5 + nearest 9)
 				vec3 minRounded = (min5 + min9) * 0.5;
-				vec3 avgRounded = (avg5 + avg9) * 0.5;
+				vec3 avgRounded = avg9;
+				vec3 asqRounded = asq9;
 				vec3 maxRounded = (max5 + max9) * 0.5;
 
 				// Clip history
 				history = ClipAABB(history, minRounded, avgRounded, maxRounded);
 
-				// Reduce blend weight when variance is low, helps reduce ghosting
+				vec3 variance = asqRounded - avgRounded * avgRounded;
+				// Reduce blend weight when (normalized) variance is low, helps reduce ghosting
 				// This doesn't work well for lower-resolution effects
 				if (closestFragment.z < 1.0) {
-					vec3 variance = avgRounded.x == 0.0 ? vec3(0.0) : abs((maxRounded - minRounded) / avgRounded.x);
-					blendWeight *= 1.0 - exp(-3.0 * variance.x - 0.5 * (variance.y + variance.z));
+					blendWeight *= 1.0 - Clamp01(exp(-2.0 * variance / (avgRounded * avgRounded)));
 				}
+
+				// Increase blend weight if current is very different from history
+				// Reduces flickering
+				//blendWeight  = 1.0 - blendWeight;
+				//blendWeight *= Clamp01(exp(-Pow2(current - history) * variance));
+				//blendWeight  = 1.0 - blendWeight;
 			#endif
 
 			// Blend with history
 			vec3 blended = mix(current, history, blendWeight);
-
-			#ifdef TAA_YCoCg
-				// Convert blended result from YCoCg to RGB
-				blended = YcocgToRgb(blended);
-			#endif
 
 			// Return final anti-aliased fragment
 			return blended;

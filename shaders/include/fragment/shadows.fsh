@@ -4,7 +4,7 @@
 #ifdef SHADOW_COLORED
 	vec3 BlendColoredShadow(float shadow0, float shadow1, vec4 shadowC) {
 		// Linearization is done here for convenience.
-		shadowC.rgb = SrgbToLinear(shadowC.rgb);
+		shadowC.rgb = LinearFromSrgb(shadowC.rgb);
 
 		// Best looking method I've found so far.
 		return (shadowC.rgb * shadowC.a - shadowC.a) * (-shadow1 * shadow0 + shadow1) + shadow1;
@@ -400,7 +400,7 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 		#else
 			const float fogDensity = 0.1;
 		#endif
-		vec3 attenuationCoefficient = -log(SrgbToLinear(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
+		vec3 attenuationCoefficient = -log(LinearFromSrgb(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
 		vec3 waterShadow = exp(-attenuationCoefficient * fogDensity * waterDepth);
 
 		#if   CAUSTICS == CAUSTICS_LOW

@@ -174,7 +174,7 @@ vec3 CalculateAirFog(vec3 background, vec3 startPosition, vec3 endPosition, vec3
 	vec3 opticalDepth = baseAttenuationCoefficient * depth;
 
 	vec3 transmittance   = exp(-opticalDepth);
-	vec3 visibleFraction = (transmittance - 1.0) / -opticalDepth;
+	vec3 visibleFraction = min((1.0 - transmittance) / opticalDepth, 1.0);
 
 	vec3 scattering  = atmosphere_coefficientsScattering * (depth * phaseSun) * lightingSun;
 	     scattering += atmosphere_coefficientsScattering * (depth * phaseSky) * lightingSky;
@@ -185,8 +185,8 @@ vec3 CalculateAirFog(vec3 background, vec3 startPosition, vec3 endPosition, vec3
 
 #ifdef VL_WATER
 vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, vec3 viewVector, float LoV, float skylight, float dither, bool sky) {
-	vec3 waterScatteringAlbedo = SrgbToLinear(vec3(WATER_SCATTERING_R, WATER_SCATTERING_G, WATER_SCATTERING_B) / 255.0);
-	vec3 baseAttenuationCoefficient = -log(SrgbToLinear(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
+	vec3 waterScatteringAlbedo = LinearFromSrgb(vec3(WATER_SCATTERING_R, WATER_SCATTERING_G, WATER_SCATTERING_B) / 255.0);
+	vec3 baseAttenuationCoefficient = -log(LinearFromSrgb(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
 
 	const float isotropicPhase = 0.25 / pi;
 
@@ -207,28 +207,36 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 
 	//--//
 
-	vec3 incrementWorld = (endPosition - startPosition) / steps;
-	vec3 worldPosition  = startPosition + incrementWorld * dither;
+	float rayLength = distance(endPosition, startPosition);
+	vec3 worldDirection = normalize(endPosition - startPosition);
 
-	vec3 incrementShadow    = mat3(shadowModelView) * incrementWorld;
-	     incrementShadow   *= Diagonal(shadowProjection).xyz;
-	     incrementShadow.z /= SHADOW_DEPTH_SCALE;
-	vec3 shadowPosition     = mat3(shadowModelView) * startPosition + shadowModelView[3].xyz;
-	     shadowPosition     = Diagonal(shadowProjection).xyz * shadowPosition + shadowProjection[3].xyz;
-	     shadowPosition.z  /= SHADOW_DEPTH_SCALE;
-	     shadowPosition    += incrementShadow * dither;
-
-	float stepSize = length(incrementWorld);
+	vec3 shadowDirection    = mat3(shadowModelView) * worldDirection;
+	     shadowDirection   *= Diagonal(shadowProjection).xyz;
+	     shadowDirection.z /= SHADOW_DEPTH_SCALE;
+	vec3 startShadowPosition     = mat3(shadowModelView) * startPosition + shadowModelView[3].xyz;
+	     startShadowPosition     = Diagonal(shadowProjection).xyz * startShadowPosition + shadowProjection[3].xyz;
+	     startShadowPosition.z  /= SHADOW_DEPTH_SCALE;
 
 	//--//
 
-	vec3 stepOpticalDepth  = baseAttenuationCoefficient * fogDensity * stepSize;
-	vec3 stepTransmittance = exp(-stepOpticalDepth);
+	vec3 attenuationCoefficient = baseAttenuationCoefficient * fogDensity;
 
 	vec3 scatteringSun = vec3(0.0);
 	vec3 scatteringSky = vec3(0.0);
-	vec3 transmittance = vec3(1.0);
-	for (int i = 0; i < steps; ++i, worldPosition += incrementWorld, shadowPosition += incrementShadow) {
+	vec3 transmittance = exp(-attenuationCoefficient * rayLength);
+	for (int i = 0; i < steps; ++i) {
+		float f = (i + dither) / steps;
+		      f = f * (1.0 - MaxOf(transmittance)) + MaxOf(transmittance);
+		float t = -log(f) / MinOf(attenuationCoefficient);
+
+		// pdf(desired) / pdf(sampled)
+		vec3 weight = (attenuationCoefficient / MinOf(attenuationCoefficient)) * exp((MinOf(attenuationCoefficient) - attenuationCoefficient) * t);
+
+		vec3 worldPosition  = startPosition + worldDirection * t;
+		vec3 shadowPosition = startShadowPosition + shadowDirection * t;
+
+		//--//
+
 		vec3 shadowCoord = DistortShadowSpace(shadowPosition) * 0.5 + 0.5;
 
 		#ifdef SHADOW_INFINITE_RENDER_DISTANCE
@@ -263,14 +271,13 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 
 		//--//
 
-		scatteringSun += transmittance * lightingSun;
-		scatteringSky += transmittance;
-		transmittance *= stepTransmittance;
+		scatteringSun += weight * lightingSun;
+		scatteringSky += weight;
 	}
 
 	vec3 scattering  = scatteringSun * sunlightPhase * illuminanceShadowlight;
 	     scattering += scatteringSky * isotropicPhase * illuminanceSky * skylight;
-	     scattering *= waterScatteringAlbedo * (1.0 - stepTransmittance);
+	     scattering *= waterScatteringAlbedo * (1.0 - transmittance) / steps;
 
 	//--//
 
@@ -292,8 +299,8 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 #endif
 
 vec3 CalculateWaterFog(vec3 background, vec3 startPosition, vec3 endPosition, vec3 viewVector, float LoV, float skylight, float dither, bool sky) {
-	vec3 waterScatteringAlbedo = SrgbToLinear(vec3(WATER_SCATTERING_R, WATER_SCATTERING_G, WATER_SCATTERING_B) / 255.0);
-	vec3 baseAttenuationCoefficient = -log(SrgbToLinear(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
+	vec3 waterScatteringAlbedo = LinearFromSrgb(vec3(WATER_SCATTERING_R, WATER_SCATTERING_G, WATER_SCATTERING_B) / 255.0);
+	vec3 baseAttenuationCoefficient = -log(LinearFromSrgb(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
 
 	const float isotropicPhase = 0.25 / pi;
 
@@ -315,7 +322,7 @@ vec3 CalculateWaterFog(vec3 background, vec3 startPosition, vec3 endPosition, ve
 		lighting += illuminanceShadowlight * sunlightPhase * skylight * GetCloudShadows(startPosition);
 	} else {
 		#if defined PROGRAM_COMPOSITE
-			lighting += illuminanceShadowlight * sunlightPhase * SrgbToLinear(texture(colortex7, screenCoord).rgb);
+			lighting += illuminanceShadowlight * sunlightPhase * LinearFromSrgb(texture(colortex7, screenCoord).rgb);
 		#else
 			lighting += illuminanceShadowlight * sunlightPhase; // TODO: shadows
 		#endif

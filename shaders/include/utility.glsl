@@ -53,6 +53,17 @@ vec2 SinCos(float x) { return vec2(sin(x), cos(x)); }
 #define ConeAngleToSolidAngle(x) (tau * (1.0 - cos(x)))
 #define SolidAngleToConeAngle(x) acos(1.0 - (x) / tau)
 
+// Gives you a 1 with same sign bit as input
+// 2 bitwise ops
+float SignExtract(float x) {
+	return uintBitsToFloat((floatBitsToUint(x) & 0x80000000u) | floatBitsToUint(1.0));
+}
+// Copies sign bit from source to destination
+// 3 bitwise ops
+void SignCopy(float source, inout float destination) {
+	destination = uintBitsToFloat((floatBitsToUint(source) & 0x80000000u) | (floatBitsToUint(destination) & 0x7fffffffu));
+}
+
 //--// Uncategorized stuff
 
 float AddUvMargin(float uv, int   resolution) { return uv * (1.0 - 1.0 / resolution) + (0.5 / resolution); }

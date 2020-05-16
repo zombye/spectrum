@@ -31,9 +31,4 @@ float Pow8(float x) { x *= x; x *= x; return x * x; }
 float Pow12(float x) { x *= x; x *= x; return x * x * x; }
 float Pow16(float x) { x *= x; x *= x; x *= x; return x * x; }
 
-// The cross product of one vector with the cross product of two other vectors
-vec3 VectorTripleProduct(vec3 a, vec3 b, vec3 c) {
-	return b * dot(a, c) - c * dot(a, b);
-}
-
 #endif

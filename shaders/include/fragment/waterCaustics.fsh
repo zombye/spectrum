@@ -14,7 +14,7 @@ float GetProjectedCaustics(vec2 uv, float depth) {
 }
 
 #if CAUSTICS == CAUSTICS_HIGH
-//#define CAUSTICS_GRID_TRIANGULAR
+#define CAUSTICS_GRID_TRIANGULAR
 vec2 HexPoint(vec2 xy) {
 	vec2 a = vec2(0.0, sin(pi/3.0));
 	vec2 b = vec2(xy.x * 2.0 - 1.0, 0.0);

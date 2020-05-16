@@ -84,7 +84,7 @@ uniform vec3 shadowLightVector;
 //--// Shared Includes //-----------------------------------------------------//
 
 #include "/include/utility.glsl"
-#include "/include/utility/colorspace.glsl"
+#include "/include/utility/color.glsl"
 #include "/include/utility/encoding.glsl"
 #include "/include/utility/sampling.glsl"
 
@@ -150,11 +150,12 @@ uniform vec3 shadowLightVector;
 
 	#include "/include/utility/complex.glsl"
 	#include "/include/utility/dithering.glsl"
+	#include "/include/utility/fastMath.glsl"
 	#include "/include/utility/geometry.glsl"
-	#include "/include/utility/math.glsl"
 	#include "/include/utility/noise.glsl"
 	#include "/include/utility/packing.glsl"
 	#include "/include/utility/rotation.glsl"
+	#include "/include/utility/sequence.glsl"
 	#include "/include/utility/spaceConversion.glsl"
 
 	#include "/include/fragment/clouds3D.fsh"
@@ -169,7 +170,7 @@ uniform vec3 shadowLightVector;
 				float shadow1 = textureLod(shadowtex1, shadowCoord.st, 0.0).r;
 				      shadow1 = shadow1 < 1.0 ? step(shadowCoord.z, shadow1) : 1.0;
 				vec4  shadowC = textureLod(shadowcolor1, shadowCoord.st, 0.0);
-				      shadowC.rgb = SrgbToLinear(shadowC.rgb);
+				      shadowC.rgb = LinearFromSrgb(shadowC.rgb);
 
 				// Best looking method I've found so far.
 				return (shadowC.rgb * shadowC.a - shadowC.a) * (-shadow1 * shadow0 + shadow1) + shadow1;
@@ -292,11 +293,19 @@ uniform vec3 shadowLightVector;
 
 	void main() {
 		mat3 frontPosition;
+		#ifdef TAA
+		frontPosition[0] = vec3(screenCoord - taaOffset * 0.5, texture(depthtex0, screenCoord).r);
+		#else
 		frontPosition[0] = vec3(screenCoord, texture(depthtex0, screenCoord).r);
+		#endif
 		frontPosition[1] = ScreenSpaceToViewSpace(frontPosition[0], gbufferProjectionInverse);
 		frontPosition[2] = mat3(gbufferModelViewInverse) * frontPosition[1] + gbufferModelViewInverse[3].xyz;
 		mat3 backPosition;
+		#ifdef TAA
+		backPosition[0] = vec3(screenCoord - taaOffset * 0.5, texture(depthtex1, screenCoord).r);
+		#else
 		backPosition[0] = vec3(screenCoord, texture(depthtex1, screenCoord).r);
+		#endif
 		backPosition[1] = ScreenSpaceToViewSpace(backPosition[0], gbufferProjectionInverse);
 		backPosition[2] = mat3(gbufferModelViewInverse) * backPosition[1] + gbufferModelViewInverse[3].xyz;
 		vec3 viewVector = normalize(frontPosition[2] - gbufferModelViewInverse[3].xyz);
@@ -414,7 +423,7 @@ uniform vec3 shadowLightVector;
 				float VoH = LoV * rcpLen_LV + rcpLen_LV;
 
 				float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
-				color += CalculateSpecularHighlight(NoL, NoV, LoV, VoH, material.roughness, material.n, material.k, lightAngularRadius) * illuminanceShadowlight * SrgbToLinear(texture(colortex7, screenCoord).rgb);
+				color += CalculateSpecularHighlight(NoL, NoV, LoV, VoH, material.roughness, material.n, material.k, lightAngularRadius) * illuminanceShadowlight * LinearFromSrgb(texture(colortex7, screenCoord).rgb);
 
 				#ifdef SSR_MULTILAYER
 					if (backPosition[0].z == frontPosition[0].z) {

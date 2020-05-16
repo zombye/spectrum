@@ -28,6 +28,9 @@ ComplexFloat ComplexAdd(ComplexFloat a, ComplexFloat b) {
 ComplexVec3 ComplexAdd(ComplexVec3 a, ComplexVec3 b) {
 	return ComplexVec3(a.r + b.r, a.i + b.i);
 }
+ComplexVec3 ComplexAdd(ComplexVec3 a, float b) {
+	return ComplexVec3(a.r + b, a.i);
+}
 ComplexFloat ComplexSub(ComplexFloat a, ComplexFloat b) {
 	return ComplexFloat(a.r - b.r, a.i - b.i);
 }
@@ -43,7 +46,13 @@ ComplexVec3 ComplexSub(ComplexVec3 a, ComplexVec3 b) {
 ComplexVec3 ComplexSub(vec3 a, ComplexVec3 b) {
 	return ComplexVec3(a - b.r, -b.i);
 }
+ComplexVec3 ComplexSub(float a, ComplexVec3 b) {
+	return ComplexVec3(a - b.r, -b.i);
+}
 ComplexVec3 ComplexSub(ComplexVec3 a, vec3 b) {
+	return ComplexVec3(a.r - b, a.i);
+}
+ComplexVec3 ComplexSub(ComplexVec3 a, float b) {
 	return ComplexVec3(a.r - b, a.i);
 }
 ComplexFloat ComplexMul(ComplexFloat a, ComplexFloat b) {
@@ -62,6 +71,9 @@ ComplexVec3 ComplexMul(vec3 a, ComplexVec3 b) {
 	return ComplexVec3(a * b.r, a * b.i);
 }
 ComplexVec3 ComplexMul(ComplexVec3 a, vec3 b) {
+	return ComplexVec3(a.r * b, a.i * b);
+}
+ComplexVec3 ComplexMul(ComplexVec3 a, float b) {
 	return ComplexVec3(a.r * b, a.i * b);
 }
 ComplexFloat ComplexDiv(ComplexFloat a, ComplexFloat b) {

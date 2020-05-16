@@ -182,13 +182,20 @@
 			vec2 tileResolution = round(atlasTileResolution * exp2(-floor(mipLevel)));
 
 			position.xy = (position.xy - atlasTileOffset) / atlasTileSize;
-			vec3 direction = tangentLightVector; direction.z /= PARALLAX_DEPTH;
+			vec3 direction = tangentLightVector;
+			direction.z /= PARALLAX_DEPTH;
 
 			position.xy *= tileResolution;
 			direction.xy *= tileResolution;
 
+			#ifdef PARALLAX_SHADOWS_DYNAMIC_BIAS
+			float bias = (abs(direction.z) / MaxOf(abs(direction.xy))) + PARALLAX_SHADOWS_BIAS;
+			#else
+			const float bias = PARALLAX_SHADOWS_BIAS;
+			#endif
+
 			// Self-occlusion for initial texel
-			float height = textureLod(normals, fract((index + 0.5) / tileResolution) * atlasTileSize + atlasTileOffset, mipLevel).a;
+			float height = textureLod(normals, fract((index + 0.5) / tileResolution) * atlasTileSize + atlasTileOffset, mipLevel).a - bias;
 
 			if (position.z + 1e-5 < height) {
 				vec2 v = position.xy - index - 0.5;
@@ -229,7 +236,7 @@
 					index.y += deltaSign.y;
 				}
 
-				height = textureLod(normals, fract((index + 0.5) / tileResolution) * atlasTileSize + atlasTileOffset, mipLevel).a;
+				height = textureLod(normals, fract((index + 0.5) / tileResolution) * atlasTileSize + atlasTileOffset, mipLevel).a - bias;
 
 				if (tNext * direction.z + position.z < height) { return 0.0; }
 			}

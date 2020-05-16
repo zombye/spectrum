@@ -1,8 +1,6 @@
 #if !defined INCLUDE_FRAGMENT_SPECULARLIGHTING
 #define INCLUDE_FRAGMENT_SPECULARLIGHTING
 
-//#define SPECULAR_EXACT_FRESNEL
-
 vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float VdotH, float roughness, vec3 n, vec3 k, float angularRadius) {
 	float alpha2 = roughness * roughness;
 
@@ -17,17 +15,18 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 //--//
 
 #if defined PROGRAM_COMPOSITE || defined PROGRAM_WATER || defined PROGRAM_HAND_WATER
-	float CalculateReflectionMip(vec3 position, vec3 hitPosition, float roughness) {
-		// Simple mip level calculation for SSR.
-		float positionalScale = distance(position, hitPosition) / -hitPosition.z; // ray length and perspective divide
-		float projectionScale = gbufferProjection[1].y;                           // field of view
-		float sampleScale     = viewResolution.y * inversesqrt(SSR_RAY_COUNT);    // resolution and sample count
+	float EstimateMipLevel(vec3 position, vec3 hitPosition, float sampleDensity /* pdf*sampleCount */) {
+		// Approximate solid angle represented by this sample & pixel
+		// We only care about the ratio of these so units might be weird
+		float sampleSolidAngle = 1.0 / sampleDensity;
+		float pixelArea        = 4.0 * Pow2(abs(hitPosition.z) * gbufferProjectionInverse[1].y * viewPixelSize.y);
+		float pixelSolidAngle  = pixelArea / dot(hitPosition - position, hitPosition - position);
 
-		// This part should really be specific to the distribution, but just "roughness" works well enough most of the time.
-		// If it's gonna be accurate it needs to be a little more complicated though.
-		float roughnessScale = roughness;
-
-		return log2(positionalScale * projectionScale * sampleScale * roughnessScale);
+		//return log2(sqrt(sampleSolidAngle / pixelSolidAngle));
+		return 0.5 * log2(sampleSolidAngle / pixelSolidAngle);
+	}
+	float EstimateMipLevel(vec3 position, vec3 hitPosition, float pdf, int sampleCount) {
+		return EstimateMipLevel(position, hitPosition, pdf * sampleCount);
 	}
 
 	vec3 TraceSsrRay(sampler2D sampler, mat3 position, vec3 rayDirection, float NdotL, float roughness, float skyFade, float dither) {
@@ -45,7 +44,7 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 
 		vec3 result = vec3(0.0);
 		if (intersected) {
-			//float lod = CalculateReflectionMip(position[1], hitPositionView, roughness);
+			//float lod = EstimateMipLevel(position[1], hitPositionView, roughness);
 			result = DecodeRGBE8(textureLod(sampler, hitPosition.xy, 0.0));
 		} else if (isEyeInWater == 0) {
 			result = texture(colortex6, ProjectSky(rayDirectionWorld)).rgb * skyFade;
@@ -79,7 +78,8 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 
 		vec3 reflection = vec3(0.0);
 		for (int i = 0; i < SSR_RAY_COUNT; ++i) {
-			vec2 xy = vec2(fract((i + dither) * ditherSize * phi) * (1.0 - SSR_TAIL_CLAMP), (i + dither) / SSR_RAY_COUNT);
+			vec2 xy = R2((i + dither) * ditherSize);
+			xy.x *= 1.0 - SSR_TAIL_CLAMP;
 			vec3 facetNormal = rot * GetFacetGGX(-tangentView, vec2(roughness), xy);
 
 			float MdotV = dot(facetNormal, -viewDirection);

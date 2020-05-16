@@ -44,7 +44,7 @@ uniform vec2 taaOffset;
 	//--// Fragment Libraries
 
 	#include "/include/utility.glsl"
-	#include "/include/utility/colorspace.glsl"
+	#include "/include/utility/color.glsl"
 	#include "/include/utility/encoding.glsl"
 	#include "/include/utility/packing.glsl"
 	#include "/include/utility/spaceConversion.glsl"
@@ -62,12 +62,12 @@ uniform vec2 taaOffset;
 	void main() {
 		ivec2 fragCoord = ivec2(gl_FragCoord.st);
 
-		if (fragCoord.x < viewResolution.x / 2 || fragCoord.y >= viewResolution.y / 2) {
+		if (fragCoord.x <= ceil(viewResolution.x / 2.0) || fragCoord.y >= viewResolution.y / 2) {
 			lighting = texelFetch(colortex5, fragCoord, 0);
 			return;
 		}
 
-		ivec2 fragCoord2 = 2 * (fragCoord - ivec2(viewResolution.x / 2, 0));
+		ivec2 fragCoord2 = 2 * (fragCoord - ivec2(ceil(viewResolution.x / 2.0), 0));
 
 		float depth = texelFetch(depthtex1, fragCoord2, 0).r;
 

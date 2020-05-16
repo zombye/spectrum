@@ -234,7 +234,7 @@ uniform vec3 shadowLightVector;
 
 	#include "/include/utility/dithering.glsl"
 	#include "/include/utility/encoding.glsl"
-	#include "/include/utility/math.glsl"
+	#include "/include/utility/fastMath.glsl"
 	#include "/include/utility/packing.glsl"
 
 	#ifdef PARALLAX
@@ -294,17 +294,25 @@ uniform vec3 shadowLightVector;
 			vec2   lightmapDerivatives = vec2(dFdx(lightmapCoordinates.x), dFdy(lightmapCoordinates.x));
 			mat2x3 positionDerivatives = mat2x3(mat3(gbufferModelViewInverse) * dFdx(viewPosition), mat3(gbufferModelViewInverse) * dFdy(viewPosition));
 
-			// cross() to rotate 90 degrees
-			vec3 lightmapVector  = positionDerivatives * vec2(-lightmapDerivatives.y, lightmapDerivatives.x);
-			     lightmapVector  = cross(lightmapVector, flatNormal);
-			     lightmapVector += flatNormal * dot(positionDerivatives[0] + positionDerivatives[1], positionDerivatives[0] + positionDerivatives[1]) * 0.5 / 16.0;
+			//vec3 lightmapVector = positionDerivatives * lightmapDerivatives; // this seems to not work as well
+			vec3 lightmapVector = positionDerivatives * vec2(-lightmapDerivatives.y, lightmapDerivatives.x);
+			     lightmapVector = cross(lightmapVector, flatNormal); // cross() to rotate 90 degrees
 
+			//
+			vec3 pdsum = abs(positionDerivatives[0]) + abs(positionDerivatives[1]);
+			lightmapVector += flatNormal * dot(pdsum, pdsum) * 0.5 / 16.0;
+
+			// normalize
 			float len = length(lightmapVector);
-			return len > 0.0 ? normalize(mix(lightmapVector, flatNormal * len, Pow8(blocklight))) : flatNormal;
+			lightmapVector = len > 0.0 ? lightmapVector / len : flatNormal;
+			return lightmapVector;
 		}
 		float CalculateBlocklightShading(vec3 normal, vec3 lv) {
 			float NoL = dot(lv, normal);
-			return Clamp01(Clamp01(NoL * 0.7) + 0.2);
+			float scale = dot(lv, tbn[2]);
+			//return Clamp01(NoL) * Clamp01(1.0 - 0.66 * scale);
+			return Clamp01(NoL * 0.5 + 0.5) * Clamp01(1.0 - 0.33 * scale);
+			//return mix(Clamp01(NoL * 0.5 + 0.5) * Clamp01(1.0 - 0.33 * scale), Clamp01(NoL) * Clamp01(1.0 - 0.66 * scale), 0.8);
 		}
 	#endif
 
@@ -388,12 +396,19 @@ uniform vec3 shadowLightVector;
 		#if defined PROGRAM_TERRAIN && defined BLOCK_LIGHT_DIRECTIONAL
 			vec3 blocklightVector = CalculateBlocklightVector(tbn[2]);
 			float blocklightShading = CalculateBlocklightShading(normal, blocklightVector);
+			//baseTex.rgb = blocklightVector * 0.5 + 0.5;
 		#else
 			#define blocklightShading 1.0
 		#endif
 
 		float dither = Bayer4(gl_FragCoord.xy);
 
+		//specTex.r = 1.0 - fract(textureCoordinates.y / atlasTileSize.y);
+		//specTex.r = 1.0;
+		//specTex.g = 1.0 - fract(textureCoordinates.x / atlasTileSize.x);
+		//specTex.g = mix(0.02, 0.08, 1.0 - fract(textureCoordinates.x / atlasTileSize.x));
+		//specTex.g = sqrt(specTex.g);
+	
 		colortex0Write = vec4(Pack2x8(baseTex.rg), Pack2x8(baseTex.b, Clamp01(blockId / 255.0)), Pack2x8Dithered(lightmapCoordinates, dither), float(PackUnormArbitrary(vec4((vertexAo * textureAo) + dither / 255.0, parallaxShadow, blocklightShading + dither / 127.0, 0.0), uvec4(8, 1, 7, 0))) / 65535.0);
 		colortex1Write = vec4(Pack2x8(specTex.rg), Pack2x8(specTex.ba), Pack2x8(EncodeNormal(normal) * 0.5 + 0.5), Pack2x8(EncodeNormal(tbn[2]) * 0.5 + 0.5));
 

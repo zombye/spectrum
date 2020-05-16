@@ -155,7 +155,7 @@ uniform vec3 shadowLightVector;
 
 	#include "/include/utility/dithering.glsl"
 	#include "/include/utility/encoding.glsl"
-	#include "/include/utility/math.glsl"
+	#include "/include/utility/fastMath.glsl"
 	#include "/include/utility/packing.glsl"
 
 	//--// Fragment Functions //----------------------------------------------//

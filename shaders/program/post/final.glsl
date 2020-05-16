@@ -39,7 +39,7 @@ uniform sampler2D depthtex2;
 	//--// Fragment Includes //-----------------------------------------------//
 
 	#include "/include/utility.glsl"
-	#include "/include/utility/colorspace.glsl"
+	#include "/include/utility/color.glsl"
 	#include "/include/utility/dithering.glsl"
 	#include "/include/utility/encoding.glsl"
 
@@ -96,7 +96,7 @@ uniform sampler2D depthtex2;
 
 		// Convert to output color space
 		color = Clamp01(color);
-		color = LinearToSrgb(color);
+		color = SrgbFromLinear(color);
 
 		#ifdef LUT
 			// Apply LUT
