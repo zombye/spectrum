@@ -380,7 +380,12 @@ uniform vec3 shadowLightVector;
 		if (baseTex.a < 0.102) { discard; }
 		baseTex.rgb *= tint;
 		specTex = ReadTexture(specular);
+		#if RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_2 || RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_3
+		normal.xy = ReadTexture(normals).rg * 2.0 - (254.0 / 255.0);
+		normal.z = sqrt(Clamp01(1.0 - dot(normal.xy, normal.xy)));
+		#else
 		normal = ReadTexture(normals).rgb * 2.0 - (254.0 / 255.0);
+		#endif
 
 		#ifdef PROCEDURAL_WATER
 			}

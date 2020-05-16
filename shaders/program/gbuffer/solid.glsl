@@ -361,7 +361,7 @@ uniform vec3 shadowLightVector;
 				vec3 normal_ao = ReadTexture(normals).rgb;
 			#endif
 
-			#if RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_2
+			#if RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_2 || RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_3
 				vec3 normal;
 				normal.xy = normal_ao.xy * 2.0 - (254.0 / 255.0);
 				normal.z = sqrt(Clamp01(1.0 - dot(normal.xy, normal.xy)));
