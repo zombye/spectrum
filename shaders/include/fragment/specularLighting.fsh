@@ -1,15 +1,21 @@
 #if !defined INCLUDE_FRAGMENT_SPECULARLIGHTING
 #define INCLUDE_FRAGMENT_SPECULARLIGHTING
 
-vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float VdotH, float roughness, vec3 n, vec3 k, float angularRadius) {
-	float alpha2 = roughness * roughness;
+vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float VdotH, Material material, float angularRadius) {
+	float alpha2 = material.roughness * material.roughness;
 
-	vec3 brdf = CalculateSpecularBRDFSphere(NdotL, NdotV, VdotL, VdotH, alpha2, n, k, angularRadius);
+	vec3 brdf = CalculateSpecularBRDFSphere(NdotL, NdotV, VdotL, VdotH, alpha2, material.n, material.k, angularRadius);
 
 	/* NdotL modified to fade to 0 only when the light is fully occluded (rather than when light is only halfway occluded)
 	float sinLightRadius = sin(angularRadius);
-	return brdf * Clamp01((NdotL + sinLightRadius) / (1.0 + sinLightRadius));
-	//*/ return brdf * Clamp01(NdotL);
+	vec3 highlight = brdf * Clamp01((NdotL + sinLightRadius) / (1.0 + sinLightRadius));
+	//*/ vec3 highlight = brdf * Clamp01(NdotL);
+
+	if (material.albedoTintsMetalReflections) {
+		highlight *= 1.0 - material.metalness + material.metalness * material.albedo;
+	}
+
+	return highlight;
 }
 
 //--//
@@ -68,8 +74,8 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 		return result;
 	}
 
-	vec3 CalculateEnvironmentReflections(sampler2D sampler, mat3 position, vec3 normal, float NdotV, float roughness, vec3 n, vec3 k, float skyFade, bool isWater, float dither, const float ditherSize) {
-		float roughnessSquared = roughness * roughness;
+	vec3 CalculateEnvironmentReflections(sampler2D sampler, mat3 position, vec3 normal, float NdotV, Material material, float skyFade, bool isWater, float dither, const float ditherSize) {
+		float roughnessSquared = material.roughness * material.roughness;
 		vec3 viewDirection = normalize(position[1]);
 		normal = mat3(gbufferModelView) * normal;
 
@@ -80,23 +86,27 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 		for (int i = 0; i < SSR_RAY_COUNT; ++i) {
 			vec2 xy = R2((i + dither) * ditherSize);
 			xy.x *= 1.0 - SSR_TAIL_CLAMP;
-			vec3 facetNormal = rot * GetFacetGGX(-tangentView, vec2(roughness), xy);
+			vec3 facetNormal = rot * GetFacetGGX(-tangentView, vec2(material.roughness), xy);
 
 			float MdotV = dot(facetNormal, -viewDirection);
 			vec3 rayDirection = viewDirection + 2.0 * MdotV * facetNormal;//reflect(viewDirection, facetNormal);
 			float NdotL = abs(dot(normal, rayDirection));
 
-			vec3 reflectionSample = TraceSsrRay(sampler, position, rayDirection, NdotL, roughness, skyFade, dither);
+			vec3 reflectionSample = TraceSsrRay(sampler, position, rayDirection, NdotL, material.roughness, skyFade, dither);
 
 			#ifdef TOTAL_INTERNAL_REFLECTION
-			reflectionSample *= FresnelNonpolarized(MdotV, isEyeInWater == 1 && isWater ? ComplexVec3(vec3(1.333), vec3(0.0)) : ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(n, k));
+			reflectionSample *= FresnelNonpolarized(MdotV, isEyeInWater == 1 && isWater ? ComplexVec3(vec3(1.333), vec3(0.0)) : ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(material.n, material.k));
 			#else
-			reflectionSample *= FresnelNonpolarized(MdotV, ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(n, k));
+			reflectionSample *= FresnelNonpolarized(MdotV, ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(material.n, material.k));
 			#endif
 			reflectionSample *= G2OverG1SmithGGX(NdotV, NdotL, roughnessSquared);
 
 			reflection += reflectionSample;
 		} reflection /= SSR_RAY_COUNT;
+
+		if (material.albedoTintsMetalReflections) {
+			reflection *= 1.0 - material.metalness + material.metalness * material.albedo;
+		}
 
 		return reflection;
 	}

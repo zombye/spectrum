@@ -5,12 +5,20 @@ vec3 GenerateUnitVector(vec2 xy) {
 	xy.x *= tau; xy.y = xy.y * 2.0 - 1.0;
 	return vec3(SinCos(xy.x) * sqrt(1.0 - xy.y * xy.y), xy.y);
 }
+vec3 GenerateConeVector(float angle, vec2 xy) {
+	xy.x *= tau;
+	float cosAngle = cos(angle);
+	xy.y = xy.y * (1.0 - cosAngle) + cosAngle;
+	return vec3(vec2(cos(xy.x), sin(xy.x)) * sqrt(1.0 - xy.y * xy.y), xy.y);
+}
 vec3 GenerateConeVector(vec3 vector, float angle, vec2 xy) {
-	vec3 dir = GenerateUnitVector(xy);
-	float VoD = dot(vector, dir);
-	float noiseAngle = acos(VoD) * (angle / pi);
+	vec3 v = GenerateUnitVector(xy);
+	float VoD = dot(v, vector);
 
-	return sin(noiseAngle) * inversesqrt(1.0 - VoD * VoD) * (dir - vector * VoD) + cos(noiseAngle) * vector;
+	float cosAngle = cos(angle);
+	float newCosTheta = VoD * (1.0 - cosAngle) + cosAngle;
+
+	return sqrt(1.0 - newCosTheta * newCosTheta) * inversesqrt(1.0 - VoD * VoD) * (v - vector * VoD) + newCosTheta * vector;
 }
 
 vec3 GenerateCosineVector(vec3 vector, vec2 xy) {

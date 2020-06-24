@@ -198,6 +198,7 @@ uniform vec3 shadowLightVector;
 	#include "/include/utility/noise.glsl"
 	#include "/include/utility/packing.glsl"
 	#include "/include/utility/rotation.glsl"
+	#include "/include/utility/sequence.glsl"
 	#include "/include/utility/spaceConversion.glsl"
 
 	#include "/include/shared/shadowDistortion.glsl"
@@ -314,6 +315,9 @@ uniform vec3 shadowLightVector;
 
 		mat3 position;
 		position[0] = vec3(screenCoord, texture(depthtex1, screenCoord).r);
+		#ifdef TAA
+		position[0].xy -= taaOffset * 0.5;
+		#endif
 		position[1] = ScreenSpaceToViewSpace(position[0], gbufferProjectionInverse);
 		position[2] = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
 		vec3 viewVector = normalize(position[2] - gbufferModelViewInverse[3].xyz);

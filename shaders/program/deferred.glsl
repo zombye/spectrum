@@ -242,10 +242,7 @@ uniform vec3 shadowLightVector;
 
 				//vec3 samplePosition = vec3(sampleCoord, texture(depthtex1, sampleCoord).r);
 				//     samplePosition = ScreenSpaceToViewSpace(samplePosition, gbufferProjectionInverse);
-				vec3 samplePosition = vec3(sampleCoord * 2.0 - 1.0, GetLinearDepth(depthtex1, sampleCoord));
-				#ifdef TAA
-					samplePosition.xy -= taaOffset;
-				#endif
+				vec3 samplePosition = vec3(sampleCoord * 2.0 - 1.0, GetLinearDepth(depthtex1, sampleCoord + 0.5 * taaOffset));
 				samplePosition.xy *= Diagonal(gbufferProjectionInverse).xy * -samplePosition.z;
 				samplePosition.z += samplePosition.z * 2e-4; // done to prevent overocclusion in some cases
 
@@ -701,8 +698,11 @@ uniform vec3 shadowLightVector;
 
 				mat3 position;
 				position[0].xy = tileScreenCoord;
+				#ifdef TAA
+				position[0].xy -= taaOffset * 0.5;
+				#endif
 				position[1]    = GetViewDirection(position[0].xy, gbufferProjectionInverse);
-				position[1]   *= GetLinearDepth(depthtex1, position[0].xy) / position[1].z;
+				position[1]   *= GetLinearDepth(depthtex1, tileScreenCoord) / position[1].z;
 				position[0].z  = ViewSpaceToScreenSpace(position[1].z, gbufferProjection);
 
 				if (position[0].z < 1.0) {
@@ -726,8 +726,11 @@ uniform vec3 shadowLightVector;
 			if (screenCoord.x < 0.5 && screenCoord.y < 0.5) {
 				mat3 position;
 				position[0].xy = screenCoord * 2.0;
+				#ifdef TAA
+				position[0].xy -= taaOffset * 0.5;
+				#endif
 				position[1]    = GetViewDirection(position[0].xy, gbufferProjectionInverse);
-				position[1]   *= GetLinearDepth(depthtex1, position[0].xy) / position[1].z;
+				position[1]   *= GetLinearDepth(depthtex1, screenCoord * 2.0) / position[1].z;
 				position[0].z  = ViewSpaceToScreenSpace(position[1].z, gbufferProjection);
 
 				if (position[0].z < 1.0) {
@@ -761,7 +764,11 @@ uniform vec3 shadowLightVector;
 
 		float depth = texture(depthtex1, screenCoord).x;
 		if (depth >= 1.0) {
-			vec3 viewVector = mat3(gbufferModelViewInverse) * GetViewDirection(screenCoord, gbufferProjectionInverse);
+			vec3 positionScreen = vec3(screenCoord, depth);
+			#ifdef TAA
+			positionScreen.xy -= 0.5 * taaOffset;
+			#endif
+			vec3 viewVector = mat3(gbufferModelViewInverse) * GetViewDirection(positionScreen.xy, gbufferProjectionInverse);
 
 			vec3 color = vec3(0.0);
 			color = CalculateStars(color, viewVector);

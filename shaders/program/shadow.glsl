@@ -141,12 +141,10 @@ uniform vec3 shadowLightVector;
 		vec3 dpdx = dFdx(position), dpdy = dFdy(position);
 		float oldAreaSquared = dot(dpdx, dpdx) * dot(dpdy, dpdy);
 
-		// refract
-		vec3 refractedLightVector = refract(-shadowLightVector, normal, 0.75);
-		position += 2.0 * refractedLightVector;
-
 		// calculate (squared) new area
-		dpdx = dFdx(position), dpdy = dFdy(position);
+		vec3 rv = refract(-shadowLightVector, normal, 0.75);
+		dpdx += 2.0 * dFdx(rv);
+		dpdy += 2.0 * dFdy(rv);
 		float newAreaSquared = dot(dpdx, dpdx) * dot(dpdy, dpdy);
 
 		// calculate relative density from old and new area

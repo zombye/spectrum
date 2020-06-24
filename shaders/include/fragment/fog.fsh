@@ -95,17 +95,17 @@ vec3 CalculateFog(vec3 background, vec3 startPosition, vec3 endPosition, float L
 	for (int i = 0; i < steps; ++i) {
 		float[componentCount] density;
 		float[componentCount] stepAirmass;
-		vec3 opticalDepth = vec3(0.0);
+		vec3 stepOpticalDepth = vec3(0.0);
 		for (int compIdx = 0; compIdx < componentCount; ++compIdx) {
 			density[compIdx] = GetDensity(worldPosition, compIdx);
 			stepAirmass[compIdx] = density[compIdx] * stepSize;
-			opticalDepth += attenuationCoefficients[compIdx] * stepAirmass[compIdx];
+			stepOpticalDepth += attenuationCoefficients[compIdx] * stepAirmass[compIdx];
 		}
 
 		//--//
 
-		vec3 stepTransmittance       = exp(-opticalDepth);
-		vec3 stepTransmittedFraction = Clamp01((stepTransmittance - 1.0) / -opticalDepth);
+		vec3 stepTransmittance       = exp(-stepOpticalDepth);
+		vec3 stepTransmittedFraction = Clamp01((1.0 - stepTransmittance) / stepOpticalDepth);
 		vec3 stepVisibleFraction     = transmittance * stepTransmittedFraction;
 
 		//--//

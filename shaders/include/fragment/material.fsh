@@ -15,14 +15,15 @@ struct Material {
 	float metalness;    // Only used to scale down diffuse light before adding specular (so metals don't have to just be black in the reflections)
 	float roughness;    // GGX roughness
 	float porosity;     // Currently unused
+	bool  albedoTintsMetalReflections; // For lab, mainly
 	vec3  n;            // Index of refraction
 	vec3  k;            // Extinction coefficient (for complex index of refraction, needed for metals)
 	vec3  emission;     // Emitted light at surface
 	vec3  translucency; // Currently unused
 };
 
-Material airMaterial   = Material(vec3(0.0), 0.0, 0.002, 0.0, vec3(1.000275), vec3(0.0), vec3(0.0), vec3(1.0));
-Material waterMaterial = Material(vec3(0.0), 0.0, 0.002, 0.0, vec3(1.333000), vec3(0.0), vec3(0.0), vec3(1.0));
+Material airMaterial   = Material(vec3(0.0), 0.0, 0.002, 0.0, false, vec3(1.000275), vec3(0.0), vec3(0.0), vec3(1.0));
+Material waterMaterial = Material(vec3(0.0), 0.0, 0.002, 0.0, false, vec3(1.333000), vec3(0.0), vec3(0.0), vec3(1.0));
 
 Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 	baseTex = LinearFromSrgb(baseTex);
@@ -47,6 +48,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 		material.metalness    = float(isMetal);
 		material.roughness    = Pow2(1.0 - specTex.r);
 		material.porosity     = 0.0;
+		material.albedoTintsMetalReflections = false;
 		material.n            = (isMetal ? F0ToIor(baseTex) : vec3(F0ToIor(Pow4(specTex.r)))) * airMaterial.n;
 		material.k            = vec3(0.0);
 		material.emission     = vec3(0.0);
@@ -56,6 +58,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 		material.metalness    = specTex.g;
 		material.roughness    = Pow2(1.0 - specTex.r);
 		material.porosity     = 0.0;
+		material.albedoTintsMetalReflections = false;
 		material.n            = F0ToIor(mix(vec3(specTex.r), baseTex, specTex.g)) * airMaterial.n;
 		material.k            = vec3(0.0);
 		material.emission     = baseTex * specTex.b * BLOCK_LIGHT_LUMINANCE;
@@ -65,6 +68,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 		material.metalness = smoothstep(0.25, 0.45, specTex.r);
 		material.roughness = Pow2(1.0 - specTex.b);
 		material.porosity  = specTex.g;
+		material.albedoTintsMetalReflections = true;
 		material.n         = F0ToIor(mix(vec3(specTex.r), baseTex, material.metalness)) * airMaterial.n;
 		material.k         = vec3(0.0);
 
@@ -88,7 +92,8 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 
 		if (isMetal) {
 			int index = int(specTex.g * 255.0 + 0.5) - 230;
-			if (index < 8) {
+			material.albedoTintsMetalReflections = index < 8;
+			if (material.albedoTintsMetalReflections) {
 				vec3[8] metalN = vec3[8](
 					vec3(2.91140, 2.94970, 2.58450), // Iron
 					vec3(0.18299, 0.42108, 1.37340), // Gold
@@ -117,6 +122,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 				material.k = vec3(0.0);
 			}
 		} else {
+			material.albedoTintsMetalReflections = false;
 			#if RESOURCE_FORMAT == RESOURCE_FORMAT_LAB_1_3
 			material.n = F0ToIor(specTex.g) * airMaterial.n;
 			#else

@@ -24,7 +24,7 @@ vec2 HexPoint(vec2 xy) {
 		return mix(-a, b, sqrt(xy.y * 1.5 - 0.5));
 	}
 }
-float CalculateCaustics(vec3 position, float waterDepth, float dither, const float ditherSize) {
+float CalculateCaustics(vec3 position, float waterDepth, vec3 normal, float dither, const float ditherSize) {
 	if (waterDepth <= 0.0) { return 1.0; }
 
 	// pretty much this entire function can be optimized
@@ -35,7 +35,7 @@ float CalculateCaustics(vec3 position, float waterDepth, float dither, const flo
 
 	float radius = CAUSTICS_RADIUS * waterDepth;
 
-	vec3 flatRefractVector = mat3(shadowModelView) * refract(-shadowLightVector, vec3(0.0, 1.0, 0.0), 0.75);
+	vec3 flatRefractVector = refract(vec3(0.0, 0.0, -1.0), mat3(shadowModelView) * vec3(0.0, 1.0, 0.0), 0.75);
 	vec3 flatRefraction = flatRefractVector * waterDepth / -flatRefractVector.z;
 
 	#ifdef CAUSTICS_DITHERED

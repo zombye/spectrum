@@ -28,7 +28,7 @@
 // shading
 #define CLOUDS3D_FAKE_POWDER_STRENGTH 0.7
 
-#define CLOUDS3D_ATTENUATION_COEFFICIENT (0.1 * 500.0 / CLOUDS3D_THICKNESS)
+#define CLOUDS3D_ATTENUATION_COEFFICIENT (0.05 * 500.0 / CLOUDS3D_THICKNESS)
 #define CLOUDS3D_SCATTERING_ALBEDO 0.99
 
 #if defined PROGRAM_DEFERRED
@@ -83,8 +83,13 @@ float Get3DCloudsDensity(vec3 position) {
 	} noise3D += 0.5 * exp2(-octaves3D);
 	noise3D = max(noise3D - 0.5, 0.0);
 
+	float density = Clamp01(cloudsMask - 0.25 * noise3D);
+	density = 1.0 - Pow8(1.0 - density);
+
 	float densityScale = Clamp01(cloudAltitude * 2.0);
-	return Clamp01(4.0 * cloudsMask - noise3D) * densityScale;
+	density *= densityScale;
+
+	return density;
 }
 
 float Calculate3DCloudsOpticalDepth(vec3 rayPosition, vec3 rayDirection, float startOffset, const int steps, const float stepGrowth) {
@@ -179,21 +184,21 @@ void Calculate3DCloudsScattering(
 
 	//* approximated multiple scattering
 	const float scatterStrength = 0.7;
-	const float slope = 1.0;
+	const float slope = 0.3;
 	float sunPath = exp(-viewOpticalDepth) * pow(1.0 + slope * scatterStrength * sunOpticalDepth, -1.0 / scatterStrength);
 	float skyPath = exp(-viewOpticalDepth) * pow(1.0 + slope * scatterStrength * skyOpticalDepth, -1.0 / scatterStrength);
 
-	float sharedpart = 2.0 * CLOUDS3D_SCATTERING_ALBEDO * (1.0 - stepTransmittance);
+	float sharedpart = 0.85 * 2.0 * CLOUDS3D_SCATTERING_ALBEDO * (1.0 - stepTransmittance);
 
 	// fake powder effect for directions away from the light, makes them not look like complete garbage
-	float fakePowder = 2.0 * (1.0 - CLOUDS3D_FAKE_POWDER_STRENGTH * exp(-70.0 * stepCoefficient));
+	float fakePowder = 8.0 * (1.0 - 0.97 * exp(-10.0 * stepCoefficient));
 
 	float fakeSunPowder = mix(fakePowder, 1.0, VdotL * 0.5 + 0.5);
-	float sunPhase = fakeSunPowder * 2.0 * (1.0 - (2.0/3.0) * exp(-sunOpticalDepth)) * Phase3DClouds(VdotL, sunOpticalDepth);
+	float sunPhase = fakeSunPowder       * Phase3DClouds(VdotL, sunOpticalDepth);
 	#ifdef CLOUDS3D_ALTERNATE_SKYLIGHT
 	// having a multiply by 2 here gives a closer result to actually sampling the sky in each direction
 	float fakeSkyPowder = mix(fakePowder, 1.0, dot(direction, skyDir) * 0.5 + 0.5);
-	float skyPhase = fakeSkyPowder * 2.0 * 2.0 * (1.0 - (2.0/3.0) * exp(-skyOpticalDepth)) * Phase3DClouds(dot(direction, skyDir), skyOpticalDepth);
+	float skyPhase = fakeSkyPowder * 2.0 * Phase3DClouds(dot(direction, skyDir), skyOpticalDepth);
 	#else
 	float fakeSkyPowder = mix(fakePowder, 1.0, 0.5);
 	float skyPhase = fakeSkyPowder * 0.25 / pi;

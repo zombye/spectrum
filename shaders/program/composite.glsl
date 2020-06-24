@@ -57,6 +57,7 @@ uniform mat4 gbufferProjectionInverse;
 //--// Shadow uniforms
 
 uniform mat4 shadowModelView;
+uniform mat4 shadowModelViewInverse;
 #if defined VL_AIR || defined VL_WATER
 uniform mat4 shadowProjection;
 
@@ -275,7 +276,7 @@ uniform vec3 shadowLightVector;
 			refractedPosition[0].xy = rv * Clamp01(MinOf((step(0.0, rv) - frontPosition[0].xy) / rv) * 0.5) + frontPosition[0].xy;
 
 			// Depth at refracted position
-			refractedPosition[0].z = texture(depthtex1, refractedPosition[0].xy).r;
+			refractedPosition[0].z = texture(depthtex1, refractedPosition[0].xy + taaOffset * 0.5).r;
 
 			// Don't refract if there was nothing that could be refracted
 			if (refractedPosition[0].z < frontPosition[0].z) {
@@ -293,18 +294,16 @@ uniform vec3 shadowLightVector;
 
 	void main() {
 		mat3 frontPosition;
-		#ifdef TAA
-		frontPosition[0] = vec3(screenCoord - taaOffset * 0.5, texture(depthtex0, screenCoord).r);
-		#else
 		frontPosition[0] = vec3(screenCoord, texture(depthtex0, screenCoord).r);
+		#ifdef TAA
+		frontPosition[0].xy -= taaOffset * 0.5;
 		#endif
 		frontPosition[1] = ScreenSpaceToViewSpace(frontPosition[0], gbufferProjectionInverse);
 		frontPosition[2] = mat3(gbufferModelViewInverse) * frontPosition[1] + gbufferModelViewInverse[3].xyz;
 		mat3 backPosition;
-		#ifdef TAA
-		backPosition[0] = vec3(screenCoord - taaOffset * 0.5, texture(depthtex1, screenCoord).r);
-		#else
 		backPosition[0] = vec3(screenCoord, texture(depthtex1, screenCoord).r);
+		#ifdef TAA
+		backPosition[0].xy -= taaOffset * 0.5;
 		#endif
 		backPosition[1] = ScreenSpaceToViewSpace(backPosition[0], gbufferProjectionInverse);
 		backPosition[2] = mat3(gbufferModelViewInverse) * backPosition[1] + gbufferModelViewInverse[3].xyz;
@@ -366,7 +365,7 @@ uniform vec3 shadowLightVector;
 				}
 			#endif
 
-			color = DecodeRGBE8(texture(colortex4, backPosition[0].xy));
+			color = DecodeRGBE8(texture(colortex4, backPosition[0].xy + taaOffset * 0.5));
 
 			float skylightFade = lightmap.y * exp(lightmap.y * 6.0 - 6.0);
 
@@ -423,14 +422,14 @@ uniform vec3 shadowLightVector;
 				float VoH = LoV * rcpLen_LV + rcpLen_LV;
 
 				float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
-				color += CalculateSpecularHighlight(NoL, NoV, LoV, VoH, material.roughness, material.n, material.k, lightAngularRadius) * illuminanceShadowlight * LinearFromSrgb(texture(colortex7, screenCoord).rgb);
+				color += CalculateSpecularHighlight(NoL, NoV, LoV, VoH, material, lightAngularRadius) * illuminanceShadowlight * LinearFromSrgb(texture(colortex7, screenCoord).rgb);
 
 				#ifdef SSR_MULTILAYER
 					if (backPosition[0].z == frontPosition[0].z) {
-						color += CalculateEnvironmentReflections(colortex4, frontPosition, normal, NoV, material.roughness, material.n, material.k, skylightFade, blockId == 8, dither, ditherSize);
+						color += CalculateEnvironmentReflections(colortex4, frontPosition, normal, NoV, material, skylightFade, blockId == 8, dither, ditherSize);
 					}
 				#else
-					color += CalculateEnvironmentReflections(colortex4, frontPosition, normal, NoV, material.roughness, material.n, material.k, skylightFade, blockId == 8, dither, ditherSize);
+					color += CalculateEnvironmentReflections(colortex4, frontPosition, normal, NoV, material, skylightFade, blockId == 8, dither, ditherSize);
 				#endif
 			}
 

@@ -57,7 +57,7 @@ bool IntersectSSRay(
 		hit = maxZ >= depth && minZ <= ascribedDepth;
 
 		// Optionally check that depth is < 1 if we don't want to intersect the sky
-		//hit = hit && depth < 1.0;
+		hit = hit && depth < 1.0;
 
 		if (!hit) { t += float(stride); }
 	}
@@ -71,7 +71,7 @@ bool IntersectSSRay(
 		bool refhit = true;
 		float refstride = stride;
 		for (int i = 0; i < findMSB(stride); ++i) {
-			t += (refhit ? -1.0 : 1.0) * (refstride *= 0.5);
+			t += (refhit && t > 0.0 ? -1.0 : 1.0) * (refstride *= 0.5);
 			position = rayOrigin + t * rayStep;
 
 			// Z at current step & one step towards -Z
@@ -87,7 +87,7 @@ bool IntersectSSRay(
 			refhit = maxZ >= depth && minZ <= ascribedDepth;
 
 			// Optionally check that depth is < 1 if we don't want to intersect the sky
-			//hit = hit && depth < 1.0;
+			hit = hit && depth < 1.0;
 		}
 
 		/* This is skipped as in some cases it results in excessive flickering with TAA

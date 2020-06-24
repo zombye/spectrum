@@ -275,7 +275,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 		// Work out weighting factors and sampling offsets that will let us use bilinear filtering to
 		// simultaneously evaluate the middle 2 samples from the 4x4 grid.
 		vec2 w12 = w1 + w2;
-		vec2 offset12 = w2 / (w1 + w2);
+		vec2 offset12 = w2 / w12;
 
 		// Compute the final UV coordinates we'll use for sampling the texture
 		vec2 texPos0 = texPos1 - 1;
@@ -451,7 +451,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 				// Reduce blend weight when (normalized) variance is low, helps reduce ghosting
 				// This doesn't work well for lower-resolution effects
 				if (closestFragment.z < 1.0) {
-					blendWeight *= 1.0 - Clamp01(exp(-2.0 * variance / (avgRounded * avgRounded)));
+					//blendWeight *= 1.0 - Clamp01(exp(-2.0 * variance / (avgRounded * avgRounded)));
 				}
 
 				// Increase blend weight if current is very different from history
