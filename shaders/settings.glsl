@@ -160,6 +160,7 @@ const int shadowMapResolution = 2048; // Default if not set: 1024 [512 768 1024 
 #define SHADOW_FILTER_BICUBIC 1
 #define SHADOW_FILTER_PCF 2
 #define SHADOW_FILTER_PCSS 3
+#define SHADOW_FILTER_DUAL_PCSS 4 // currently not implemented
 #define SHADOW_FILTER SHADOW_FILTER_PCSS // [SHADOW_FILTER_BILINEAR SHADOW_FILTER_BICUBIC SHADOW_FILTER_PCF SHADOW_FILTER_PCSS]
 
 #define SHADOW_FILTER_MAX_RADIUS 0.25 // In blocks. Useful range: 0 to (tan(lightAngularRadius) * SHADOW_DEPTH_RADIUS)

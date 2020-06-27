@@ -420,7 +420,7 @@ void SampleShadowmapPCSS(
 		waterPotential += waterPossible;
 
 		#ifdef SHADOW_COLORED
-		if (depht0 != depth1) {
+		if (depth0 != depth1) {
 			vec4 scol = texelFetch(shadowcolor1, ivec2(textureSize(shadowcolor1, 0) * sampleUv), 0);
 			scol.rgb = LinearFromSrgb(scol.rgb);
 			#if defined USE_R2020
