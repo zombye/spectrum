@@ -1,10 +1,6 @@
 #if !defined INCLUDE_FRAGMENT_SHADOWS
 #define INCLUDE_FRAGMENT_SHADOWS
 
-#if SHADOW_FILTER == SHADOW_FILTER_PCSS
-#define SHADOW_PENUMBRA_SHARPENING
-#endif
-
 #if SHADOW_FILTER == SHADOW_FILTER_BILINEAR || SHADOW_FILTER == SHADOW_FILTER_BICUBIC
 void SampleShadowmapBilinear(
 	vec3 positionShadowDistorted,
@@ -616,22 +612,24 @@ NearShadows(
 		vec3 startPosition = position[0];
 
 		bool hit = false;
-		float ditherp = floor(stride * fract(Bayer8(gl_FragCoord.xy) + frameR1) + 2.0);
+		float ditherp = floor(stride * fract(Bayer8(gl_FragCoord.xy) + frameR1) + 3.0);
 		for (uint i = 0u; i < maxLoops && !hit; ++i) {
 			float pixelSteps = float(i * stride) + ditherp;
 			position[0] = startPosition + pixelSteps * rayStep;
 
 			// Z at current step & one step towards -Z
 			float maxZ = position[0].z;
-			float minZ = rayStep.z > 0.0 && i == 0u ? startPosition.z : position[0].z - float(stride) * abs(rayStep.z);
+			float minZ = position[0].z - float(stride) * abs(rayStep.z);
 
 			if (1.0 < minZ || maxZ < 0.0) { break; }
 
 			// Requiring intersection from BOTH interpolated & noninterpolated depth prevents pretty much all false occlusion.
+			//position[0].xy -= 0.5 * taaOffset;
 			float depth = texelFetch(depthtex1, ivec2(position[0].xy), 0).r;
 			float ascribedDepth = AscribeDepth(depth, 1e-2 * (i == 0u ? ditherp : float(stride)) * gbufferProjectionInverse[1].y);
 			float depthInterp = ViewSpaceToScreenSpace(GetLinearDepth(depthtex1, position[0].xy * viewPixelSize), gbufferProjection);
 			float ascribedDepthInterp = AscribeDepth(depthInterp, 1e-2 * (i == 0u ? ditherp : float(stride)) * gbufferProjectionInverse[1].y);
+			//position[0].xy += 0.5 * taaOffset;
 
 			hit = maxZ >= depth && minZ <= ascribedDepth
 			&& maxZ >= depthInterp && minZ <= ascribedDepthInterp

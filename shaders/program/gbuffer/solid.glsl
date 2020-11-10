@@ -37,6 +37,7 @@ uniform mat4 gbufferPreviousProjection;
 
 uniform vec2 viewPixelSize;
 uniform vec2 taaOffset;
+uniform vec2 taaOffsetPrevious;
 
 uniform vec3 shadowLightVector;
 
@@ -167,7 +168,6 @@ uniform vec3 shadowLightVector;
 			#else
 				previousScreenPosition = vec4(gbufferPreviousProjection[0].x, gbufferPreviousProjection[1].y, gbufferPreviousProjection[2].zw) * previousViewPosition.xyzz + gbufferPreviousProjection[3];
 			#endif
-			previousScreenPosition.xy += taaOffset * previousScreenPosition.w;
 		#endif
 
 		#if defined VERTEX_ANIMATION
@@ -289,30 +289,22 @@ uniform vec3 shadowLightVector;
 
 	#ifdef BLOCK_LIGHT_DIRECTIONAL
 		vec3 CalculateBlocklightVector(vec3 flatNormal) {
-			#define blocklight lightmapCoordinates.x
-
-			vec2   lightmapDerivatives = vec2(dFdx(lightmapCoordinates.x), dFdy(lightmapCoordinates.x));
-			mat2x3 positionDerivatives = mat2x3(mat3(gbufferModelViewInverse) * dFdx(viewPosition), mat3(gbufferModelViewInverse) * dFdy(viewPosition));
+			vec3   p = mat3(gbufferModelViewInverse) * viewPosition;
+			vec2   lightmapDerivatives = 15.0 * vec2(dFdx(lightmapCoordinates.x), dFdy(lightmapCoordinates.x));
+			mat2x3 positionDerivatives = mat2x3(dFdx(p), dFdy(p));
 
 			//vec3 lightmapVector = positionDerivatives * lightmapDerivatives; // this seems to not work as well
 			vec3 lightmapVector = positionDerivatives * vec2(-lightmapDerivatives.y, lightmapDerivatives.x);
 			     lightmapVector = cross(lightmapVector, flatNormal); // cross() to rotate 90 degrees
 
-			//
-			vec3 pdsum = abs(positionDerivatives[0]) + abs(positionDerivatives[1]);
-			lightmapVector += flatNormal * dot(pdsum, pdsum) * 0.5 / 16.0;
+			float div = dot(positionDerivatives[0], positionDerivatives[0])
+			          + dot(positionDerivatives[1], positionDerivatives[1]);
 
-			// normalize
-			float len = length(lightmapVector);
-			lightmapVector = len > 0.0 ? lightmapVector / len : flatNormal;
-			return lightmapVector;
+			return lightmapVector / div;
 		}
 		float CalculateBlocklightShading(vec3 normal, vec3 lv) {
 			float NoL = dot(lv, normal);
-			float scale = dot(lv, tbn[2]);
-			//return Clamp01(NoL) * Clamp01(1.0 - 0.66 * scale);
-			return Clamp01(NoL * 0.5 + 0.5) * Clamp01(1.0 - 0.33 * scale);
-			//return mix(Clamp01(NoL * 0.5 + 0.5) * Clamp01(1.0 - 0.33 * scale), Clamp01(NoL) * Clamp01(1.0 - 0.66 * scale), 0.8);
+			return Clamp01(NoL * 0.5 + 0.5);
 		}
 	#endif
 
@@ -398,7 +390,7 @@ uniform vec3 shadowLightVector;
 			float blocklightShading = CalculateBlocklightShading(normal, blocklightVector);
 			//baseTex.rgb = blocklightVector * 0.5 + 0.5;
 		#else
-			#define blocklightShading 1.0
+			#define blocklightShading 0.5
 		#endif
 
 		float dither = Bayer4(gl_FragCoord.xy);
@@ -413,7 +405,7 @@ uniform vec3 shadowLightVector;
 		colortex1Write = vec4(Pack2x8(specTex.rg), Pack2x8(specTex.ba), Pack2x8(EncodeNormal(normal) * 0.5 + 0.5), Pack2x8(EncodeNormal(tbn[2]) * 0.5 + 0.5));
 
 		#if defined MOTION_BLUR || defined TAA
-			velocity = vec3(gl_FragCoord.xy * viewPixelSize, gl_FragCoord.z) - ((previousScreenPosition.xyz / previousScreenPosition.w) * 0.5 + 0.5);
+			velocity = vec3(gl_FragCoord.xy * viewPixelSize - 0.5 * taaOffset, gl_FragCoord.z) - ((previousScreenPosition.xyz / previousScreenPosition.w) * 0.5 + 0.5);
 		#endif
 	}
 #endif

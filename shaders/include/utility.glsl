@@ -123,8 +123,21 @@ vec3 ThinFilmInterference(float filmThickness, float filmRefractiveIndex, float 
 	return 2.0 * abs(cos(opd * pi / wavelengths));
 }
 
+vec4 TextureQuadratic(sampler2D sampler, vec2 coord) {
+	ivec2 res = textureSize(sampler, 0);
+	vec2 m = fract(coord * res);
+	vec2 cLo = coord - (0.5 + 0.5 * m) / res;
+	vec2 cHi = coord - (      0.5 * m) / res;
+
+	return mix(
+		mix(texture2D(sampler, vec2(cLo.x, cLo.y)), texture2D(sampler, vec2(cHi.x, cLo.y)), m.x),
+		mix(texture2D(sampler, vec2(cLo.x, cHi.y)), texture2D(sampler, vec2(cHi.x, cHi.y)), m.x),
+		m.y
+	);
+}
+
 /*\
- * returns coords & weights for sampling with bicubic filtering
+ * returns coords & weights for sampling with cubic filtering
  * use if you need to do so multiple times in the same location (or different locations an integer number of pixels away)
  * or if you need to do some custom stuff to the individual samples
  *
@@ -132,46 +145,261 @@ vec3 ThinFilmInterference(float filmThickness, float filmRefractiveIndex, float 
  * you can convert to this from normal coords with this:
  * coord = coord * resolution - 0.5
  *
- * use c & m like this:
- * mix(mix(texture(sampler, c.xy), texture(sampler, c.zy).x, m.x),
- *     mix(texture(sampler, c.xw), texture(sampler, c.zw).x, m.x),
+ * use cLo, cHi & m like this:
+ * mix(mix(texture(sampler, vec2(cLo.x, cLo.y)), texture(sampler, vec2(cHi.x, cLo.y)).x, m.x),
+ *     mix(texture(sampler, vec2(cLo.x, cHi.y)), texture(sampler, vec2(cHi.x, cHi.y)).x, m.x),
  *     m.y);
- * remember that c will also be with integers at pixel centers
- * you can convert this to normal coords like this:
- * c = (c + 0.5) / resolution.xyxy
+ * cLo & cHi will also be with integers at pixel centers, so you'll probably need to convert it back
 \*/
-void FastBicubicCM(vec2 coord, out vec4 c, out vec2 m) {
+void FastCubicCM(vec2 coord, out vec2 cLo, out vec2 cHi, out vec2 m) {
 	vec2 f = fract(coord);
-	coord -= f;
+	coord = floor(coord);
 
 	vec2 ff = f * f;
 
-	vec2 w0 = ff * f;
-	vec2 w3 = 1.0 - f; w3 *= w3 * w3;
-	vec2 w1 = w3 + 6.0 * f - 2.0 * w0;
-	vec2 w2 = 3.0 * w0 + 4.0 - 6.0 * ff;
+	vec2[4] w;
+	w[3] = ff * f;
+	w[0] = 1.0 - f; w[0] *= w[0] * w[0];
+	w[1] = 3.0 * w[3] + 4.0 - 6.0 * ff;
+	w[2] = w[0] + 6.0 * f - 2.0 * w[3];
 
-	vec4 s = vec4(w3, w1) + vec4(w2, w0);
-	c = coord.xyxy + vec4(w2, w0) / s;
-	c.xy -= 1.0; c.zw += 1.0;
+	vec2 sLo = w[0] + w[1];
+	vec2 sHi = w[2] + w[3];
+	cLo = coord + w[1] / sLo - 1.0;
+	cHi = coord + w[3] / sHi + 1.0;
 
-	m = s.zw / (s.xy + s.zw);
+	m = sHi / 6.0;
 }
-vec4 TextureBicubic(sampler2D sampler, vec2 coord) {
+void FastCubicCM(vec3 coord, out vec3 cLo, out vec3 cHi, out vec3 m) {
+	vec3 f = fract(coord);
+	coord -= f;
+
+	vec3 ff = f * f;
+
+	vec3[4] w;
+	w[3] = ff * f;
+	w[0] = 1.0 - f; w[0] *= w[0] * w[0];
+	w[1] = 3.0 * w[3] + 4.0 - 6.0 * ff;
+	w[2] = w[0] + 6.0 * f - 2.0 * w[3];
+
+	vec3 sLo = w[0] + w[1];
+	vec3 sHi = w[2] + w[3];
+	cLo = coord + w[1] / sLo - 1.0;
+	cHi = coord + w[3] / sHi + 1.0;
+
+	m = sHi / 6.0;
+}
+// Version of the above for use when computing the Jacobian matrix
+void FastCubicCMForJacobian(vec2 coord, out vec2 cLo, out vec2 cHi, out vec2 m) {
+	vec2 f = fract(coord);
+	coord = floor(coord);
+
+	vec2 ff = f * f;
+
+	vec2[4] w;
+	w[3] =  3.0 * ff;
+	w[0] = -3.0 * ff +  6.0 * f - 3.0;
+	w[1] =  9.0 * ff - 12.0 * f;
+	w[2] = -9.0 * ff +  6.0 * f + 3.0;
+
+	vec2 sLo = w[0] + w[1];
+	vec2 sHi = w[2] + w[3];
+	cLo = coord + w[1] / sLo - 1.0;
+	cHi = coord + w[3] / sHi + 1.0;
+
+	m = sHi / 6.0;
+}
+void FastCubicCMForJacobian(vec3 coord, out vec3 cLo, out vec3 cHi, out vec3 m) {
+	vec3 f = fract(coord);
+	coord = floor(coord);
+
+	vec3 ff = f * f;
+
+	vec3[4] w;
+	w[3] =  3.0 * ff;
+	w[0] = -3.0 * ff +  6.0 * f - 3.0;
+	w[1] =  9.0 * ff - 12.0 * f;
+	w[2] = -9.0 * ff +  6.0 * f + 3.0;
+
+	vec3 sLo = w[0] + w[1];
+	vec3 sHi = w[2] + w[3];
+	cLo = coord + w[1] / sLo - 1.0;
+	cHi = coord + w[3] / sHi + 1.0;
+
+	m = sHi / 6.0;
+}
+
+vec4 TextureCubic(sampler2D sampler, vec2 coord) {
 	ivec2 res = textureSize(sampler, 0);
 
 	coord = coord * res - 0.5;
 
-	vec4 c; vec2 m;
-	FastBicubicCM(coord, c, m);
+	vec2 cLo, cHi, m;
+	FastCubicCM(coord, cLo, cHi, m);
 
-	c = (c + 0.5) / res.xyxy;
+	cLo = (cLo + 0.5) / res;
+	cHi = (cHi + 0.5) / res;
 
 	return mix(
-		mix(texture(sampler, c.xy), texture(sampler, c.zy), m.x),
-		mix(texture(sampler, c.xw), texture(sampler, c.zw), m.x),
+		mix(texture(sampler, vec2(cLo.x, cLo.y)), texture(sampler, vec2(cHi.x, cLo.y)), m.x),
+		mix(texture(sampler, vec2(cLo.x, cHi.y)), texture(sampler, vec2(cHi.x, cHi.y)), m.x),
 		m.y
 	);
+}
+mat2x4 TextureCubicJacobian(sampler2D sampler, vec2 coord) {
+	ivec2 res = textureSize(sampler, 0);
+
+	coord = coord * res - 0.5;
+
+	vec2 cLo, cHi, m;
+	FastCubicCM(coord, cLo, cHi, m);
+
+	cLo = (cLo + 0.5) / res;
+	cHi = (cHi + 0.5) / res;
+
+	vec2 dcLo, dcHi, dm;
+	FastCubicCMForJacobian(coord, dcLo, dcHi, dm);
+
+	dcLo = (dcLo + 0.5) / res;
+	dcHi = (dcHi + 0.5) / res;
+
+	return mat2x4(res.x * dm.x * mix(
+		texture(sampler, vec2(dcHi.x, cLo.y)) - texture(sampler, vec2(dcLo.x, cLo.y)),
+		texture(sampler, vec2(dcHi.x, cHi.y)) - texture(sampler, vec2(dcLo.x, cHi.y)),
+		m.y
+	), res.y * dm.y * mix(
+		texture(sampler, vec2(cLo.x, dcHi.y)) - texture(sampler, vec2(cLo.x, dcLo.y)),
+		texture(sampler, vec2(cHi.x, dcHi.y)) - texture(sampler, vec2(cHi.x, dcLo.y)),
+		m.x
+	));
+}
+vec4 TextureCubicLod(sampler2D sampler, vec2 coord, int lod) {
+	ivec2 res = textureSize(sampler, lod);
+
+	coord = coord * res - 0.5;
+
+	vec2 cLo, cHi, m;
+	FastCubicCM(coord, cLo, cHi, m);
+
+	cLo = (cLo + 0.5) / res;
+	cHi = (cHi + 0.5) / res;
+
+	return mix(
+		mix(textureLod(sampler, vec2(cLo.x, cLo.y), lod), textureLod(sampler, vec2(cHi.x, cLo.y), lod), m.x),
+		mix(textureLod(sampler, vec2(cLo.x, cHi.y), lod), textureLod(sampler, vec2(cHi.x, cHi.y), lod), m.x),
+		m.y
+	);
+}
+vec4 TextureCubicLod(sampler2D sampler, vec2 coord, float lod) {
+	return mix(
+		TextureCubicLod(sampler, coord, int(floor(lod))),
+		TextureCubicLod(sampler, coord, int(ceil (lod))),
+		fract(lod)
+	);
+}
+
+vec4 TextureCubic(sampler3D sampler, vec3 coord) {
+	ivec3 res = textureSize(sampler, 0);
+
+	coord = coord * res - 0.5;
+
+	vec3 cLo, cHi; vec3 m;
+	FastCubicCM(coord, cLo, cHi, m);
+
+	cLo = (cLo + 0.5) / res;
+	cHi = (cHi + 0.5) / res;
+
+	return mix(mix(
+		mix(texture3D(sampler, vec3(cLo.x, cLo.y, cLo.z)), texture3D(sampler, vec3(cHi.x, cLo.y, cLo.z)), m.x),
+		mix(texture3D(sampler, vec3(cLo.x, cHi.y, cLo.z)), texture3D(sampler, vec3(cHi.x, cHi.y, cLo.z)), m.x),
+		m.y
+	), mix(
+		mix(texture3D(sampler, vec3(cLo.x, cLo.y, cHi.z)), texture3D(sampler, vec3(cHi.x, cLo.y, cHi.z)), m.x),
+		mix(texture3D(sampler, vec3(cLo.x, cHi.y, cHi.z)), texture3D(sampler, vec3(cHi.x, cHi.y, cHi.z)), m.x),
+		m.y
+	), m.z);
+}
+mat3x4 TextureCubicJacobian(sampler3D sampler, vec3 coord) {
+	ivec3 res = textureSize(sampler, 0);
+
+	coord = coord * res - 0.5;
+
+	vec3 cLo, cHi, m;
+	FastCubicCM(coord, cLo, cHi, m);
+
+	cLo = (cLo + 0.5) / res;
+	cHi = (cHi + 0.5) / res;
+
+	vec3 dcLo, dcHi, dm;
+	FastCubicCMForJacobian(coord, dcLo, dcHi, dm);
+
+	dcLo = (dcLo + 0.5) / res;
+	dcHi = (dcHi + 0.5) / res;
+
+	return mat3x4(res.x * dm.x * mix(
+		mix(
+			texture3D(sampler, vec3(dcHi.x, cLo.y, cLo.z)) - texture3D(sampler, vec3(dcLo.x, cLo.y, cLo.z)),
+			texture3D(sampler, vec3(dcHi.x, cHi.y, cLo.z)) - texture3D(sampler, vec3(dcLo.x, cHi.y, cLo.z)),
+			m.y
+		), mix(
+			texture3D(sampler, vec3(dcHi.x, cLo.y, cHi.z)) - texture3D(sampler, vec3(dcLo.x, cLo.y, cHi.z)),
+			texture3D(sampler, vec3(dcHi.x, cHi.y, cHi.z)) - texture3D(sampler, vec3(dcLo.x, cHi.y, cHi.z)),
+			m.y
+		),
+		m.z
+	), res.y * dm.y * mix(
+		mix(
+			texture3D(sampler, vec3(cLo.x, dcHi.y, cLo.z)) - texture3D(sampler, vec3(cLo.x, dcLo.y, cLo.z)),
+			texture3D(sampler, vec3(cHi.x, dcHi.y, cLo.z)) - texture3D(sampler, vec3(cHi.x, dcLo.y, cLo.z)),
+			m.x
+		), mix(
+			texture3D(sampler, vec3(cLo.x, dcHi.y, cHi.z)) - texture3D(sampler, vec3(cLo.x, dcLo.y, cHi.z)),
+			texture3D(sampler, vec3(cHi.x, dcHi.y, cHi.z)) - texture3D(sampler, vec3(cHi.x, dcLo.y, cHi.z)),
+			m.x
+		),
+		m.z
+	), res.z * dm.z * mix(
+		mix(
+			texture3D(sampler, vec3(cLo.x, cLo.y, dcHi.z)) - texture3D(sampler, vec3(cLo.x, cLo.y, dcLo.z)),
+			texture3D(sampler, vec3(cHi.x, cLo.y, dcHi.z)) - texture3D(sampler, vec3(cHi.x, cLo.y, dcLo.z)),
+			m.x
+		), mix(
+			texture3D(sampler, vec3(cLo.x, cHi.y, dcHi.z)) - texture3D(sampler, vec3(cLo.x, cHi.y, dcLo.z)),
+			texture3D(sampler, vec3(cHi.x, cHi.y, dcHi.z)) - texture3D(sampler, vec3(cHi.x, cHi.y, dcLo.z)),
+			m.x
+		),
+		m.y
+	));
+}
+vec4 TextureCubic(sampler3D sampler, vec3 coord, int lod) {
+	ivec3 res = textureSize(sampler, lod);
+
+	coord = coord * res - 0.5;
+
+	vec3 cLo, cHi, m;
+	FastCubicCM(coord, cLo, cHi, m);
+
+	cLo = (cLo + 0.5) / res;
+	cHi = (cHi + 0.5) / res;
+
+	vec4 s000 = textureLod(sampler, vec3(cLo.x, cLo.y, cLo.z), lod);
+	vec4 s100 = textureLod(sampler, vec3(cHi.x, cLo.y, cLo.z), lod);
+	vec4 s010 = textureLod(sampler, vec3(cLo.x, cHi.y, cLo.z), lod);
+	vec4 s110 = textureLod(sampler, vec3(cHi.x, cHi.y, cLo.z), lod);
+	vec4 s001 = textureLod(sampler, vec3(cLo.x, cLo.y, cHi.z), lod);
+	vec4 s101 = textureLod(sampler, vec3(cHi.x, cLo.y, cHi.z), lod);
+	vec4 s011 = textureLod(sampler, vec3(cLo.x, cHi.y, cHi.z), lod);
+	vec4 s111 = textureLod(sampler, vec3(cHi.x, cHi.y, cHi.z), lod);
+
+	return mix(mix(
+		mix(s000, s100, m.x),
+		mix(s010, s110, m.x),
+		m.y
+	), mix(
+		mix(s001, s101, m.x),
+		mix(s011, s111, m.x),
+		m.y
+	), m.z);
 }
 
 #endif

@@ -145,7 +145,9 @@ uniform vec3 shadowLightVector;
 
 	/* DRAWBUFFERS:6 */
 
-	layout (location = 0) out vec3 color;
+	out vec4 fragData;
+	#define color (fragData.rgb)
+	#define luminance (fragData.a)
 
 	//--// Fragment Includes //-----------------------------------------------//
 
@@ -274,9 +276,12 @@ uniform vec3 shadowLightVector;
 			// Edge clamping
 			vec2 rv = refractedPosition[0].xy - frontPosition[0].xy;
 			refractedPosition[0].xy = rv * Clamp01(MinOf((step(0.0, rv) - frontPosition[0].xy) / rv) * 0.5) + frontPosition[0].xy;
+			#ifdef TAA
+			refractedPosition[0].xy += taaOffset * 0.5;
+			#endif
 
 			// Depth at refracted position
-			refractedPosition[0].z = texture(depthtex1, refractedPosition[0].xy + taaOffset * 0.5).r;
+			refractedPosition[0].z = texture(depthtex1, refractedPosition[0].xy).r;
 
 			// Don't refract if there was nothing that could be refracted
 			if (refractedPosition[0].z < frontPosition[0].z) {
@@ -365,7 +370,7 @@ uniform vec3 shadowLightVector;
 				}
 			#endif
 
-			color = DecodeRGBE8(texture(colortex4, backPosition[0].xy + taaOffset * 0.5));
+			color = DecodeRGBE8(texture(colortex4, backPosition[0].xy));
 
 			float skylightFade = lightmap.y * exp(lightmap.y * 6.0 - 6.0);
 
@@ -397,8 +402,8 @@ uniform vec3 shadowLightVector;
 				      rainMask *= Clamp01(lightmap.y * 15.0 - 13.5);
 				      rainMask *= LinearStep(0.5, 0.9, normal.y);
 
-				float noise  = TextureBicubic(noisetex, fract(0.5 * (backPosition[2].xz + cameraPosition.xz) / 256.0)).x;
-				      noise += TextureBicubic(noisetex, fract(1.0 * (backPosition[2].xz + cameraPosition.xz) / 256.0)).x * 0.5;
+				float noise  = TextureCubic(noisetex, fract(0.5 * (backPosition[2].xz + cameraPosition.xz) / 256.0)).x;
+				      noise += TextureCubic(noisetex, fract(1.0 * (backPosition[2].xz + cameraPosition.xz) / 256.0)).x * 0.5;
 				      noise /= 1.5;
 
 				float wetMask = Clamp01(Clamp01(noise * 1.7) + rainMask - 1.0);
@@ -436,9 +441,9 @@ uniform vec3 shadowLightVector;
 			// Eye to front fog
 			if (isEyeInWater == 1) { // Water fog
 				#ifdef VL_WATER
-				color = CalculateWaterFogVL(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight * (1.0 - skylightFade) + skylightFade, dither, false);
+				color = CalculateWaterFogVL(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, skylightFade, dither, false);
 				#else
-				color = CalculateWaterFog(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight * (1.0 - skylightFade) + skylightFade, dither, false);
+				color = CalculateWaterFog(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, skylightFade, dither, false);
 				#endif
 			} else if (isEyeInWater == 2) { // Lava fog
 				// TODO
@@ -454,9 +459,9 @@ uniform vec3 shadowLightVector;
 
 			if (isEyeInWater == 1) { // Water fog
 				#ifdef VL_WATER
-				color = CalculateWaterFogVL(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight, dither, true);
+				color = CalculateWaterFogVL(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, 1.0, dither, true);
 				#else
-				color = CalculateWaterFog(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, eyeSkylight, dither, true);
+				color = CalculateWaterFog(color, gbufferModelViewInverse[3].xyz, frontPosition[2], viewVector, -LoV, 1.0, dither, true);
 				#endif
 			} else if (isEyeInWater == 2) { // Lava fog
 				// TODO
@@ -469,6 +474,7 @@ uniform vec3 shadowLightVector;
 			}
 		}
 
-		color = sqrt(Max0(color)); // Max0 as a temp workaround for the very occasional nan that is coming from seemingly nowhere
+		color = Max0(color); // Max0 as a temp workaround for the very occasional nan that is coming from seemingly nowhere
+		luminance = sqrt(dot(color, RgbToXyz[1]));
 	}
 #endif

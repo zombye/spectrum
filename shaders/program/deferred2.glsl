@@ -351,7 +351,7 @@ uniform vec3 shadowLightVector;
 			vec3 normalFlat = DecodeNormal(Unpack2x8(colortex1Sample.a) * 2.0 - 1.0);
 
 			vec3 unpack = UnpackUnormArbitrary(uint(colortex0Sample.a * 65535.0 + 0.5), uvec4(8, 1, 7, 0)).xyz;
-			float vertexAo = unpack.x, parallaxShadow = unpack.y, blocklightShading = unpack.z;
+			float vertexAo = unpack.x, parallaxShadow = unpack.y, blocklightShading = 2.0 * unpack.z;
 
 			// Lighting dots
 			float NoL = dot(normal, shadowLightVector);

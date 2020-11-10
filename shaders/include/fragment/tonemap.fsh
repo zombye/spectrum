@@ -1,7 +1,7 @@
 #if !defined INCLUDE_FRAGMENT_TONEMAP
 #define INCLUDE_FRAGMENT_TONEMAP
 
-vec3 Tonemap(vec3 color) {
+float TonemapCurve(float x) {
 	const float toeStrength    = TONEMAP_TOE_STRENGTH;
 	const float toeLength      = TONEMAP_TOE_LENGTH * TONEMAP_TOE_LENGTH / 2;
 	const float linearSlope    = TONEMAP_LINEAR_SLOPE;
@@ -26,16 +26,22 @@ vec3 Tonemap(vec3 color) {
 	const float som = (1.0 - shoulderY) / shoulderLength;
 	const float soa = shoulderY;
 
-	for (int i = 0; i < 3; ++i) {
-		if (color[i] < toeX) {
-			color[i] = tm * pow(color[i], toePower);
-		} else if (color[i] < shoulderX) {
-			color[i] = lm * color[i] + la;
-		} else {
-			color[i]  = sim * color[i] + sia;
-			color[i] /= pow(pow(color[i], 1.0 / shoulderCurve) + 1.0, shoulderCurve);
-			color[i]  = som * color[i] + soa;
-		}
+	float y;
+	if (x < toeX) {
+		y = tm * pow(x, toePower);
+	} else if (x < shoulderX) {
+		y = lm * x + la;
+	} else {
+		y  = sim * x + sia;
+		y /= pow(pow(y, 1.0 / shoulderCurve) + 1.0, shoulderCurve);
+		y  = som * y + soa;
+	}
+
+	return y;
+}
+vec3 Tonemap(vec3 color) {
+	for (int component = 0; component < 3; ++component) {
+		color[component] = TonemapCurve(color[component]);
 	}
 
 	return color;

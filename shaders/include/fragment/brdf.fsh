@@ -5,7 +5,9 @@ vec3 FresnelNonpolarized(float VdotH, ComplexVec3 n1, ComplexVec3 n2) {
 	ComplexVec3 eta = ComplexDiv(n1, n2);
 
 	float       cosThetaI = VdotH;
-	ComplexVec3 cosThetaT = ComplexSqrt(ComplexSub(1.0, ComplexMul(ComplexMul(eta, eta), 1.0 - cosThetaI * cosThetaI)));
+	float       sinThetaI = 1.0 - cosThetaI * cosThetaI;
+	ComplexVec3 sinThetaT = ComplexMul(eta, sinThetaI);
+	ComplexVec3 cosThetaT = ComplexSqrt(ComplexSub(1.0, ComplexMul(sinThetaT, sinThetaT)));
 
 	ComplexVec3 RsNum = ComplexSub(ComplexMul(eta, cosThetaI), cosThetaT);
 	ComplexVec3 RsDiv = ComplexAdd(ComplexMul(eta, cosThetaI), cosThetaT);

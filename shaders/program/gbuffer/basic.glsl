@@ -47,7 +47,6 @@ uniform vec2 taaOffset;
 			vec3 previousScenePosition = scenePosition + cameraPosition - previousCameraPosition;
 			vec3 previousViewPosition  = mat3(gbufferPreviousModelView) * previousScenePosition + gbufferPreviousModelView[3].xyz;
 			previousScreenPosition     = vec4(gbufferPreviousProjection[0].x, gbufferPreviousProjection[1].y, gbufferPreviousProjection[2].zw) * previousViewPosition.xyzz + gbufferPreviousProjection[3];
-			previousScreenPosition.xy += taaOffset * previousScreenPosition.w;
 		#endif
 
 		gl_Position = vec4(gl_ProjectionMatrix[0].x, gl_ProjectionMatrix[1].y, gl_ProjectionMatrix[2].zw) * gl_Position.xyzz + gl_ProjectionMatrix[3];
@@ -96,7 +95,7 @@ uniform vec2 taaOffset;
 		colortex0Write = vec4(Pack2x8(color.rg), Pack2x8(color.b, 1.0 / 255.0), Pack2x8Dithered(lightmapCoordinates, dither), Pack2x8(1.0, 1.0));
 		colortex1Write = vec4(Pack2x8(0.0, 0.0), Pack2x8(0.0, 1.0), Pack2x8(EncodeNormal(vec3(0.0, 1.0, 0.0)) * 0.5 + 0.5), Pack2x8(EncodeNormal(vec3(0.0, 1.0, 0.0)) * 0.5 + 0.5));
 		#ifdef TAA
-			colortex2Write = vec3(gl_FragCoord.xy * viewPixelSize, gl_FragCoord.z) - ((previousScreenPosition.xyz / previousScreenPosition.w) * 0.5 + 0.5);
+			colortex2Write = vec3(gl_FragCoord.xy * viewPixelSize - 0.5 * taaOffset, gl_FragCoord.z) - ((previousScreenPosition.xyz / previousScreenPosition.w) * 0.5 + 0.5);
 		#endif
 	}
 #endif

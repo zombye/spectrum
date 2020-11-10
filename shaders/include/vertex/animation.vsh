@@ -1,90 +1,114 @@
 #if !defined INCLUDE_VERTEX_ANIMATION
 #define INCLUDE_VERTEX_ANIMATION
 
-vec3 AnimatePlant(
-	vec3  scenePosition,
-	vec3  worldPosition,
-	float time
-) {
-	bool isTopHalf = false; // TODO
-	bool isTopEdge = gl_MultiTexCoord0.t < mc_midTexCoord.t;
+vec3 GrassDisplacement(vec3 position, float animationTime) {
+	if (mc_midTexCoord.y < gl_MultiTexCoord0.y) { return vec3(0.0); }
 
-	if (!(isTopHalf || isTopEdge)) { return vec3(0.0); }
+	float maxAngle  = 0.15;
+	      maxAngle *= gl_MultiTexCoord1.y / 240.0;
 
-	// Radius when rotating
-	float radius  = fract(worldPosition.y);
-	      radius  = radius < 1e-3 && isTopEdge ? 1.0 : radius;
-	      radius += float(isTopHalf);
+	const float windSpeed = 2.0; // meters / second
+	const float windDir   = radians(45.0); // 0 deg -> +X, 90 deg -> +Z
+	const vec2 wind = windSpeed * vec2(cos(windDir), sin(windDir));
 
-	// Determing rotation
-	// km/h * 1000m / 3600s == m/s
-	//  5.0 km/h ~= 1.39
-	//  7.2 km/h == 2.00
-	// 10.0 km/h ~= 2.78
-	// 15.0 km/h ~= 4.16
+	const float freqTemporal = 2.5; // texels / second
+	const float freqSpatial  = freqTemporal / windSpeed; // texels / meter
 
-	vec2 noiseUv = worldPosition.xz + mod(time * 2.0, 256.0); // 7.2 km/h
-	vec2 noise = TextureBicubic(noisetex, noiseUv / 256.0).xy * 1.5 - 1.0;
-	vec2 rotation = vec2(atan(noise.y, noise.x), length(noise.xy) * MaxOf(abs(normalize(noise.xy))) * 0.2);
-	if (isTopHalf && isTopEdge) {
-		rotation *= 1.5;
+	const ivec2 noiseResolution = textureSize(noisetex, 0);
+
+	// Read noise texture for "wind"
+	vec2 noiseUv  = freqSpatial * position.xz + mod(freqSpatial * cameraPosition.xz, noiseResolution);
+	     noiseUv += mod(-freqSpatial * wind * animationTime, noiseResolution);
+	vec2 noise  = TextureCubic(noisetex, noiseUv / noiseResolution).xy * 2.0 - 1.0;
+	     noise += vec2(cos(windDir), sin(windDir)) * 0.5;
+
+	// Based on noise, compute displacement that "Rotates" around base
+	float theta, phi;
+	if (abs(noise.y) < abs(noise.x)) {
+		theta = maxAngle * abs(noise.x);
+		phi   = noise.x > 0.0 ? radians(0.0) : radians(180.0);
+		phi  += radians(45.0) * noise.y / noise.x;
+	} else {
+		theta = maxAngle * abs(noise.y);
+		phi   = noise.y > 0.0 ? radians(90.0) : radians(270.0);
+		phi  -= radians(45.0) * noise.x / noise.y;
 	}
-
-	// Fade out with skylight
-	rotation.y *= gl_MultiTexCoord1.t / 240.0;
-
-	// Rotate around bottom vertex
-	vec3 disp = vec3(radius * SinCos(rotation.x) * sin(rotation.y), radius * cos(rotation.y) - radius).xzy;
-
-	//* "grass stepping" effect
-	float nearFactor = smoothstep(2.0, 1.0, length(scenePosition * vec3(2.0, 1.0, 2.0) + vec3(0.0, -1.2, 0.0)));
-	vec3 direction = normalize(scenePosition * vec3(2.0, 1.0, 2.0) + vec3(0.0, -2.2, 0.0));
-	disp = disp * (-0.7 * nearFactor + 1.0) + (direction * nearFactor * 0.5 * radius);
-	//*/
+	vec3 disp = vec3(vec2(cos(phi), sin(phi)) * sin(theta), cos(theta) - 1.0).xzy;
 
 	return disp;
 }
-vec3 AnimateLeaves(vec3 position, float time) {
-	const vec4 rateIntensity  = vec4(4.08, 5.34, 7.85, 1.88);
-	const vec4 rateDirection1 = vec4(1.57, 2.51, 1.26, 2.51);
-	const vec4 rateDirection2 = vec4(1.57, 2.51, 1.26, 3.14);
-	vec4 phaseIntensity  = mat3x4(vec4(1.1, 0.7, 1.2, 1.3), vec4(0.4,-0.3, 0.1,-0.2), vec4(1.0, 2.0, 1.4, 0.7)) * position;
-	vec4 phaseDirection1 = mat3x4(vec4(0.2, 0.6, 0.4, 0.3), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.3, 0.1, 0.4, 0.2)) * position;
-	vec4 phaseDirection2 = mat3x4(vec4(0.3, 0.5, 0.5, 0.4), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.4, 0.2, 0.3, 0.1)) * position;
+vec3 TallGrassDisplacement(vec3 position, float animationTime, bool topHalf) {
+	bool topVertex = gl_MultiTexCoord0.y < mc_midTexCoord.y;
+	if (!topHalf && !topVertex) { return vec3(0.0); }
 
-	float intensity = dot(sin(time * rateIntensity + phaseIntensity), vec4(0.2, 0.4, 0.1, 0.5));
-	vec2 direction = radians(vec2(
-		dot(sin(time * rateDirection1 + phaseDirection1), vec4(20.0, 15.0, 30.0, 25.0)),
-		dot(sin(time * rateDirection2 + phaseDirection2), vec4(8.0, 17.0, 7.0, 4.0))
-	) + 45.0);
+	float maxAngle  = topHalf && topVertex ? 0.3 : 0.1;
+	      maxAngle *= maxAngle *= gl_MultiTexCoord1.y / 240.0;
 
-	vec3 displacementMain = intensity * vec3(sin(direction.y) * sin(direction.x), cos(direction.y), sin(direction.y) * cos(direction.x)) * 0.04;
+	const float windSpeed = 2.0; // meters / second
+	const float windDir   = radians(45.0); // 0 deg -> +X, 90 deg -> +Z
+	const vec2 wind = windSpeed * vec2(cos(windDir), sin(windDir));
 
-	const vec4 detailRateIntensity  = vec4(15.8, 31.6, 37.6, 78.5);
-	const vec4 detailRateDirection1 = vec4(20.2, 31.4, 25.2, 50.2);
-	const vec4 detailRateDirection2 = vec4(20.2, 31.4, 25.2, 62.8);
-	vec4 detailPhaseIntensity  = mat3x4(vec4(1.1, 0.7, 1.2, 1.3), vec4(0.4,-0.3, 0.1,-0.2), vec4(1.0, 2.0, 1.4, 0.7)) * 10.0 * position;
-	vec4 detailphaseDirection1 = mat3x4(vec4(0.2, 0.6, 0.4, 0.3), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.3, 0.1, 0.4, 0.2)) * 10.0 * position;
-	vec4 detailphaseDirection2 = mat3x4(vec4(0.3, 0.5, 0.5, 0.4), vec4(0.0, 0.0, 0.0, 0.0), vec4(0.4, 0.2, 0.3, 0.1)) * 10.0 * position;
+	const float freqTemporal = 2.5; // texels / second
+	const float freqSpatial  = freqTemporal / windSpeed; // texels / meter
 
-	float detailIntensity = dot(sin(time * detailRateIntensity + detailPhaseIntensity), vec4(0.14, 0.09, 0.06, 0.04));
-	vec2 detailDirection = radians(vec2(
-		dot(sin(time * detailRateDirection1 + detailphaseDirection1), vec4(20.0, 20.0, 10.0, 5.0)),
-		dot(sin(time * detailRateDirection2 + detailphaseDirection2), vec4(8.0, 8.0, 4.0, 2.0))
-	) + 45.0);
+	// Get noise
+	vec2 noiseUv  = freqSpatial * position.xz + mod(freqSpatial * cameraPosition.xz, 256.0);
+	     noiseUv += mod(freqSpatial * wind * animationTime, 256.0);
+	vec2 noise = TextureCubic(noisetex, noiseUv / 256.0).xy * 1.5 - 1.0;
 
-	vec3 displacementDetail = detailIntensity * vec3(sin(detailDirection.y) * sin(detailDirection.x), cos(detailDirection.y), sin(detailDirection.y) * cos(detailDirection.x)) * 0.02;
+	// Based on noise, compute displacement that "Rotates" around base
+	vec3 disp;
+	if (abs(noise.y) < abs(noise.x)) {
+		float theta = maxAngle * abs(noise.x);
+		float phi   = noise.x > 0.0 ? radians(0.0) : radians(180.0);
+		      phi  += radians(45.0) * noise.y / noise.x;
+		disp = vec3(vec2(cos(phi), sin(phi)) * sin(theta), cos(theta) - 1.0);
+	} else {
+		float theta = maxAngle * abs(noise.y);
+		float phi   = noise.y > 0.0 ? radians(90.0) : radians(270.0);
+		      phi  -= radians(45.0) * noise.x / noise.y;
+		disp = vec3(vec2(cos(phi), sin(phi)) * sin(theta), cos(theta) - 1.0);
+	}
 
-	return displacementMain + displacementDetail;
+	return disp.xzy;
+}
+vec3 LeavesDisplacement(vec3 position, float animationTime) {
+	const float windSpeed = 2.0; // meters / second
+	const float windDir   = radians(45.0); // 0 deg -> +X, 90 deg -> +Z
+	const vec2 wind = windSpeed * vec2(cos(windDir), sin(windDir));
+
+	const float freqTemporal = 2.0; // texels / second
+	const float freqSpatial  = freqTemporal / windSpeed; // texels / meter
+
+	const ivec2 noiseResolution = textureSize(noisetex, 0);
+
+	vec2 noiseUv  = freqSpatial * position.xz + mod(freqSpatial * cameraPosition.xz, noiseResolution);
+	     noiseUv += mod(-freqSpatial * wind * animationTime, noiseResolution);
+
+	float iy = floor(freqSpatial * (position.y + cameraPosition.y));
+	float fy = fract(freqSpatial * (position.y + cameraPosition.y));
+	noiseUv += mod(vec2(97.0 * iy), noiseResolution);
+	vec2 noiseUv0 = noiseUv;
+	vec2 noiseUv1 = noiseUv + 97.0;
+
+	vec3 noise0 = TextureCubic(noisetex, noiseUv0 / noiseResolution).xyz * 2.0 - 1.0;
+	vec3 noise1 = TextureCubic(noisetex, noiseUv1 / noiseResolution).xyz * 2.0 - 1.0;
+
+	vec3 disp  = mix(noise0, noise1, fy * fy * (3.0 - 2.0 * fy));
+	     disp *= vec2(0.06, 0.03).xyx;
+
+	disp *= gl_MultiTexCoord1.y / 240.0;
+
+	return disp;
 }
 
 vec3 AnimateVertex(vec3 scenePosition, vec3 worldPosition, int id, float time) {
 	time *= TIME_SCALE;
 
 	if (id == 31) {
-		return AnimatePlant(scenePosition, worldPosition, time);
+		return GrassDisplacement(scenePosition, time);
 	} else if (id == 18) {
-		return AnimateLeaves(worldPosition, time);
+		return LeavesDisplacement(scenePosition, time);
 	}
 
 	return vec3(0.0);

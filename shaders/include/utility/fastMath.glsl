@@ -22,6 +22,7 @@ vec2  Pow2(vec2  x) { return x * x; }
 vec3  Pow2(vec3  x) { return x * x; }
 vec4  Pow2(vec4  x) { return x * x; }
 float Pow3(float x) { return x * x * x; }
+vec2  Pow3(vec2  x) { return x * x * x; }
 float Pow4(float x) { x *= x; return x * x; }
 vec2  Pow4(vec2  x) { x *= x; return x * x; }
 vec3  Pow4(vec3  x) { x *= x; return x * x; }

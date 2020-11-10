@@ -195,6 +195,10 @@ option.TONEMAP_SHOULDER_CURVE=Shoulder Curve
 
 ##--## Water Waves ##---------------------------------------------------------##
 
+option.WATER_WAVES_VERSION=Waves Version
+screen.waves1 = Waves 1 settings
+screen.waves2 = Waves 2 settings
+
 option.WATER_WAVES_COUNT=Wave Count
 option.WATER_WAVES_G=Gravity
 suffix.WATER_WAVES_G=m/s²

@@ -2,6 +2,12 @@
 
 #include "/settings.glsl"
 
+#define FILTER_NEAREST 0
+#define FILTER_BILINEAR 1
+#define FILTER_BICUBIC 2
+#define TAA_FILTER_CURRENT FILTER_BICUBIC // [FILTER_NEAREST FILTER_BILINEAR FILTER_BICUBIC]
+#define TAA_FILTER_HISTORY FILTER_BICUBIC // [FILTER_BILINEAR FILTER_BICUBIC]
+
 #if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_HISTOGRAM
 	#define HISTOGRAM_BINS           64
 	#define HISTOGRAM_PERCENT_DIM    60
@@ -48,13 +54,6 @@ uniform vec3 shadowLightVector;
 #include "/include/utility.glsl"
 #include "/include/utility/color.glsl"
 
-//--// Shared Functions //----------------------------------------------------//
-
-vec3 ReadColorLod(vec2 coord, float lod) {
-	vec3 color = textureLod(colortex6, coord, lod).rgb;
-	return color * color;
-}
-
 #if defined STAGE_VERTEX
 	//--// Vertex Outputs //--------------------------------------------------//
 
@@ -80,8 +79,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 	#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_HISTOGRAM
 		float CalculateHistogramExposure() {
 			float maxLod = MaxOf(ceil(log2(viewResolution)));
-			vec3 averageColor = ReadColorLod(vec2(0.5), maxLod);
-			float averageLuminance = dot(averageColor, RgbToXyz[1]);
+			float averageLuminance = pow(textureLod(colortex6, vec2(0.5), maxLod).a, 2.0);
 
 			return clamp(1.0 / averageLuminance, minExposure / calibration, maxExposure / calibration);
 		}
@@ -105,8 +103,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 			for (int x = 0; x < samples.x; ++x) {
 				for (int y = 0; y < samples.y; ++y) {
 					vec2 samplePos = (vec2(x, y) + 0.5) / samples;
-					vec3 colorSample = ReadColorLod(samplePos, sampleLod);
-					float luminanceSample = dot(colorSample, RgbToXyz[1]) * histogramExposure;
+					float luminanceSample = pow(textureLod(colortex6, samplePos, sampleLod).a, 2.0) * histogramExposure;
 
 					float bin = HistogramBinFromLuminance(luminanceSample);
 					      bin = clamp(bin, 0, HISTOGRAM_BINS - 1);
@@ -170,8 +167,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 	#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_SIMPLE
 		float CalculateTargetExposureSimple() {
 			float maxLod = MaxOf(ceil(log2(viewResolution)));
-			vec3 averageColor = ReadColorLod(vec2(0.5), maxLod);
-			float averageLuminance = dot(averageColor, RgbToXyz[1]);
+			float averageLuminance = pow(textureLod(colortex6, vec2(0.5), maxLod).a, 2.0);
 
 			const float a =     calibration / minExposure;
 			const float b = a - calibration / maxExposure;
@@ -252,95 +248,90 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 
 	//--// Fragment Functions //----------------------------------------------//
 
-	// Original from: https://gist.github.com/TheRealMJP/c83b8c0f46b63f3a88a5986f4fa982b1
-	vec4 SampleTextureCatmullRom(sampler2D tex, vec2 uv, vec2 texSize) {
-		// We're going to sample a a 4x4 grid of texels surrounding the target UV coordinate. We'll do this by rounding
-		// down the sample location to get the exact center of our "starting" texel. The starting texel will be at
-		// location [1, 1] in the grid, where [0, 0] is the top left corner.
-		vec2 samplePos = uv * texSize;
-		vec2 texPos1 = floor(samplePos - 0.5) + 0.5;
-
-		// Compute the fractional offset from our starting texel to our original sample location, which we'll
-		// feed into the Catmull-Rom spline function to get our filter weights.
-		vec2 f = samplePos - texPos1;
-
-		// Compute the Catmull-Rom weights using the fractional offset that we calculated earlier.
-		// These equations are pre-expanded based on our knowledge of where the texels will be located,
-		// which lets us avoid having to evaluate a piece-wise function.
-		vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
-		vec2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
-		vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
-		vec2 w3 = f * f * (-0.5 + 0.5 * f);
-
-		// Work out weighting factors and sampling offsets that will let us use bilinear filtering to
-		// simultaneously evaluate the middle 2 samples from the 4x4 grid.
-		vec2 w12 = w1 + w2;
-		vec2 offset12 = w2 / w12;
-
-		// Compute the final UV coordinates we'll use for sampling the texture
-		vec2 texPos0 = texPos1 - 1;
-		vec2 texPos3 = texPos1 + 2;
-		vec2 texPos12 = texPos1 + offset12;
-
-		texPos0 /= texSize;
-		texPos3 /= texSize;
-		texPos12 /= texSize;
-
-		vec4
-		result  = textureLod(tex, vec2(texPos0.x,  texPos0.y),  0.0) * w0.x  * w0.y;
-		result += textureLod(tex, vec2(texPos12.x, texPos0.y),  0.0) * w12.x * w0.y;
-		result += textureLod(tex, vec2(texPos3.x,  texPos0.y),  0.0) * w3.x  * w0.y;
-
-		result += textureLod(tex, vec2(texPos0.x,  texPos12.y), 0.0) * w0.x  * w12.y;
-		result += textureLod(tex, vec2(texPos12.x, texPos12.y), 0.0) * w12.x * w12.y;
-		result += textureLod(tex, vec2(texPos3.x,  texPos12.y), 0.0) * w3.x  * w12.y;
-
-		result += textureLod(tex, vec2(texPos0.x,  texPos3.y),  0.0) * w0.x  * w3.y;
-		result += textureLod(tex, vec2(texPos12.x, texPos3.y),  0.0) * w12.x * w3.y;
-		result += textureLod(tex, vec2(texPos3.x,  texPos3.y),  0.0) * w3.x  * w3.y;
-
-		return result;
-	}
-
-	vec3 ReadColor(vec2 coord) {
-		return ReadColorLod(coord, 0.0);
-	}
 
 	#ifdef TAA
+		// Bicubic Catmull-Rom texture filter
+		// Implementation directly based on Vulkan spec, albeit optimized
+		vec4 CatRom(float x) {
+			vec4 vec = vec4(1.0, x, x * x, x * x * x);
+			const mat4 matrix = mat4(
+				 0, 2, 0, 0,
+				-1, 0, 1, 0,
+				 2,-5, 4,-1,
+				-1, 3,-3, 1
+			);
+			return (1.0/2.0) * matrix * vec;
+		}
+		vec4 TextureCubicCatRom(sampler2D sampler, vec2 uv) {
+			uv = viewResolution * uv - 0.5;
+			/*
+			vec2 i = floor(uv);
+			vec2 f = fract(uv);
+			//*/ vec2 i, f = modf(uv, i);
+
+			uv = viewPixelSize * i;
+
+			vec4 weightsX = CatRom(f.x);
+			vec4 weightsY = CatRom(f.y);
+			vec2 w12 = vec2(weightsX[1] + weightsX[2], weightsY[1] + weightsY[2]);
+
+			float cx = weightsX[2] / w12.x;
+			float cy = weightsY[2] / w12.y;
+			vec2 uv12 = uv + viewPixelSize * (0.5 + vec2(cx, cy));
+
+			vec2 uv0 = uv - 0.5 * viewPixelSize;
+			vec2 uv3 = uv + 2.5 * viewPixelSize;
+
+			vec4
+			result  = (weightsX[0] * weightsY[0]) * texture(sampler, uv0);
+			result += (w12.x       * weightsY[0]) * texture(sampler, vec2(uv12.x, uv0.y));
+			result += (weightsX[3] * weightsY[0]) * texture(sampler, vec2(uv3.x,  uv0.y));
+
+			result += (weightsX[0] * w12.y      ) * texture(sampler, vec2(uv0.x,  uv12.y));
+			result += (w12.x       * w12.y      ) * texture(sampler, uv12);
+			result += (weightsX[3] * w12.y      ) * texture(sampler, vec2(uv3.x,  uv12.y));
+
+			result += (weightsX[0] * weightsY[3]) * texture(sampler, vec2(uv0.x,  uv3.y));
+			result += (w12.x       * weightsY[3]) * texture(sampler, vec2(uv12.x, uv3.y));
+			result += (weightsX[3] * weightsY[3]) * texture(sampler, uv3);
+
+			return result;
+		}
+
 		vec3 GetClosestFragment(vec3 position, vec2 pixelSize) {
 			vec3 closestFragment = position;
 
 			vec3 currentFragment;
 			currentFragment.xy = vec2(-1,-1) * pixelSize + position.xy;
-			currentFragment.z  = texture(depthtex0, currentFragment.xy).r;
+			currentFragment.z  = texelFetch(depthtex0, ivec2(gl_FragCoord.xy) + ivec2(-1,-1), 0).r;
 			closestFragment = currentFragment.z < closestFragment.z ? currentFragment : closestFragment;
 
 			currentFragment.xy = vec2(-1, 0) * pixelSize + position.xy;
-			currentFragment.z  = texture(depthtex0, currentFragment.xy).r;
+			currentFragment.z  = texelFetch(depthtex0, ivec2(gl_FragCoord.xy) + ivec2(-1, 0), 0).r;
 			closestFragment = currentFragment.z < closestFragment.z ? currentFragment : closestFragment;
 
 			currentFragment.xy = vec2(-1, 1) * pixelSize + position.xy;
-			currentFragment.z  = texture(depthtex0, currentFragment.xy).r;
+			currentFragment.z  = texelFetch(depthtex0, ivec2(gl_FragCoord.xy) + ivec2(-1, 1), 0).r;
 			closestFragment = currentFragment.z < closestFragment.z ? currentFragment : closestFragment;
 
 			currentFragment.xy = vec2( 0,-1) * pixelSize + position.xy;
-			currentFragment.z  = texture(depthtex0, currentFragment.xy).r;
+			currentFragment.z  = texelFetch(depthtex0, ivec2(gl_FragCoord.xy) + ivec2( 0,-1), 0).r;
 			closestFragment = currentFragment.z < closestFragment.z ? currentFragment : closestFragment;
 
 			currentFragment.xy = vec2( 0, 1) * pixelSize + position.xy;
-			currentFragment.z  = texture(depthtex0, currentFragment.xy).r;
+			currentFragment.z  = texelFetch(depthtex0, ivec2(gl_FragCoord.xy) + ivec2( 0, 1), 0).r;
 			closestFragment = currentFragment.z < closestFragment.z ? currentFragment : closestFragment;
 
 			currentFragment.xy = vec2( 1,-1) * pixelSize + position.xy;
-			currentFragment.z  = texture(depthtex0, currentFragment.xy).r;
+			currentFragment.z  = texelFetch(depthtex0, ivec2(gl_FragCoord.xy) + ivec2( 1,-1), 0).r;
 			closestFragment = currentFragment.z < closestFragment.z ? currentFragment : closestFragment;
 
 			currentFragment.xy = vec2( 1, 0) * pixelSize + position.xy;
-			currentFragment.z  = texture(depthtex0, currentFragment.xy).r;
+			currentFragment.z  = texelFetch(depthtex0, ivec2(gl_FragCoord.xy) + ivec2( 1, 0), 0).r;
 			closestFragment = currentFragment.z < closestFragment.z ? currentFragment : closestFragment;
 
 			currentFragment.xy = vec2( 1, 1) * pixelSize + position.xy;
-			currentFragment.z  = texture(depthtex0, currentFragment.xy).r;
+			currentFragment.z  = texelFetch(depthtex0, ivec2(gl_FragCoord.xy) + ivec2( 1, 1), 0).r;
 			closestFragment = currentFragment.z < closestFragment.z ? currentFragment : closestFragment;
 
 			return closestFragment;
@@ -392,21 +383,29 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 		}
 
 		vec3 CalculateTaa(float historyExposure) {
-			vec3 position = vec3(screenCoord, texture(depthtex0, screenCoord).r);
-
-			vec3 closestFragment = GetClosestFragment(position, viewPixelSize);
+			vec2 currentUv = viewPixelSize * gl_FragCoord.xy;
+			vec3 position = vec3(currentUv + 0.5 * taaOffset, texture(depthtex0, currentUv).r);
 
 			// Get velocity of closest fragment and set reprojected position based on that
+			vec3 currentFragment = vec3(currentUv, position.z);
+			vec3 closestFragment = GetClosestFragment(currentFragment, viewPixelSize);
 			vec3 velocity = GetVelocity(closestFragment);
-			vec3 reprojectedPosition = position - velocity;
+			vec3 reprojectedPosition = currentFragment - velocity;
 
 			// Read needed current and previous frame color values
-			#ifdef TAA_SOFT
-			vec3 current = ReadColor(screenCoord + taaOffset * 0.5);
-			#else
-			vec3 current = ReadColor(screenCoord);
+			#if TAA_FILTER_CURRENT == FILTER_BICUBIC
+			vec3 current = TextureCubicCatRom(colortex6, position.xy).rgb;
+			#elif TAA_FILTER_CURRENT == FILTER_BILINEAR
+			vec3 current = texture(colortex6, position.xy).rgb;
+			#else //TAA_FILTER_CURRENT == FILTER_NEAREST
+			vec3 current = texelFetch(colortex6, ivec2(viewResolution * position.xy), 0).rgb;
 			#endif
-			vec3 history = SampleTextureCatmullRom(colortex3, reprojectedPosition.xy, viewResolution).rgb;
+
+			#if TAA_FILTER_HISTORY == FILTER_BICUBIC
+			vec3 history = TextureCubicCatRom(colortex3, reprojectedPosition.xy).rgb;
+			#elif TAA_FILTER_HISTORY == FILTER_BILINEAR
+			vec3 history = texture(colortex3, reprojectedPosition.xy).rgb;
+			#endif
 			     history = max(history / historyExposure, 0.0);
 
 			// Don't blend if reprojecting an off-screen position
@@ -414,19 +413,19 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 
 			// Reduce blend weight when not in the pixel center to reduce blurring
 			vec2 pixelCenterDist = 1.0 - abs(2.0 * fract(reprojectedPosition.xy * viewResolution) - 1.0);
-			blendWeight *= sqrt(pixelCenterDist.x * pixelCenterDist.y) * TAA_MOTION_REJECTION + (1.0 - TAA_MOTION_REJECTION);
+			blendWeight *= sqrt(pixelCenterDist.x * pixelCenterDist.y) * TAA_OFFCENTER_REJECTION + (1.0 - TAA_OFFCENTER_REJECTION);
 
 			#ifdef TAA_CLIP
 				// Gather nearby samples
-				vec3 mc = current;
-				vec3 tl = ReadColor(viewPixelSize * vec2(-1,-1) + screenCoord);
-				vec3 tc = ReadColor(viewPixelSize * vec2( 0,-1) + screenCoord);
-				vec3 tr = ReadColor(viewPixelSize * vec2( 1,-1) + screenCoord);
-				vec3 ml = ReadColor(viewPixelSize * vec2(-1, 0) + screenCoord);
-				vec3 mr = ReadColor(viewPixelSize * vec2( 1, 0) + screenCoord);
-				vec3 bl = ReadColor(viewPixelSize * vec2(-1, 1) + screenCoord);
-				vec3 bm = ReadColor(viewPixelSize * vec2( 0, 1) + screenCoord);
-				vec3 br = ReadColor(viewPixelSize * vec2( 1, 1) + screenCoord);
+				vec3 mc = texelFetch(colortex6, ivec2(gl_FragCoord.xy) + ivec2( 0, 0), 0).rgb;
+				vec3 tl = texelFetch(colortex6, ivec2(gl_FragCoord.xy) + ivec2(-1,-1), 0).rgb;
+				vec3 tc = texelFetch(colortex6, ivec2(gl_FragCoord.xy) + ivec2( 0,-1), 0).rgb;
+				vec3 tr = texelFetch(colortex6, ivec2(gl_FragCoord.xy) + ivec2( 1,-1), 0).rgb;
+				vec3 ml = texelFetch(colortex6, ivec2(gl_FragCoord.xy) + ivec2(-1, 0), 0).rgb;
+				vec3 mr = texelFetch(colortex6, ivec2(gl_FragCoord.xy) + ivec2( 1, 0), 0).rgb;
+				vec3 bl = texelFetch(colortex6, ivec2(gl_FragCoord.xy) + ivec2(-1, 1), 0).rgb;
+				vec3 bm = texelFetch(colortex6, ivec2(gl_FragCoord.xy) + ivec2( 0, 1), 0).rgb;
+				vec3 br = texelFetch(colortex6, ivec2(gl_FragCoord.xy) + ivec2( 1, 1), 0).rgb;
 
 				// Min/Avg/Max of nearest 5 + nearest 9
 				vec3 min5  = min(min(min(min(tc, ml),  mc),  mr), bm);
@@ -473,7 +472,7 @@ vec3 ReadColorLod(vec2 coord, float lod) {
 		#ifdef TAA
 			vec3 color = CalculateTaa(previousExposure);
 		#else
-			vec3 color = ReadColor(screenCoord);
+			vec3 color = texture(colortex6, screenCoord).rgb;
 		#endif
 
 		temporal = vec4(color * exposure, exposure);

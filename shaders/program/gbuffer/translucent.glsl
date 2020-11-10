@@ -32,6 +32,8 @@ uniform sampler2D gaux2; // Image storing some stuff that would ideally be unifo
 uniform sampler2D gaux3; // Sky Scattering Image
 #define colortex6 gaux3
 
+uniform sampler3D gaux4;
+
 uniform sampler2D noisetex;
 
 //--// Time uniforms
@@ -198,7 +200,6 @@ uniform vec3 shadowLightVector;
 			#else
 				previousScreenPosition = vec4(gbufferPreviousProjection[0].x, gbufferPreviousProjection[1].y, gbufferPreviousProjection[2].zw) * previousViewPosition.xyzz + gbufferPreviousProjection[3];
 			#endif
-			previousScreenPosition.xy += taaOffset * previousScreenPosition.w;
 		#endif
 
 		#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
@@ -488,7 +489,7 @@ uniform vec3 shadowLightVector;
 		colortex3Write.rgb += material.emission;
 		colortex3Write.a    = Clamp01(totalOpacity);
 		#if defined MOTION_BLUR || defined TAA
-			velocity.rgb = vec3(gl_FragCoord.xy * viewPixelSize, gl_FragCoord.z) - ((previousScreenPosition.xyz / previousScreenPosition.w) * 0.5 + 0.5);
+			velocity.rgb = vec3(gl_FragCoord.xy * viewPixelSize - 0.5 * taaOffset, gl_FragCoord.z) - ((previousScreenPosition.xyz / previousScreenPosition.w) * 0.5 + 0.5);
 			velocity.a = 1.0;
 		#endif
 	}

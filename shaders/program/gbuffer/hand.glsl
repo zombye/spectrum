@@ -163,7 +163,6 @@ uniform vec3 shadowLightVector;
 			#else
 				previousScreenPosition = vec4(gbufferPreviousProjection[0].x, gbufferPreviousProjection[1].y, gbufferPreviousProjection[2].zw) * previousViewPosition.xyzz + gbufferPreviousProjection[3];
 			#endif
-			previousScreenPosition.xy += taaOffset * previousScreenPosition.w;
 		#endif
 
 		#if defined VERTEX_ANIMATION
@@ -359,7 +358,7 @@ uniform vec3 shadowLightVector;
 		colortex1Write = vec4(Pack2x8(specTex.rg), Pack2x8(specTex.ba), Pack2x8(EncodeNormal(normal) * 0.5 + 0.5), Pack2x8(EncodeNormal(tbn[2]) * 0.5 + 0.5));
 
 		#if defined MOTION_BLUR || defined TAA
-			velocity = vec3(gl_FragCoord.xy * viewPixelSize, gl_FragCoord.z) - ((previousScreenPosition.xyz / previousScreenPosition.w) * 0.5 + 0.5);
+			velocity = vec3(gl_FragCoord.xy * viewPixelSize - 0.5 * taaOffset, gl_FragCoord.z) - ((previousScreenPosition.xyz / previousScreenPosition.w) * 0.5 + 0.5);
 		#endif
 	}
 #endif

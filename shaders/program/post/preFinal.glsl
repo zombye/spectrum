@@ -6,11 +6,15 @@
 #define CONTRAST_MIDPOINT 0.14
 #define SATURATION 1 // [0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2]
 
+//#define DIFFRACTION_SPIKES
+
 //--// Uniforms //------------------------------------------------------------//
 
 uniform sampler2D colortex3;
 uniform sampler2D colortex5;
 uniform sampler2D colortex6; // Bloom tiles
+
+uniform float aspectRatio;
 
 //--// Time uniforms
 
@@ -53,12 +57,47 @@ uniform vec2 viewPixelSize;
 
 	//--// Fragment Functions //----------------------------------------------//
 
+	float Sinc(float x) {
+		return (x == 0.0) ? 1.0 : sin(x) / x;
+	}
+
+	vec3 DiffractionSpikes(sampler2D sampler, vec2 uv) {
+		const int samples = 32;
+		const float distribution = 3.0;
+
+		vec3 result = texture(colortex6, uv * 0.5).rgb;
+		float weightSum = 1.0;
+		for (int spike = 0; spike < CAMERA_IRIS_BLADE_COUNT; ++spike) {
+			float theta = (spike + CAMERA_IRIS_BLADE_ROTATION) * tau / CAMERA_IRIS_BLADE_COUNT;
+			vec2 dir = vec2(cos(theta), sin(theta));
+			for (int i = 1; i < samples; ++i) {
+				float f = float(i) / float(samples);
+
+				float x = f < (1.0/distribution) ? distribution*exp(distribution*(1.0/distribution - 1.0))*f : exp(distribution * (f - 1.0));
+				float weight = distribution*exp(distribution*(max(f, 1.0/distribution) - 1.0));
+				weight *= (1.0 - x * x) / (pow(50.0 * x, 2.0) + 1.0);
+
+				float l = max(log2(x) + 3.0, 0.0);
+				float l0 = floor(l);
+				float l1 = ceil(l);
+
+				vec3 sl0 = texture(colortex6, (uv + 192.0 * viewPixelSize * dir * x) * exp2(-l0 - 1.0) + 1.0 - exp2(-l0)).rgb;
+				vec3 sl1 = texture(colortex6, (uv + 192.0 * viewPixelSize * dir * x) * exp2(-l1 - 1.0) + 1.0 - exp2(-l1)).rgb;
+
+				result += weight * mix(sl0, sl1, fract(l));
+				weightSum += weight;
+			}
+		}
+
+		return result / weightSum;
+	}
+
 	vec3 GetBloom(vec2 screenCoord) {
-		vec3 bloom = texture(colortex6, screenCoord * exp2(-1.0) + CalculateTileOffset(0)).rgb;
+		vec3 bloom = TextureCubic(colortex6, screenCoord * exp2(-1.0)).rgb;
 		float totalWeight = 1.0;
 		for (int i = 1; i < 7; ++i) {
-			float tileWeight = 1.0 / (i + 1.0);
-			bloom += texture(colortex6, screenCoord * exp2(-i - 1.0) + CalculateTileOffset(i)).rgb * tileWeight;
+			float tileWeight = 1.0;
+			bloom += TextureCubic(colortex6, screenCoord * exp2(-i - 1.0) + 1.0 - exp2(-i)).rgb * tileWeight;
 			totalWeight += tileWeight;
 		}
 		bloom /= totalWeight;
@@ -67,8 +106,10 @@ uniform vec2 viewPixelSize;
 	}
 
 	vec3 LowlightDesaturate(vec3 color, float exposure) {
-		float desaturated = dot(color, vec3(0.15, 0.50, 0.35));
-		float desatAmt = Clamp01(exp(-50.0 * desaturated / exposure));
+		float desaturated = dot(color, vec3(0.05, 0.55, 0.4));
+		//float desaturated = dot(color, RgbToXyz[1]);
+		//float desatAmt = Clamp01(exp(-50.0 * desaturated / exposure));
+		float desatAmt = Clamp01(exp(-1e2 * (desaturated*desaturated) / (exposure*exposure)));
 		return color * (1.0 - desatAmt) + (desaturated * desatAmt);
 	}
 	vec3 LowlightNoise(vec3 color, float exposure) {
@@ -137,6 +178,9 @@ uniform vec2 viewPixelSize;
 		vec2 screenCoord = gl_FragCoord.st * viewPixelSize;
 
 		vec3 color = texture(colortex5, screenCoord).rgb;
+		#ifdef DIFFRACTION_SPIKES
+		color = mix(color, DiffractionSpikes(colortex5, screenCoord), 0.1);
+		#endif
 		float exposure = texture(colortex3, screenCoord).a;
 
 		#ifdef BLOOM

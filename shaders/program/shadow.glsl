@@ -7,7 +7,7 @@
 
 #include "/settings.glsl"
 
-#define SHADOW_DISABLE_ALPHA_MIPMAP
+//#define SHADOW_DISABLE_ALPHA_MIPMAP
 #define SHADOW_BACKFACE_CULLING // This causes light to pass through terrain as side faces on chunks aren't rendered even if the neighboring chunk on that side isn't rendered either.
 //#define BEACON_BEAM_SHADOWS
 
@@ -18,6 +18,8 @@
 #endif
 
 uniform sampler2D tex;
+
+uniform sampler3D gaux4;
 
 uniform sampler2D noisetex;
 
@@ -130,6 +132,7 @@ uniform vec3 shadowLightVector;
 	#include "/include/utility.glsl"
 	#include "/include/utility/encoding.glsl"
 	#include "/include/utility/fastMath.glsl"
+	#include "/include/utility/noise.glsl"
 
 	#include "/include/fragment/waterNormal.fsh"
 

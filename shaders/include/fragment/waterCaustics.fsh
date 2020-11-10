@@ -14,6 +14,47 @@ float GetProjectedCaustics(vec2 uv, float depth) {
 }
 
 #if CAUSTICS == CAUSTICS_HIGH
+float DensityCaustics(vec3 position, float waterDepth, float dither, float ditherSize) {
+	if (waterDepth <= 0.0) { return 1.0; }
+
+	const int samples = (CAUSTICS_QUALITY + 1) * (CAUSTICS_QUALITY + 1);
+	const float focus = 0.7;
+
+	float radius = 0.08 * waterDepth;
+	float inverseDistanceThreshold = sqrt(samples / pi) * focus / radius;
+
+	vec3 flatRefractionDirection = mat3(shadowModelView) * refract(-shadowLightVector, vec3(0.0, 1.0, 0.0), 0.75);
+	vec3 flatRefraction = flatRefractionDirection * abs(waterDepth / flatRefractionDirection.z);
+	vec3 surfacePosition = position - flatRefraction;
+
+	float caustics = 0.0;
+	for (int i = 0; i < samples; ++i) {
+		vec2 xy = R2((i + dither) * ditherSize);
+		vec2 offset = vec2(cos(tau * xy.x), sin(tau * xy.x)) * sqrt(xy.y);
+
+		vec3 samplePosition = surfacePosition;
+		samplePosition.xy += offset * radius;
+
+		// Sample normal
+		vec2 sampleUv = Diagonal(shadowProjection).xy * (samplePosition.xy + flatRefraction.xy) + shadowProjection[3].xy;
+		     sampleUv = DistortShadowSpace(sampleUv) * 0.5 + 0.5;
+
+		vec4 normalSample = texture(shadowcolor0, sampleUv);
+		vec3 normal = normalSample.a < (0.5/255.0) ? vec3(0.0, 1.0, 0.0) : DecodeNormal(normalSample.xy * 2.0 - 1.0);
+
+		// Refract
+		vec3 refractionDirection = mat3(shadowModelView) * refract(-shadowLightVector, normal, 0.75);
+		vec3 refraction = refractionDirection * abs(waterDepth / refractionDirection.z);
+		vec3 refractedPosition = samplePosition + refraction;
+
+		// Add to density estimate
+		caustics += Clamp01(1.0 - distance(position, refractedPosition) * inverseDistanceThreshold);
+	} caustics *= focus * focus;
+
+	return pow(caustics, CAUSTICS_POWER);
+}
+
+
 #define CAUSTICS_GRID_TRIANGULAR
 vec2 HexPoint(vec2 xy) {
 	vec2 a = vec2(0.0, sin(pi/3.0));
@@ -25,6 +66,8 @@ vec2 HexPoint(vec2 xy) {
 	}
 }
 float CalculateCaustics(vec3 position, float waterDepth, vec3 normal, float dither, const float ditherSize) {
+	//return DensityCaustics(position, waterDepth, dither, ditherSize);
+
 	if (waterDepth <= 0.0) { return 1.0; }
 
 	// pretty much this entire function can be optimized
