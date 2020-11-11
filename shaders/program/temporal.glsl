@@ -461,7 +461,7 @@ uniform vec3 shadowLightVector;
 			#endif
 
 			// Blend with history
-			vec3 blended = mix(current, history, blendWeight);
+			vec3 blended = Max0(mix(current, history, blendWeight));
 
 			// Return final anti-aliased fragment
 			return blended;
