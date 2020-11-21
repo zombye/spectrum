@@ -60,6 +60,7 @@ uniform mat4 shadowModelView;
 uniform mat4 shadowModelViewInverse;
 #if defined VL_AIR || defined VL_WATER
 uniform mat4 shadowProjection;
+uniform mat4 shadowProjectionInverse;
 
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;

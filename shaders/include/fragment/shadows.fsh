@@ -697,9 +697,9 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 		vec3 waterShadow = exp(-attenuationCoefficient * fogDensity * waterDepth);
 
 		#if   CAUSTICS == CAUSTICS_LOW
-			waterShadow *= GetProjectedCaustics(shadowCoord.xy, waterDepth);
+			waterShadow *= GetProjectedCaustics(shadowCoord.xy, clamp(waterDepth, 0.0, 2.0));
 		#elif CAUSTICS == CAUSTICS_HIGH
-			waterShadow *= CalculateCaustics(shadowView, waterDepth, normal, dither, ditherSize);
+			waterShadow *= CalculateCaustics(shadowView, waterDepth, vec2(dither, fract(dither * ditherSize * phi)));
 		#endif
 
 		shadows *= waterShadow * waterFraction + (1.0 - waterFraction);

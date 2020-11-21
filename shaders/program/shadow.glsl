@@ -23,6 +23,8 @@ uniform sampler3D gaux4;
 
 uniform sampler2D noisetex;
 
+uniform sampler2D shadowtex1;
+
 //--// Time uniforms
 
 uniform float frameTimeCounter;
@@ -140,18 +142,44 @@ uniform vec3 shadowLightVector;
 
 	#if defined PROCEDURAL_WATER && CAUSTICS != CAUSTICS_OFF
 	float CalculateProjectedCaustics(vec3 position, vec3 normal) {
+		float waterDepth  = texelFetch(shadowtex1, ivec2(gl_FragCoord.xy), 0).x - gl_FragCoord.z;
+		      waterDepth *= 2.0 * SHADOW_DEPTH_RADIUS;
+
 		// calculate (squared) original area
-		vec3 dpdx = dFdx(position), dpdy = dFdy(position);
-		float oldAreaSquared = dot(dpdx, dpdx) * dot(dpdy, dpdy);
+		mat2 jacobian = mat2(dFdx(position.xy), dFdy(position.xy));
+		float oldArea = determinant(jacobian);
 
 		// calculate (squared) new area
-		vec3 rv = refract(-shadowLightVector, normal, 0.75);
-		dpdx += 2.0 * dFdx(rv);
-		dpdy += 2.0 * dFdy(rv);
-		float newAreaSquared = dot(dpdx, dpdx) * dot(dpdy, dpdy);
+		vec3 rv  = refract(vec3(0,0,-1), mat3(shadowModelView) * normal, 0.75);
+		     rv /= abs(rv.z);
+		jacobian += waterDepth * mat2(dFdx(rv.xy), dFdy(rv.xy));
+
+		float newArea = determinant(jacobian);
 
 		// calculate relative density from old and new area
-		return sqrt(oldAreaSquared / newAreaSquared);
+		return abs(oldArea / newArea);
+	}
+	vec2 CalculateProjectedCausticsCoeffs(vec3 position, vec3 normal) {
+		/*
+		determinant(m) = m[0].x * m[1].y - m[1].x * m[0].y
+		determinant(jacobian) = determinant(mat2(dFdx(position.xy), dFdy(position.xy)) + waterDepth * mat2(dFdx(rv.xy), dFdy(rv.xy)))
+		determinant(jacobian) = (dFdx(position.xy).x + waterDepth * dFdx(rv.xy).x) * (dFdy(position.xy).y + waterDepth * dFdy(rv.xy).y)
+		                      - (dFdy(position.xy).x + waterDepth * dFdy(rv.xy).x) * (dFdx(position.xy).y + waterDepth * dFdx(rv.xy).y)
+		determinant(jacobian) = (dFdx(position.xy).x * dFdy(position.xy).y + dFdx(position.xy).x * waterDepth * dFdy(rv.xy).y + waterDepth * dFdx(rv.xy).x * dFdy(position.xy).y + waterDepth * dFdx(rv.xy).x * waterDepth * dFdy(rv.xy).y)
+		                      - (dFdy(position.xy).x * dFdx(position.xy).y + dFdy(position.xy).x * waterDepth * dFdx(rv.xy).y + waterDepth * dFdy(rv.xy).x * dFdx(position.xy).y + waterDepth * dFdy(rv.xy).x * waterDepth * dFdx(rv.xy).y)
+		determinant(jacobian) = determinant(mat2(dFdx(position.xy), dFdy(position.xy)))
+		                      + waterDepth * (dFdx(position.xy).x * dFdy(rv.xy).y - dFdy(position.xy).x * dFdx(rv.xy).y + dFdx(rv.xy).x * dFdy(position.xy).y - dFdy(rv.xy).x * dFdx(position.xy).y)
+		                      + waterDepth * waterDepth * determinant(mat2(dFdx(rv.xy), dFdy(rv.xy)))
+		//*/
+
+		vec3 rv  = refract(vec3(0,0,-1), mat3(shadowModelView) * normal, 0.75);
+		     rv /= abs(rv.z);
+
+		float c0 = determinant(mat2(dFdx(position.xy), dFdy(position.xy)));
+		float c1 = dFdx(position.xy).x * dFdy(rv.xy).y - dFdy(position.xy).x * dFdx(rv.xy).y + dFdx(rv.xy).x * dFdy(position.xy).y - dFdy(rv.xy).x * dFdx(position.xy).y;
+		float c2 = determinant(mat2(dFdx(rv.xy), dFdy(rv.xy)));
+
+		return vec2(c1, c2) / c0;
 	}
 	#endif
 
@@ -163,10 +191,12 @@ uniform vec3 shadowLightVector;
 
 			#if CAUSTICS != CAUSTICS_OFF
 				vec3 waterNormal = CalculateWaterNormal(scenePosition);
-				float projectedCaustics = CalculateProjectedCaustics(scenePosition, waterNormal);
-				shadowcolor0Write.w = sqrt(0.5 * projectedCaustics) * (254.0 / 255.0) + (1.0 / 255.0);
+
+				vec2 projectedCausticsCoeffs = CalculateProjectedCausticsCoeffs(mat3(shadowModelView) * scenePosition + shadowModelView[3].xyz, waterNormal);
+				     projectedCausticsCoeffs = 1.0 / (1.0 + exp2(projectedCausticsCoeffs));
+				shadowcolor0Write.zw = projectedCausticsCoeffs * (254.0 / 255.0) + (1.0 / 255.0);
 			#else
-				shadowcolor0Write.w = 1.0;
+				shadowcolor0Write.zw = vec2(0.0);
 			#endif
 			#if CAUSTICS == CAUSTICS_HIGH
 				shadowcolor0Write.xy = EncodeNormal(waterNormal) * 0.5 + 0.5;
@@ -184,7 +214,7 @@ uniform vec3 shadowLightVector;
 			#endif
 			shadowcolor1Write.rgb *= tint;
 
-			shadowcolor0Write.w = 0.0;
+			shadowcolor0Write.zw = vec2(128.0 / 255.0);
 			#if defined PROCEDURAL_WATER && CAUSTICS == CAUSTICS_HIGH
 				shadowcolor0Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
 			#endif
@@ -193,6 +223,5 @@ uniform vec3 shadowLightVector;
 		#if defined PROCEDURAL_WATER && CAUSTICS != CAUSTICS_HIGH
 			shadowcolor0Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
 		#endif
-		shadowcolor0Write.z = lightmapCoordinates.y;
 	}
 #endif

@@ -259,17 +259,18 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 				lightingSun *= GetCloudShadows(worldPosition);
 			#endif
 
-			float shadowcolor0Alpha = texture(shadowcolor0, shadowCoord.xy).a;
-			if (shadowcolor0Alpha > 0.5/255.0) {
+			vec2 causticsCoeffs = texture(shadowcolor0, shadowCoord.xy).zw;
+			if (causticsCoeffs.x > 0.5/255.0) {
 				float waterDepth = 2.0 * SHADOW_DEPTH_RADIUS * Max0(shadowCoord.z - textureLod(shadowtex0, shadowCoord.xy, 0.0).r);
 
 				if (waterDepth > 0.0) {
 					lightingSun *= exp(-baseAttenuationCoefficient.x * fogDensity * waterDepth);
 
 					#if CAUSTICS == CAUSTICS_HIGH && defined VL_WATER_CAUSTICS
-						lightingSun *= CalculateCaustics(worldPosition, waterDepth, 0.5, 1.0);
+						vec3 shadowView = mat3(shadowProjectionInverse) * shadowPosition + shadowProjectionInverse[3].xyz;
+						lightingSun *= CalculateCaustics(shadowView, waterDepth, vec2(0.5));
 					#elif CAUSTICS != CAUSTICS_OFF
-						lightingSun *= GetProjectedCaustics(shadowcolor0Alpha, waterDepth);
+						lightingSun *= GetProjectedCaustics(clamp(waterDepth, 0.0, 2.0), causticsCoeffs);
 					#endif
 				}
 			}
@@ -303,17 +304,18 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 				lightingSun *= GetCloudShadows(worldPosition);
 			#endif
 
-			float shadowcolor0Alpha = texture(shadowcolor0, shadowCoord.xy).a;
-			if (shadowcolor0Alpha > 0.5/255.0) {
+			vec2 causticsCoeffs = texture(shadowcolor0, shadowCoord.xy).zw;
+			if (causticsCoeffs.x > 0.5/255.0) {
 				float waterDepth = 2.0 * SHADOW_DEPTH_RADIUS * Max0(shadowCoord.z - textureLod(shadowtex0, shadowCoord.xy, 0.0).r);
 
 				if (waterDepth > 0.0) {
 					lightingSun *= exp(-baseAttenuationCoefficient.y * fogDensity * waterDepth);
 
 					#if CAUSTICS == CAUSTICS_HIGH && defined VL_WATER_CAUSTICS
-						lightingSun *= CalculateCaustics(worldPosition, waterDepth, 0.5, 1.0);
+						vec3 shadowView = mat3(shadowProjectionInverse) * shadowPosition + shadowProjectionInverse[3].xyz;
+						lightingSun *= CalculateCaustics(shadowView, waterDepth, vec2(0.5));
 					#elif CAUSTICS != CAUSTICS_OFF
-						lightingSun *= GetProjectedCaustics(shadowcolor0Alpha, waterDepth);
+						lightingSun *= GetProjectedCaustics(clamp(waterDepth, 0.0, 2.0), causticsCoeffs);
 					#endif
 				}
 			}
@@ -347,17 +349,18 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 				lightingSun *= GetCloudShadows(worldPosition);
 			#endif
 
-			float shadowcolor0Alpha = texture(shadowcolor0, shadowCoord.xy).a;
-			if (shadowcolor0Alpha > 0.5/255.0) {
+			vec2 causticsCoeffs = texture(shadowcolor0, shadowCoord.xy).zw;
+			if (causticsCoeffs.x > 0.5/255.0) {
 				float waterDepth = 2.0 * SHADOW_DEPTH_RADIUS * Max0(shadowCoord.z - textureLod(shadowtex0, shadowCoord.xy, 0.0).r);
 
 				if (waterDepth > 0.0) {
 					lightingSun *= exp(-baseAttenuationCoefficient.z * fogDensity * waterDepth);
 
 					#if CAUSTICS == CAUSTICS_HIGH && defined VL_WATER_CAUSTICS
-						lightingSun *= CalculateCaustics(worldPosition, waterDepth, 0.5, 1.0);
+						vec3 shadowView = mat3(shadowProjectionInverse) * shadowPosition + shadowProjectionInverse[3].xyz;
+						lightingSun *= CalculateCaustics(shadowView, waterDepth, vec2(0.5));
 					#elif CAUSTICS != CAUSTICS_OFF
-						lightingSun *= GetProjectedCaustics(shadowcolor0Alpha, waterDepth);
+						lightingSun *= GetProjectedCaustics(clamp(waterDepth, 0.0, 2.0), causticsCoeffs);
 					#endif
 				}
 			}
