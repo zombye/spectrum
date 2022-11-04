@@ -13,14 +13,13 @@ vec3 DiffuseHammon(float NoL, float NoH, float NoV, float LoV, vec3 diffuseAlbed
 
 	float facing = 0.5 * LoV + 0.5;
 
-	// If NoH is <= 0, the surface either isn't visible or isn't lit
-	float single_rough  = NoH <= 0.0 ? 0.0 : facing * (-0.2 * facing + 0.45) * ((1.0 / NoH) + 2.0);
-	float single_smooth = 1.05 * (1.0 - Pow5(1.0 - NoL)) * (1.0 - Pow5(1.0 - NoV));
+	float single_rough  = facing * (0.45 - 0.2 * facing) * (inversesqrt(NoH * NoH + 0.01) + 2.0);
+	float single_smooth = 1.05 * (1.0 - Pow5(1.0 - NoL)) * (1.0 - Pow5(1.0 - abs(NoV)));
 
 	float single = mix(single_smooth, single_rough, roughness) / pi;
 	float multi  = 0.1159 * roughness;
 
-	return Clamp01(NoL * (diffuseAlbedo * multi + single));
+	return NoL * (diffuseAlbedo * multi + single);
 }
 vec3 DiffuseHammonAmbient(float NoV, vec3 diffuseAlbedo, float roughness) {
 	// Diffuse approximation for GGX + Smith microsurfaces.
