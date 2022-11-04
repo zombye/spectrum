@@ -13,8 +13,6 @@ uniform float fogDensity = 0.1;
 
 uniform float screenBrightness;
 
-#define texture(a, b) texture2D(a, b)
-#define tex texture
 uniform sampler2D tex;
 uniform sampler2D normals;
 uniform sampler2D specular;
