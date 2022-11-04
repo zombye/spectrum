@@ -214,7 +214,7 @@ uniform vec3 shadowLightVector;
 			#endif
 			shadowcolor1Write.rgb *= tint;
 
-			shadowcolor0Write.zw = vec2(128.0 / 255.0);
+			shadowcolor0Write.zw = vec2(0.0);
 			#if defined PROCEDURAL_WATER && CAUSTICS == CAUSTICS_HIGH
 				shadowcolor0Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
 			#endif
