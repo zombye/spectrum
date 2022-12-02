@@ -246,7 +246,7 @@ const int shadowMapResolution = 4096; // Default if not set: 1024 [512 768 1024 
 //--// Water Fog
 
 #define VL_WATER
-#define VL_WATER_STEPS 6 // [2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30]
+#define VL_WATER_STEPS 20 // [5 6 7 8 10 12 14 17 20 24 28 34 40 48 56 68 80]
 //#define VL_WATER_CAUSTICS
 #define UNDERWATER_ADAPTATION
 //#define WATER_REALISTIC_PHASE_FUNCTION

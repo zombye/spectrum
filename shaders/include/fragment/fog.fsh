@@ -220,156 +220,63 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 	//--//
 
 	vec3 attenuationCoefficient = baseAttenuationCoefficient * (fogDensity == 0.0 ? 0.1 : fogDensity);
+	float minCoefficient = MinOf(attenuationCoefficient);
 
 	vec3 stepTransmittance = exp(-attenuationCoefficient * rayLength / steps);
+	vec3 opacity = 1.0 - exp(-attenuationCoefficient * rayLength);
+	float minOpacity = MinOf(opacity);
 
 	vec3 scatteringSun = vec3(0.0);
 	vec3 scatteringSky = vec3(0.0);
 	vec3 transmittance = exp(-attenuationCoefficient * rayLength);
 	for (int i = 0; i < steps; ++i) {
-		// pdf(desired) / pdf(sampled)
-		//vec3 weight = exp(-attenuationCoefficient * t) * (1.0 - stepTransmittance);
-		//vec3 weight = (attenuationCoefficient / MinOf(attenuationCoefficient)) * exp((MinOf(attenuationCoefficient) - attenuationCoefficient) * t);
-		vec3 weight = vec3(1.0);
+		float u = (i + dither) / steps;
+		float t = -log(1.0 - minOpacity * u) / minCoefficient;
 
-		{
-			float f = (i + dither) / steps;
-			      f = f * (1.0 - transmittance.x) + transmittance.x;
-			float t = -log(f) / attenuationCoefficient.x;
+		float sampledPDF = minCoefficient         * exp(-minCoefficient         * t) / minOpacity;
+		vec3  desiredPDF = attenuationCoefficient * exp(-attenuationCoefficient * t) / opacity;
 
-			vec3 worldPosition  = startPosition + worldDirection * t;
-			vec3 shadowPosition = startShadowPosition + shadowDirection * t;
+		vec3 weight = desiredPDF / sampledPDF;
 
-			//--//
-
-			vec3 shadowCoord = DistortShadowSpace(shadowPosition) * 0.5 + 0.5;
-
-			#ifdef SHADOW_INFINITE_RENDER_DISTANCE
-				float lightingSun = vec3(ReadShadowMaps(shadowCoord)).x;
-			#else
-				float lightingSun;
-				if (dot(shadowPosition.xy, shadowPosition.xy) < 1.0) {
-					lightingSun = vec3(ReadShadowMaps(shadowCoord)).x;
-				} else {
-					lightingSun = 1.0;
-				}
-			#endif
-
-			#ifdef CLOUDS3D
-				lightingSun *= GetCloudShadows(worldPosition);
-			#endif
-
-			vec2 causticsCoeffs = texture(shadowcolor0, shadowCoord.xy).zw;
-			if (causticsCoeffs.x > 0.5/255.0) {
-				float waterDepth = 2.0 * SHADOW_DEPTH_RADIUS * Max0(shadowCoord.z - textureLod(shadowtex0, shadowCoord.xy, 0.0).r);
-
-				if (waterDepth > 0.0) {
-					lightingSun *= exp(-baseAttenuationCoefficient.x * fogDensity * waterDepth);
-
-					#if CAUSTICS == CAUSTICS_HIGH && defined VL_WATER_CAUSTICS
-						vec3 shadowView = mat3(shadowProjectionInverse) * shadowPosition + shadowProjectionInverse[3].xyz;
-						lightingSun *= CalculateCaustics(shadowView, waterDepth, vec2(0.5));
-					#elif CAUSTICS != CAUSTICS_OFF
-						lightingSun *= GetProjectedCaustics(clamp(waterDepth, 0.0, 2.0), causticsCoeffs);
-					#endif
-				}
-			}
-
-			scatteringSun.x += weight.x * lightingSun;
-		}
-		{
-			float f = (i + dither) / steps;
-			      f = f * (1.0 - transmittance.y) + transmittance.y;
-			float t = -log(f) / attenuationCoefficient.y;
-
-			vec3 worldPosition  = startPosition + worldDirection * t;
-			vec3 shadowPosition = startShadowPosition + shadowDirection * t;
-
-			//--//
-
-			vec3 shadowCoord = DistortShadowSpace(shadowPosition) * 0.5 + 0.5;
-
-			#ifdef SHADOW_INFINITE_RENDER_DISTANCE
-				float lightingSun = vec3(ReadShadowMaps(shadowCoord)).y;
-			#else
-				float lightingSun;
-				if (dot(shadowPosition.xy, shadowPosition.xy) < 1.0) {
-					lightingSun = vec3(ReadShadowMaps(shadowCoord)).y;
-				} else {
-					lightingSun = 1.0;
-				}
-			#endif
-
-			#ifdef CLOUDS3D
-				lightingSun *= GetCloudShadows(worldPosition);
-			#endif
-
-			vec2 causticsCoeffs = texture(shadowcolor0, shadowCoord.xy).zw;
-			if (causticsCoeffs.x > 0.5/255.0) {
-				float waterDepth = 2.0 * SHADOW_DEPTH_RADIUS * Max0(shadowCoord.z - textureLod(shadowtex0, shadowCoord.xy, 0.0).r);
-
-				if (waterDepth > 0.0) {
-					lightingSun *= exp(-baseAttenuationCoefficient.y * fogDensity * waterDepth);
-
-					#if CAUSTICS == CAUSTICS_HIGH && defined VL_WATER_CAUSTICS
-						vec3 shadowView = mat3(shadowProjectionInverse) * shadowPosition + shadowProjectionInverse[3].xyz;
-						lightingSun *= CalculateCaustics(shadowView, waterDepth, vec2(0.5));
-					#elif CAUSTICS != CAUSTICS_OFF
-						lightingSun *= GetProjectedCaustics(clamp(waterDepth, 0.0, 2.0), causticsCoeffs);
-					#endif
-				}
-			}
-
-			scatteringSun.y += weight.y * lightingSun;
-		}
-		{
-			float f = (i + dither) / steps;
-			      f = f * (1.0 - transmittance.z) + transmittance.z;
-			float t = -log(f) / attenuationCoefficient.z;
-
-			vec3 worldPosition  = startPosition + worldDirection * t;
-			vec3 shadowPosition = startShadowPosition + shadowDirection * t;
-
-			//--//
-
-			vec3 shadowCoord = DistortShadowSpace(shadowPosition) * 0.5 + 0.5;
-
-			#ifdef SHADOW_INFINITE_RENDER_DISTANCE
-				float lightingSun = vec3(ReadShadowMaps(shadowCoord)).z;
-			#else
-				float lightingSun;
-				if (dot(shadowPosition.xy, shadowPosition.xy) < 1.0) {
-					lightingSun = vec3(ReadShadowMaps(shadowCoord)).z;
-				} else {
-					lightingSun = 1.0;
-				}
-			#endif
-
-			#ifdef CLOUDS3D
-				lightingSun *= GetCloudShadows(worldPosition);
-			#endif
-
-			vec2 causticsCoeffs = texture(shadowcolor0, shadowCoord.xy).zw;
-			if (causticsCoeffs.x > 0.5/255.0) {
-				float waterDepth = 2.0 * SHADOW_DEPTH_RADIUS * Max0(shadowCoord.z - textureLod(shadowtex0, shadowCoord.xy, 0.0).r);
-
-				if (waterDepth > 0.0) {
-					lightingSun *= exp(-baseAttenuationCoefficient.z * fogDensity * waterDepth);
-
-					#if CAUSTICS == CAUSTICS_HIGH && defined VL_WATER_CAUSTICS
-						vec3 shadowView = mat3(shadowProjectionInverse) * shadowPosition + shadowProjectionInverse[3].xyz;
-						lightingSun *= CalculateCaustics(shadowView, waterDepth, vec2(0.5));
-					#elif CAUSTICS != CAUSTICS_OFF
-						lightingSun *= GetProjectedCaustics(clamp(waterDepth, 0.0, 2.0), causticsCoeffs);
-					#endif
-				}
-			}
-
-			scatteringSun.z += weight.z * lightingSun;
-		}
+		vec3 worldPosition  = startPosition       + worldDirection  * t;
+		vec3 shadowPosition = startShadowPosition + shadowDirection * t;
 
 		//--//
 
+		vec3 shadowCoord = DistortShadowSpace(shadowPosition) * 0.5 + 0.5;
+
+		#ifdef SHADOW_INFINITE_RENDER_DISTANCE
+			vec3 lightingSun = vec3(ReadShadowMaps(shadowCoord));
+		#else
+			vec3 lightingSun;
+			if (dot(shadowPosition.xy, shadowPosition.xy) < 1.0) {
+				lightingSun = vec3(ReadShadowMaps(shadowCoord));
+			} else {
+				lightingSun = vec3(1.0);
+			}
+		#endif
+
+		#ifdef CLOUDS3D
+			lightingSun *= GetCloudShadows(worldPosition);
+		#endif
+
+		vec2 causticsCoeffs = texture(shadowcolor0, shadowCoord.xy).zw;
+		if (causticsCoeffs.x > 0.5/255.0) {
+			float waterDepth = 2.0 * SHADOW_DEPTH_RADIUS * Max0(shadowCoord.z - textureLod(shadowtex0, shadowCoord.xy, 0.0).r);
+
+			if (waterDepth > 0.0) {
+				lightingSun *= exp(-baseAttenuationCoefficient * fogDensity * waterDepth);
+
+				#if CAUSTICS == CAUSTICS_HIGH && defined VL_WATER_CAUSTICS
+					vec3 shadowView = mat3(shadowProjectionInverse) * shadowPosition + shadowProjectionInverse[3].xyz;
+					lightingSun *= CalculateCaustics(shadowView, waterDepth, vec2(0.5));
+				#elif CAUSTICS != CAUSTICS_OFF
+					lightingSun *= GetProjectedCaustics(clamp(waterDepth, 0.0, 2.0), causticsCoeffs);
+				#endif
+			}
+		}
+
+		scatteringSun += weight * lightingSun;
 		scatteringSky += weight;
 	}
 
