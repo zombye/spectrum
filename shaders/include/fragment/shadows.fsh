@@ -202,7 +202,7 @@ void SampleShadowmapPCF(
 
 	//--//
 
-	const int filterSamples = 15;
+	const int filterSamples = SHADOW_FILTER_SAMPLES;
 
 	float distortionFactor = CalculateDistortionFactor(positionShadowProjected.xy);
 	float filterRadius = 4.0 / textureSize(shadowtex0, 0).x / distortionFactor;
@@ -331,8 +331,8 @@ void SampleShadowmapPCSS(
 	//--//
 
 	const float lightAngularRadius = radians(0.25);
-	const int searchSamples = 8;
-	const int filterSamples = 15;
+	const int searchSamples = SHADOW_SEARCH_SAMPLES;
+	const int filterSamples = SHADOW_FILTER_SAMPLES;
 
 	float distortionFactor = CalculateDistortionFactor(positionShadowProjected.xy);
 
