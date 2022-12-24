@@ -277,6 +277,65 @@ void SampleShadowmapPCF(
 	#endif
 }
 #elif SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS
+// Searches the shadow map for potential blockers.
+// Returns an estimate of the distance to blockers.
+float BlockerSearch(
+	sampler2D depthmap,     // Shadow depth map.
+	vec3 referencePosition, // Reference point position.
+	float referenceDepth,   // Reference point depth in `depthmap`.
+	float searchRadius,     // Radius of the search region.
+	float dither,
+	float ditherSize,
+	out float pLit          // Estimated probability that the reference point is lit.
+) {
+	/*\
+	 * Efficiently estimates the distance to potential blockers at the reference
+	 * position. Instead of introducing branching or additional weights to reject
+	 * clearly invalid blockers, it esimates the mean and standard deviation of
+	 * blocker distances within the search region. Adding these two together then
+	 * produces a good estimate of the distance to the valid blockers, without
+	 * having to test each blocker individually.
+	 *
+	 * This is essentially Variance Shadow Mapping, with a single operation added
+	 * to perform the distance estimate.
+	\*/
+
+	const int nSamples = SHADOW_SEARCH_SAMPLES;
+
+	float mean        = 0.0;
+	float meanSquares = 0.0;
+	for (int i = 0; i < nSamples; ++i) {
+		vec2 offset = R2((i + dither) * ditherSize);
+		offset = vec2(cos(offset.x * tau), sin(offset.x * tau)) * sqrt(offset.y);
+
+		vec2 sampleUv = referencePosition.xy + searchRadius * offset;
+		     sampleUv = DistortShadowSpace(sampleUv) * 0.5 + 0.5;
+		float foundDepth = textureLod(depthmap, sampleUv, 0.0).x;
+		float foundDistance = referenceDepth - foundDepth;
+
+		// This is mainly to avoid issues caused by culling.
+		foundDistance = max(foundDistance, 0.0);
+
+		mean        += foundDistance;
+		meanSquares += foundDistance * foundDistance;
+	}
+	mean        /= nSamples;
+	meanSquares /= nSamples;
+
+	float variance  = meanSquares - mean * mean;
+	      variance *= nSamples / (nSamples - 1.0); // Remove bias from the variance estimate.
+	float stdDev = sqrt(variance); // Note: This is not an unbiased estimate of standard deviation, despite the variance estimate itself being unbiased!
+
+	// Upper bound from Chebyshev's inequality.
+	float k = max(mean, 0.0) / stdDev;
+	pLit = k >= 1.0 ? clamp(1.0 / (k * k), 0.0, 1.0) : 1.0;
+
+	// Final blocker depth is mean + standard deviation.
+	// Adding standard deviation reduces underestimation around edges.
+	// It also does not introduce much overestimation.
+	return mean + stdDev;
+}
+
 void SampleShadowmapPCSS(
 	vec3 positionShadowProjected,
 	vec3 positionShadowDistorted,
@@ -346,34 +405,22 @@ void SampleShadowmapPCSS(
 	//--// Blocker search
 
 	#ifdef SHADOW_PENUMBRA_SHARPENING
-	float maxBlockerDepth = positionShadowDistorted.z;
+	float minBlockerDistance = 0.0;
 	#else
-	float maxBlockerDepth = positionShadowDistorted.z - minFilterRadius / maxPenumbraRadius;
+	float minBlockerDistance = minFilterRadius / maxPenumbraRadius;
 	#endif
-	float minBlockerDepth = positionShadowDistorted.z - maxFilterRadius / maxPenumbraRadius;
+	float maxBlockerDistance = maxFilterRadius / maxPenumbraRadius;
 
-	float blockerDepth = 0.0;
-	float blockerWeightSum = 0.0;
-	for (int i = 0; i < searchSamples; ++i) {
-		vec2 offset = R2((i + dither) * ditherSize);
-		     offset = vec2(cos(offset.x * tau), sin(offset.x * tau)) * sqrt(offset.y);
-		vec2 sampleUv = DistortShadowSpace(positionShadowProjected.xy + offset * searchRadius) * 0.5 + 0.5;
-
-		float depth = texelFetch(shadowtex0, ivec2(textureSize(shadowtex0, 0) * sampleUv), 0).x;
-		float weight = step(depth, positionShadowDistorted.z);
-
-		blockerWeightSum += weight;
-		blockerDepth += weight * clamp(depth, minBlockerDepth, maxBlockerDepth);
-	} blockerDepth /= blockerWeightSum > 0.0 ? blockerWeightSum : 1.0;
+	float pLit;
+	float blockerDistance = BlockerSearch(shadowtex0, positionShadowProjected, positionShadowDistorted.z, searchRadius, dither, ditherSize, pLit);
+	blockerDistance = clamp(blockerDistance, minBlockerDistance, maxBlockerDistance);
 
 	// Compute filter radius
+	float filterRadius = blockerDistance * maxPenumbraRadius;
 	#ifdef SHADOW_PENUMBRA_SHARPENING
-	float filterRadius = blockerWeightSum > 0.0 ? (positionShadowDistorted.z - blockerDepth) * maxPenumbraRadius : 0.0;
 	float filterRadiusUnlcamped = filterRadius;
 	filterRadius = max(filterRadius, minFilterRadius);
 	filterRadiusRatio = filterRadiusUnlcamped / filterRadius;
-	#else
-	float filterRadius = blockerWeightSum > 0.0 ? (positionShadowDistorted.z - blockerDepth) * maxPenumbraRadius : minFilterRadius;
 	#endif
 
 	//--// PCF filter
