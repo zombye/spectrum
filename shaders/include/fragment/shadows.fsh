@@ -73,88 +73,6 @@ void SampleShadowmapBilinear(
 		color = mix(mix(colors[3].rgb, colors[2].rgb, f.x), mix(colors[0].rgb, colors[1].rgb, f.x), f.y);
 	#endif
 }
-#if SHADOW_FILTER == SHADOW_FILTER_BICUBIC
-void SampleShadowmapBicubic(
-	vec3 positionShadowDistorted,
-	float shadowDepthBias,
-	#ifdef SHADOW_COLORED
-	out float pcfShadow0,
-	#ifdef SHADOW_CONTACT_IMPROVEMENT
-	out float mean0,
-	out float meanSq0,
-	#endif
-	#endif
-	out float pcfShadow1,
-	out float mean1
-	#ifdef SHADOW_CONTACT_IMPROVEMENT
-	,
-	out float meanSq1
-	#endif
-	#ifdef SHADOW_COLORED
-	,
-	out vec3 color
-	#endif
-) {
-	vec4 c; vec2 m;
-	FastBicubicCM(positionShadowDistorted.xy, c, m);
-	
-	#ifdef SHADOW_COLORED
-	vec4 thresh0;
-	#ifdef SHADOW_CONTACT_IMPROVEMENT
-	vec4 diffs0, diffsSq0;
-	#endif
-	#endif
-	vec4 thresh1;
-	vec4 diffs1;
-	#ifdef SHADOW_CONTACT_IMPROVEMENT
-	vec4 diffsSq1;
-	#endif
-	#ifdef SHADOW_COLORED
-	vec3[4] colors;
-	#endif
-	#ifdef SHADOW_CONTACT_IMPROVEMENT
-		#ifdef SHADOW_COLORED
-			SampleShadowmapBilinear(vec3(c.xw, positionShadowDistorted.z), shadowDepthBias, thresh0.x, diffs0.x, diffsSq0.x, thresh1.x, diffs1.x, diffsSq1.x, colors[0]);
-			SampleShadowmapBilinear(vec3(c.zw, positionShadowDistorted.z), shadowDepthBias, thresh0.y, diffs0.y, diffsSq0.y, thresh1.y, diffs1.y, diffsSq1.y, colors[1]);
-			SampleShadowmapBilinear(vec3(c.zy, positionShadowDistorted.z), shadowDepthBias, thresh0.z, diffs0.z, diffsSq0.z, thresh1.z, diffs1.z, diffsSq1.z, colors[2]);
-			SampleShadowmapBilinear(vec3(c.xy, positionShadowDistorted.z), shadowDepthBias, thresh0.w, diffs0.w, diffsSq0.w, thresh1.w, diffs1.w, diffsSq1.w, colors[3]);
-		#else
-			SampleShadowmapBilinear(vec3(c.xw, positionShadowDistorted.z), shadowDepthBias, thresh1.x, diffs1.x, diffsSq1.x);
-			SampleShadowmapBilinear(vec3(c.zw, positionShadowDistorted.z), shadowDepthBias, thresh1.y, diffs1.y, diffsSq1.y);
-			SampleShadowmapBilinear(vec3(c.zy, positionShadowDistorted.z), shadowDepthBias, thresh1.z, diffs1.z, diffsSq1.z);
-			SampleShadowmapBilinear(vec3(c.xy, positionShadowDistorted.z), shadowDepthBias, thresh1.w, diffs1.w, diffsSq1.w);
-		#endif
-	#else
-		#ifdef SHADOW_COLORED
-			SampleShadowmapBilinear(vec3(c.xw, positionShadowDistorted.z), shadowDepthBias, thresh0.x, thresh1.x, diffs1.x, colors[0]);
-			SampleShadowmapBilinear(vec3(c.zw, positionShadowDistorted.z), shadowDepthBias, thresh0.y, thresh1.y, diffs1.y, colors[1]);
-			SampleShadowmapBilinear(vec3(c.zy, positionShadowDistorted.z), shadowDepthBias, thresh0.z, thresh1.z, diffs1.z, colors[2]);
-			SampleShadowmapBilinear(vec3(c.xy, positionShadowDistorted.z), shadowDepthBias, thresh0.w, thresh1.w, diffs1.w, colors[3]);
-		#else
-			SampleShadowmapBilinear(vec3(c.xw, positionShadowDistorted.z), shadowDepthBias, thresh1.x, diffs1.x);
-			SampleShadowmapBilinear(vec3(c.zw, positionShadowDistorted.z), shadowDepthBias, thresh1.y, diffs1.y);
-			SampleShadowmapBilinear(vec3(c.zy, positionShadowDistorted.z), shadowDepthBias, thresh1.z, diffs1.z);
-			SampleShadowmapBilinear(vec3(c.xy, positionShadowDistorted.z), shadowDepthBias, thresh1.w, diffs1.w);
-		#endif
-	#endif
-
-	#ifdef SHADOW_COLORED
-	pcfShadow0 = mix(mix(thresh0.w,  thresh0.z,  m.x), mix(thresh0.x,  thresh0.y,  m.x), m.y);
-	#ifdef SHADOW_CONTACT_IMPROVEMENT
-	mean0      = mix(mix(diffs0.w,   diffs0.z,   m.x), mix(diffs0.x,   diffs0.y,   m.x), m.y);
-	meanSq0    = mix(mix(diffsSq0.w, diffsSq0.z, m.x), mix(diffsSq0.x, diffsSq0.y, m.x), m.y);
-	#endif
-	#endif
-	pcfShadow1 = mix(mix(thresh1.w,  thresh1.z,  m.x), mix(thresh1.x,  thresh1.y,  m.x), m.y);
-	mean1      = mix(mix(diffs1.w,   diffs1.z,   m.x), mix(diffs1.x,   diffs1.y,   m.x), m.y);
-	#ifdef SHADOW_CONTACT_IMPROVEMENT
-	meanSq1    = mix(mix(diffsSq1.w, diffsSq1.z, m.x), mix(diffsSq1.x, diffsSq1.y, m.x), m.y);
-	#endif
-	#ifdef SHADOW_COLORED
-	color      = mix(mix(colors[3], colors[2], m.x), mix(colors[0], colors[1], m.x), m.y);
-	#endif
-}
-#endif
 #elif SHADOW_FILTER == SHADOW_FILTER_PCF
 void SampleShadowmapPCF(
 	vec3 positionShadowProjected,
@@ -521,7 +439,7 @@ NearShadows(
 	positionShadowDistorted = positionShadowDistorted * 0.5 + 0.5;
 	//#endif
 
-	#if SHADOW_FILTER == SHADOW_FILTER_BILINEAR || SHADOW_FILTER == SHADOW_FILTER_BICUBIC
+	#if SHADOW_FILTER == SHADOW_FILTER_BILINEAR
 	// Convert distorted shadow position to texel coords
 	positionShadowDistorted.xy = positionShadowDistorted.xy * textureSize(shadowtex0, 0) - 0.5;
 	#endif
@@ -550,8 +468,6 @@ NearShadows(
 	SampleShadowmapPCSS
 	#elif SHADOW_FILTER == SHADOW_FILTER_PCF
 	SampleShadowmapPCF
-	#elif SHADOW_FILTER == SHADOW_FILTER_BICUBIC
-	SampleShadowmapBicubic
 	#else // SHADOW_FILTER == SHADOW_FILTER_BILINEAR
 	SampleShadowmapBilinear
 	#endif
