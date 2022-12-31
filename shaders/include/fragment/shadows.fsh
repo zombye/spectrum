@@ -1,10 +1,11 @@
 #if !defined INCLUDE_FRAGMENT_SHADOWS
 #define INCLUDE_FRAGMENT_SHADOWS
 
-#if SHADOW_FILTER == SHADOW_FILTER_BILINEAR || SHADOW_FILTER == SHADOW_FILTER_BICUBIC
+#if SHADOW_FILTER == SHADOW_FILTER_BILINEAR
 void SampleShadowmapBilinear(
+	vec3 positionShadowProjected,
 	vec3 positionShadowDistorted,
-	float shadowDepthBias,
+	vec3 shadowGeometryNormal,
 	#ifdef SHADOW_COLORED
 	out float pcfShadow0,
 	#ifdef SHADOW_CONTACT_IMPROVEMENT
@@ -23,6 +24,15 @@ void SampleShadowmapBilinear(
 	out vec3 color
 	#endif
 ) {
+	// Bias required due to the sample offset.
+	float depthBiasOffset  = 1.0 / abs(shadowGeometryNormal.z);
+	      depthBiasOffset *= -0.5 / SHADOW_DEPTH_RADIUS;
+	      depthBiasOffset /= CalculateDistortionDerivative(positionShadowProjected.xy);
+	// Bias required due to the size & shape of each texel.
+	float depthBiasTexel = dot(vec2(shadowProjectionInverse[0].x, shadowProjectionInverse[1].y) / textureSize(shadowtex0, 0), abs(shadowGeometryNormal.xy)) * depthBiasOffset;
+
+	float depthBias = depthBiasTexel;
+
 	vec2 i = floor(positionShadowDistorted.xy);
 	vec2 f = positionShadowDistorted.xy - i;
 	
@@ -30,7 +40,7 @@ void SampleShadowmapBilinear(
 
 	#ifdef SHADOW_COLORED
 		vec4 diffs0   = textureGather(shadowtex0, positionShadowDistorted.xy) - positionShadowDistorted.z;
-		vec4 thresh0  = step(shadowDepthBias, diffs0);
+		vec4 thresh0  = step(depthBias, diffs0);
 		#ifdef SHADOW_CONTACT_IMPROVEMENT
 		vec4 diffsSq0 = diffs0 * diffs0;
 		#endif
@@ -43,7 +53,7 @@ void SampleShadowmapBilinear(
 	#endif
 
 	vec4 diffs1   = textureGather(shadowtex1, positionShadowDistorted.xy) - positionShadowDistorted.z;
-	vec4 thresh1  = step(shadowDepthBias, diffs1);
+	vec4 thresh1  = step(depthBias, diffs1);
 	#ifdef SHADOW_CONTACT_IMPROVEMENT
 	vec4 diffsSq1 = diffs1 * diffs1;
 	#endif
@@ -77,7 +87,7 @@ void SampleShadowmapBilinear(
 void SampleShadowmapPCF(
 	vec3 positionShadowProjected,
 	vec3 positionShadowDistorted,
-	float shadowDepthBias,
+	vec3 shadowGeometryNormal,
 	float dither,
 	float ditherSize,
 
@@ -127,6 +137,15 @@ void SampleShadowmapPCF(
 
 	//--// PCF filter
 
+	// Bias required due to the sample offset.
+	float depthBiasOffset  = 1.0 / abs(shadowGeometryNormal.z);
+	      depthBiasOffset *= -0.5 / SHADOW_DEPTH_RADIUS;
+	      depthBiasOffset /= CalculateDistortionDerivative(positionShadowProjected.xy);
+	// Bias required due to the size & shape of each texel.
+	float depthBiasTexel = dot(vec2(shadowProjectionInverse[0].x, shadowProjectionInverse[1].y) / textureSize(shadowtex0, 0), abs(shadowGeometryNormal.xy)) * depthBiasOffset;
+
+	float depthBias = depthBiasTexel + depthBiasOffset * filterRadius * shadowProjectionInverse[1].y * distortionFactor;
+
 	float waterPotential = 0.0;
 
 	for (int i = 0; i < filterSamples; ++i) {
@@ -134,10 +153,8 @@ void SampleShadowmapPCF(
 		     offset = vec2(cos(offset.x * tau), sin(offset.x * tau)) * sqrt(offset.y);
 		vec2 sampleUv = positionShadowDistorted.xy + offset * filterRadius * distortionFactor * 0.5;
 
-		float sampleDepthBias = shadowDepthBias * (2.0 * (filterRadius * distortionFactor * 0.5) * textureSize(shadowtex0, 0).x);
-
 		float diff0 = texelFetch(shadowtex0, ivec2(textureSize(shadowtex0, 0) * sampleUv), 0).x - positionShadowDistorted.z;
-		float thresh0 = step(sampleDepthBias, diff0);
+		float thresh0 = step(depthBias, diff0);
 		#ifdef SHADOW_COLORED
 		pcfShadow0 += thresh0;
 		#ifdef SHADOW_CONTACT_IMPROVEMENT
@@ -147,7 +164,7 @@ void SampleShadowmapPCF(
 		#endif
 
 		float diff1 = texelFetch(shadowtex1, ivec2(textureSize(shadowtex1, 0) * sampleUv), 0).x - positionShadowDistorted.z;
-		float thresh1 = step(sampleDepthBias, diff1);
+		float thresh1 = step(depthBias, diff1);
 		pcfShadow1 += thresh1;
 		mean1 += diff1;
 		#ifdef SHADOW_CONTACT_IMPROVEMENT
@@ -257,7 +274,7 @@ float BlockerSearch(
 void SampleShadowmapPCSS(
 	vec3 positionShadowProjected,
 	vec3 positionShadowDistorted,
-	float shadowDepthBias,
+	vec3 shadowGeometryNormal,
 	float dither,
 	float ditherSize,
 
@@ -343,6 +360,15 @@ void SampleShadowmapPCSS(
 
 	//--// PCF filter
 
+	// Bias required due to the sample offset.
+	float depthBiasOffset  = 1.0 / abs(shadowGeometryNormal.z);
+	      depthBiasOffset *= -0.5 / SHADOW_DEPTH_RADIUS;
+	      depthBiasOffset /= CalculateDistortionDerivative(positionShadowProjected.xy);
+	// Bias required due to the size & shape of each texel.
+	float depthBiasTexel = dot(vec2(shadowProjectionInverse[0].x, shadowProjectionInverse[1].y) / textureSize(shadowtex0, 0), abs(shadowGeometryNormal.xy)) * depthBiasOffset;
+
+	float depthBias = depthBiasTexel + depthBiasOffset * filterRadius * shadowProjectionInverse[1].y * distortionFactor;
+
 	float waterPotential = 0.0;
 
 	for (int i = 0; i < filterSamples; ++i) {
@@ -350,12 +376,9 @@ void SampleShadowmapPCSS(
 		vec2 offset = vec2(cos(sxy.x * tau), sin(sxy.x * tau)) * sqrt(sxy.y);
 		vec2 sampleUv = positionShadowDistorted.xy + offset * filterRadius * distortionFactor * 0.5;
 
-		float sampleDepthBias = shadowDepthBias * (2.0 * (filterRadius * sqrt(sxy.y) * distortionFactor * 0.5) * textureSize(shadowtex0, 0).x);
-
-
 		float depth0 = texelFetch(shadowtex0, ivec2(textureSize(shadowtex0, 0) * sampleUv), 0).x;
 		float diff0 = depth0 - positionShadowDistorted.z;
-		float thresh0 = step(sampleDepthBias, diff0);
+		float thresh0 = step(depthBias, diff0);
 		#ifdef SHADOW_COLORED
 		pcfShadow0 += thresh0;
 		#ifdef SHADOW_CONTACT_IMPROVEMENT
@@ -366,7 +389,7 @@ void SampleShadowmapPCSS(
 
 		float depth1 = texelFetch(shadowtex1, ivec2(textureSize(shadowtex1, 0) * sampleUv), 0).x;
 		float diff1 = depth1 - positionShadowDistorted.z;
-		float thresh1 = step(sampleDepthBias, diff1);
+		float thresh1 = step(depthBias, diff1);
 		pcfShadow1 += thresh1;
 		mean1 += diff1;
 		#ifdef SHADOW_CONTACT_IMPROVEMENT
@@ -421,7 +444,8 @@ vec3
 float
 #endif
 NearShadows(
-	vec3 positionShadowProjected, vec3 positionShadowDistorted, float baseDepthBias,
+	vec3 positionShadowProjected, vec3 positionShadowDistorted,
+	vec3 shadowGeometryNormal,
 	float dither, float ditherSize,
 	out float sssDepth
 	#if SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS || SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_PCF
@@ -429,12 +453,6 @@ NearShadows(
 	out float waterDepth, out float waterFraction
 	#endif
 ) {
-	// Depth bias
-	float shadowDepthBias = baseDepthBias / CalculateDistortionDerivative(positionShadowProjected.xy);
-	#if SHADOW_FILTER == SHADOW_FILTER_BICUBIC
-	shadowDepthBias *= 2.0;
-	#endif
-
 	//#if defined PROGRAMS_FORWARD
 	positionShadowDistorted = positionShadowDistorted * 0.5 + 0.5;
 	//#endif
@@ -472,10 +490,9 @@ NearShadows(
 	SampleShadowmapBilinear
 	#endif
 	(
-		#if SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS || SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_PCF
 		positionShadowProjected,
-		#endif
-		positionShadowDistorted, shadowDepthBias,
+		positionShadowDistorted,
+		shadowGeometryNormal,
 		#if SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS || SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_PCF
 		dither, ditherSize,
 		#endif
@@ -617,12 +634,8 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 		if (distanceFade >= 1.0) { return vec3(1.0); } // Early-exit
 	#endif
 
-	float biasMul  = 1.0 / (-2.0 * SHADOW_DEPTH_RADIUS);
-	      biasMul *= SumOf(abs(normalize(normal.xy)) * vec2(shadowProjectionInverse[0].x, shadowProjectionInverse[1].y));
-	      biasMul *= sqrt(Clamp01(1.0 - normal.z * normal.z)) / abs(normal.z);
-
 	// This exists to fix some issues caused by distortion only being per-vertex in the shadow map. If there is no distortion, or distortion properly affected depth, this would just be 0.
-	float biasAdd = 0.5 / (-SHADOW_DEPTH_RADIUS * SHADOW_DISTANCE_EFFECTIVE);
+	float biasAdd = 1.0 / (-SHADOW_DEPTH_RADIUS * SHADOW_DISTANCE_EFFECTIVE);
 	      biasAdd = biasAdd - biasAdd * SHADOW_DISTORTION_AMOUNT_INVERSE;
 
 	vec3 shadowCoord = shadowClip;
@@ -640,7 +653,7 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 	waterDepth = texture(shadowtex0, shadowCoord.xy).x - shadowCoord.z;
 	#endif
 	vec3 shadows = vec3(NearShadows(
-		positionShadowProjected, positionShadowDistorted, biasMul / SHADOW_RESOLUTION, dither, ditherSize, sssDepth
+		positionShadowProjected, positionShadowDistorted, normal, dither, ditherSize, sssDepth
 		#if SHADOW_FILTER == SHADOW_FILTER_DUAL_PCSS || SHADOW_FILTER == SHADOW_FILTER_PCSS || SHADOW_FILTER == SHADOW_FILTER_PCF
 		,
 		waterDepth, waterFraction
