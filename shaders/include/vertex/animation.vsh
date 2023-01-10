@@ -109,6 +109,8 @@ vec3 AnimateVertex(vec3 scenePosition, vec3 worldPosition, int id, float time) {
 		return GrassDisplacement(scenePosition, time);
 	} else if (id == 18) {
 		return LeavesDisplacement(scenePosition, time);
+	} else if (id == 175 || id == 176) {
+		return TallGrassDisplacement(scenePosition, time, id == 176);
 	}
 
 	return vec3(0.0);
