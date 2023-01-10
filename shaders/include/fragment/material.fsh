@@ -38,7 +38,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 		}
 	#endif
 
-	bool isTranslucent = id == 18 || id == 30 || id == 31 || id == 38 || id == 78 || id == 175;
+	bool isTranslucent = id == 18 || id == 30 || id == 31 || id == 38 || id == 78 || id == 175 || id == 176;
 
 	Material material;
 
