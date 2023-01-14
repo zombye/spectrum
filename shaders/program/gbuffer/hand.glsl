@@ -72,10 +72,6 @@ uniform vec3 shadowLightVector;
 	flat out vec3 tint;
 	flat out int blockId;
 
-	//--// Vertex Includes //-------------------------------------------------//
-
-	#include "/include/vertex/animation.vsh"
-
 	//--// Vertex Functions //------------------------------------------------//
 
 	vec2 GetLightmapCoordinates() {
@@ -133,7 +129,7 @@ uniform vec3 shadowLightVector;
 
 		viewPosition = mat3(gl_ModelViewMatrix) * gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz;
 
-		#if defined MOTION_BLUR || defined TAA || defined VERTEX_ANIMATION
+		#if defined MOTION_BLUR || defined TAA
 			vec3 scenePosition = mat3(gbufferModelViewInverse) * viewPosition + gbufferModelViewInverse[3].xyz;
 		#endif
 
@@ -142,10 +138,6 @@ uniform vec3 shadowLightVector;
 				vec3 previousScenePosition = scenePosition;
 			#else
 				vec3 previousScenePosition = scenePosition + cameraPosition - previousCameraPosition;
-			#endif
-
-			#if defined VERTEX_ANIMATION
-				previousScenePosition += AnimateVertex(previousScenePosition, previousScenePosition + previousCameraPosition, blockId, frameTimeCounter - frameTime);
 			#endif
 
 			#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
@@ -163,11 +155,6 @@ uniform vec3 shadowLightVector;
 			#else
 				previousScreenPosition = vec4(gbufferPreviousProjection[0].x, gbufferPreviousProjection[1].y, gbufferPreviousProjection[2].zw) * previousViewPosition.xyzz + gbufferPreviousProjection[3];
 			#endif
-		#endif
-
-		#if defined VERTEX_ANIMATION
-			scenePosition += AnimateVertex(scenePosition, scenePosition + cameraPosition, blockId, frameTimeCounter);
-			viewPosition = mat3(gbufferModelView) * scenePosition + gbufferModelView[3].xyz;
 		#endif
 
 		#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
