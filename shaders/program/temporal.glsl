@@ -435,7 +435,7 @@ uniform vec3 shadowLightVector;
 				vec3 avg9  = (tl      + tr      + avg5 + bl      + br     ) / 14.0;
 				vec3 asq9  = (tl * tl + tr * tr + asq5 + bl * bl + br * br) / 14.0;
 				vec3 max5  = max(max(max(max(tc, ml),  mc),  mr), bm);
-				vec3 max9  = max(max(max(max(tl, tr), min5), bl), br);
+				vec3 max9  = max(max(max(max(tl, tr), max5), bl), br);
 
 				// "Rounded" min/avg/max (avg of values for nearest 5 + nearest 9)
 				vec3 minRounded = (min5 + min9) * 0.5;
