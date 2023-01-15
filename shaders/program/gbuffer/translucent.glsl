@@ -13,6 +13,8 @@ uniform float fogDensity = 0.1;
 
 uniform float screenBrightness;
 
+uniform ivec2 eyeBrightness;
+
 uniform sampler2D tex;
 uniform sampler2D normals;
 uniform sampler2D specular;
