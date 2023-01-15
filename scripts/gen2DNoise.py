@@ -7,12 +7,12 @@ shift = 97
 
 # generate values then shuffle them, instead of just generating random values
 # this ensures a flat histogram
-noise = np.zeros(resolution * resolution, 'uint8')
-for r in range(int(resolution * resolution / 256)):
+noise = np.zeros(resolution * resolution * 2, 'uint8')
+for r in range(int(resolution * resolution * 2 / 256)):
 	for v in range(256):
 		noise[r * 256 + v] = v
 np.random.shuffle(noise)
-noise = np.reshape(noise, (resolution, resolution))
+noise = np.reshape(noise, (resolution, resolution, 2))
 
 # TODO: turn into blue noise here?
 # possible algorithm idea for that:
@@ -23,7 +23,8 @@ noise = np.reshape(noise, (resolution, resolution))
 image = np.zeros((resolution, resolution, 3), 'uint8')
 for x in range(resolution):
 	for y in range(resolution):
-		image[x, y, 0] = noise[x, y]
+		image[x, y, 0] = noise[x, y, 0]
+		image[x, y, 2] = noise[x, y, 1]
 
 for x in range(resolution):
 	for y in range(resolution):
@@ -31,6 +32,6 @@ for x in range(resolution):
 
 image_reshaped = np.reshape(image, (resolution, resolution * 3))
 
-writer = png.Writer(width=resolution, height=resolution)
+writer = png.Writer(width=resolution, height=resolution, greyscale=False)
 with open('./noise.png', 'wb') as file:
 	writer.write(file, image_reshaped)
