@@ -277,12 +277,13 @@ uniform vec3 shadowLightVector;
 			// Edge clamping
 			vec2 rv = refractedPosition[0].xy - frontPosition[0].xy;
 			refractedPosition[0].xy = rv * Clamp01(MinOf((step(0.0, rv) - frontPosition[0].xy) / rv) * 0.5) + frontPosition[0].xy;
-			#ifdef TAA
-			refractedPosition[0].xy += taaOffset * 0.5;
-			#endif
 
 			// Depth at refracted position
+			#ifdef TAA
+			refractedPosition[0].z = texture(depthtex1, refractedPosition[0].xy + 0.5 * taaOffset).r;
+			#else
 			refractedPosition[0].z = texture(depthtex1, refractedPosition[0].xy).r;
+			#endif
 
 			// Don't refract if there was nothing that could be refracted
 			if (refractedPosition[0].z < frontPosition[0].z) {
@@ -371,7 +372,11 @@ uniform vec3 shadowLightVector;
 				}
 			#endif
 
+			#ifdef TAA
+			color = DecodeRGBE8(texture(colortex4, backPosition[0].xy + 0.5 * taaOffset));
+			#else
 			color = DecodeRGBE8(texture(colortex4, backPosition[0].xy));
+			#endif
 
 			float skylightFade = lightmap.y * exp(lightmap.y * 6.0 - 6.0);
 
