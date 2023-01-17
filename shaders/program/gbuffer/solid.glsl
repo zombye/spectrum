@@ -52,6 +52,8 @@ uniform vec3 shadowLightVector;
 	attribute vec2 mc_Entity;
 	attribute vec2 mc_midTexCoord;
 
+	attribute vec3 at_velocity;
+
 	//--// Vertex Outputs //--------------------------------------------------//
 
 	// Interpolated
@@ -143,21 +145,25 @@ uniform vec3 shadowLightVector;
 		#endif
 
 		#if defined MOTION_BLUR || defined TAA // Previous frame position
-			#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
-				vec3 previousScenePosition = scenePosition;
+			#if defined USE_VELOCITY_ATTRIBUTE && (defined PROGRAM_BLOCK || defined PROGRAM_ENTITIES)
+				vec3 previousViewPosition = viewPosition - at_velocity;
 			#else
-				vec3 previousScenePosition = scenePosition + cameraPosition - previousCameraPosition;
-			#endif
+				#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
+					vec3 previousScenePosition = scenePosition;
+				#else
+					vec3 previousScenePosition = scenePosition + cameraPosition - previousCameraPosition;
+				#endif
 
-			#if defined VERTEX_ANIMATION
-				previousScenePosition += AnimateVertex(previousScenePosition, previousScenePosition + previousCameraPosition, blockId, frameTimeCounter - frameTime);
-			#endif
+				#if defined VERTEX_ANIMATION
+					previousScenePosition += AnimateVertex(previousScenePosition, previousScenePosition + previousCameraPosition, blockId, frameTimeCounter - frameTime);
+				#endif
 
-			#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
-				// No correct previous matrix for hand rotation, but the current frame rotation + previous frame motion is close.
-				vec3 previousViewPosition = mat3(gbufferModelView) * previousScenePosition + gbufferPreviousModelView[3].xyz;
-			#else
-				vec3 previousViewPosition = mat3(gbufferPreviousModelView) * previousScenePosition + gbufferPreviousModelView[3].xyz;
+				#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
+					// No correct previous matrix for hand rotation, but the current frame rotation + previous frame motion is close.
+					vec3 previousViewPosition = mat3(gbufferModelView) * previousScenePosition + gbufferPreviousModelView[3].xyz;
+				#else
+					vec3 previousViewPosition = mat3(gbufferPreviousModelView) * previousScenePosition + gbufferPreviousModelView[3].xyz;
+				#endif
 			#endif
 
 			#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER

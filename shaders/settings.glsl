@@ -22,6 +22,8 @@
 
 //#define TOTAL_INTERNAL_REFLECTION
 
+#define USE_VELOCITY_ATTRIBUTE
+
 //--// Ambient Occlusion //---------------------------------------------------//
 
 //#define HBAO

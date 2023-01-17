@@ -106,6 +106,8 @@ uniform vec3 shadowLightVector;
 	attribute vec3 mc_Entity;
 	attribute vec2 mc_midTexCoord;
 
+	attribute vec3 at_velocity;
+
 	//--// Vertex Outputs //--------------------------------------------------//
 
 	// Interpolated
@@ -177,19 +179,23 @@ uniform vec3 shadowLightVector;
 		viewPosition = mat3(gl_ModelViewMatrix) * gl_Vertex.xyz + gl_ModelViewMatrix[3].xyz;
 
 		#if defined MOTION_BLUR || defined TAA
-			vec3 scenePosition = mat3(gbufferModelViewInverse) * viewPosition + gbufferModelViewInverse[3].xyz;
-
-			#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
-				vec3 previousScenePosition = scenePosition;
+			#if defined USE_VELOCITY_ATTRIBUTE && defined PROGRAM_HAND_WATER
+				vec3 previousViewPosition = viewPosition - at_velocity;
 			#else
-				vec3 previousScenePosition = scenePosition + cameraPosition - previousCameraPosition;
-			#endif
+				vec3 scenePosition = mat3(gbufferModelViewInverse) * viewPosition + gbufferModelViewInverse[3].xyz;
 
-			#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
-				// No correct previous matrix for hand rotation, but the current frame rotation + previous frame motion is close.
-				vec3 previousViewPosition = mat3(gbufferModelView) * previousScenePosition + gbufferPreviousModelView[3].xyz;
-			#else
-				vec3 previousViewPosition = mat3(gbufferPreviousModelView) * previousScenePosition + gbufferPreviousModelView[3].xyz;
+				#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
+					vec3 previousScenePosition = scenePosition;
+				#else
+					vec3 previousScenePosition = scenePosition + cameraPosition - previousCameraPosition;
+				#endif
+
+				#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
+					// No correct previous matrix for hand rotation, but the current frame rotation + previous frame motion is close.
+					vec3 previousViewPosition = mat3(gbufferModelView) * previousScenePosition + gbufferPreviousModelView[3].xyz;
+				#else
+					vec3 previousViewPosition = mat3(gbufferPreviousModelView) * previousScenePosition + gbufferPreviousModelView[3].xyz;
+				#endif
 			#endif
 
 			#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
