@@ -1,7 +1,7 @@
 #version 440 compatibility
 #include "/include/shared/header.glsl"
 #define WORLD_OVERWORLD
-#define PROGRAM_COMPOSITE80
-#define STAGE_FRAGMENT
-#define UPSAMPLE_LOD 5
+#define PROGRAM_COMPOSITE82
+#define STAGE_VERTEX
+#define UPSAMPLE_LOD 3
 #include "/program/post/bloom/upsample.glsl"

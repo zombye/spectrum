@@ -3,4 +3,5 @@
 #define WORLD_OVERWORLD
 #define PROGRAM_COMPOSITE80
 #define STAGE_VERTEX
-#include "/program/post/bloom/copy.glsl"
+#define UPSAMPLE_LOD 5
+#include "/program/post/bloom/upsample.glsl"

@@ -92,19 +92,6 @@ uniform vec2 viewPixelSize;
 		return result / weightSum;
 	}
 
-	vec3 GetBloom(vec2 screenCoord) {
-		vec3 bloom = TextureCubic(colortex6, screenCoord * exp2(-1.0)).rgb;
-		float totalWeight = 1.0;
-		for (int i = 1; i < 7; ++i) {
-			float tileWeight = 1.0;
-			bloom += TextureCubic(colortex6, screenCoord * exp2(-i - 1.0) + 1.0 - exp2(-i)).rgb * tileWeight;
-			totalWeight += tileWeight;
-		}
-		bloom /= totalWeight;
-
-		return bloom;
-	}
-
 	vec3 LowlightDesaturate(vec3 color, float exposure) {
 		float desaturated = dot(color, vec3(0.05, 0.55, 0.4));
 		//float desaturated = dot(color, RgbToXyz[1]);
@@ -184,7 +171,7 @@ uniform vec2 viewPixelSize;
 		float exposure = texture(colortex3, screenCoord).a;
 
 		#ifdef BLOOM
-			color = mix(GetBloom(screenCoord), color, 1.0 / (1.0 + BLOOM_AMOUNT));
+			color = mix(TextureCubic(colortex6, screenCoord * 0.5).rgb, color, 1.0 / (1.0 + BLOOM_AMOUNT));
 		#endif
 
 		#ifdef LOWLIGHT_NOISE
