@@ -1,7 +1,6 @@
 #version 440 compatibility
 #include "/include/shared/header.glsl"
 #define WORLD_OVERWORLD
-#define PROGRAM_COMPOSITE11
+#define PROGRAM_COMPOSITE80
 #define STAGE_FRAGMENT
-#define DOWNSAMPLE_LOD 6
-#include "/program/post/bloom/downsample.glsl"
+#include "/program/post/bloom/copy.glsl"
