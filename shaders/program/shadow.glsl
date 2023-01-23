@@ -49,6 +49,8 @@ uniform vec3 shadowLightVector;
 	attribute vec2 mc_Entity;
 	attribute vec2 mc_midTexCoord;
 
+	attribute vec3 at_midBlock;
+
 	//--// Vertex Outputs //--------------------------------------------------//
 
 	// Interpolated

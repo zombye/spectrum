@@ -54,6 +54,8 @@ uniform vec3 shadowLightVector;
 
 	attribute vec3 at_velocity;
 
+	attribute vec3 at_midBlock;
+
 	//--// Vertex Outputs //--------------------------------------------------//
 
 	// Interpolated
