@@ -61,10 +61,6 @@ uniform vec3 shadowLightVector;
 	// Flat
 	flat out vec3 tint;
 
-	//--// Vertex Includes //-------------------------------------------------//
-
-	#include "/include/vertex/animation.vsh"
-
 	//--// Vertex Functions //------------------------------------------------//
 
 	vec2 GetLightmapCoordinates() {
