@@ -68,11 +68,11 @@ vec3 AnimateVertex(vec3 scenePosition, vec3 worldPosition, int id, float time) {
 	time *= TIME_SCALE;
 
 	if (id == 31) {
-		return GroundedDisplacement(position, animationTime, 0.5 - at_midBlock.y / 64.0, 0.15);
+		return GroundedDisplacement(scenePosition, time, 0.5 - at_midBlock.y / 64.0, 0.15);
 	} else if (id == 18) {
 		return LeavesDisplacement(scenePosition, time);
 	} else if (id == 175 || id == 176) {
-		return GroundedDisplacement(position, animationTime, (id == 176 ? 1.5 : 0.5) - at_midBlock.y / 64.0, 0.05)
+		return GroundedDisplacement(scenePosition, time, (id == 176 ? 1.5 : 0.5) - at_midBlock.y / 64.0, 0.05);
 	}
 
 	return vec3(0.0);
