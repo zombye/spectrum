@@ -19,7 +19,7 @@ uniform sampler2D depthtex1;
 
 uniform sampler2D colortex0;
 uniform sampler2D colortex1;
-uniform sampler2D colortex2; // Velocity buffer
+uniform sampler2D colortex8; // Velocity buffer
 uniform sampler2D colortex5; // Previous frame data
 uniform sampler3D colortex7; // 3D noise
 uniform sampler2D noisetex;

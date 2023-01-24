@@ -11,9 +11,9 @@
 
 uniform sampler2D depthtex1;
 
-uniform sampler2D colortex2;
 uniform sampler2D colortex3;
 uniform sampler2D colortex5;
+uniform sampler2D colortex8;
 
 #ifdef DOF
 #define colorSampler colortex5
@@ -74,7 +74,7 @@ uniform vec2 taaOffset;
 			return currentPosition - position;
 		}
 
-		return texture(colortex2, position.xy).rgb;
+		return texture(colortex8, position.xy).rgb;
 	}
 
 	void main() {

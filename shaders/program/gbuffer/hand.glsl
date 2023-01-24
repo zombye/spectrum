@@ -192,7 +192,7 @@ uniform vec3 shadowLightVector;
 	//--// Fragment Outputs //------------------------------------------------//
 
 	#if defined MOTION_BLUR || defined TAA
-		/* DRAWBUFFERS:012 */
+		/* DRAWBUFFERS:018 */
 	#else
 		/* DRAWBUFFERS:01 */
 	#endif

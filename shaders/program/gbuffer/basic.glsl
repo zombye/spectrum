@@ -70,7 +70,7 @@ uniform vec2 taaOffset;
 	//--// Fragment Outputs //------------------------------------------------//
 
 	#ifdef TAA
-		/* DRAWBUFFERS:012 */
+		/* DRAWBUFFERS:018 */
 	#else
 		/* DRAWBUFFERS:01 */
 	#endif

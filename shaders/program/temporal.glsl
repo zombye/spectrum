@@ -23,7 +23,7 @@ const bool colortex6MipmapEnabled = true;
 uniform sampler2D depthtex0;
 
 uniform sampler2D colortex3;
-uniform sampler2D colortex2;
+uniform sampler2D colortex8;
 uniform sampler2D colortex6;
 
 //--// Time uniforms
@@ -348,7 +348,7 @@ uniform vec3 shadowLightVector;
 				return currentPosition - position;
 			}
 
-			return texture(colortex2, position.xy).rgb;
+			return texture(colortex8, position.xy).rgb;
 		}
 
 		vec3 ClipAABB(vec3 col, vec3 minCol, vec3 avgCol, vec3 maxCol) {
