@@ -16,6 +16,7 @@ const bool generateShadowMipmap = true;
 
 const int colortex0Format = RGBA16;     // Gbuffer 0
 const int colortex1Format = RGBA16;     // Gbuffer 1
+const int colortex2Format = R32UI;      // Luminance histogram
 const int colortex3Format = RGBA16F;    // Feedback: TAA, Exposure | Also used as blendable/loddable color
 const int colortex4Format = RGBA8;      // RGBE8 encode
 const int colortex5Format = RGBA16F;    // Some misc half-res stuff

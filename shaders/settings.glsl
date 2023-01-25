@@ -24,6 +24,12 @@
 
 #define USE_VELOCITY_ATTRIBUTE
 
+// Internal configuration of the histogram used for autoexposure.
+#define HISTOGRAM_BIN_COUNT 128 // The number of luminance bins in the histogram. More bins allows for a more accurate representation of the scene luminance distribution.
+#define HISTOGRAM_PARTIAL_COUNT 128 // The total number of "partial" histograms to initially split the histograms across to reduce atomic contention, improving performance slightly. These are later merged to produce the final histogram.
+#define HISTOGRAM_LUMINANCE_MIN 1e-4 // The minimum luminance represented by the histogram. Dimmer non-0 and non-negative values are effectively clamped to this.
+#define HISTOGRAM_LUMINANCE_MAX 1e5 // The maximum luminance represented by the histogram. Brighter non-infinite values are effectively clamped to this.
+
 //--// Ambient Occlusion //---------------------------------------------------//
 
 //#define HBAO
