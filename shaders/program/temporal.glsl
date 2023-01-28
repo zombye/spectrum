@@ -8,8 +8,6 @@
 #define TAA_FILTER_CURRENT FILTER_BICUBIC // [FILTER_NEAREST FILTER_BILINEAR FILTER_BICUBIC]
 #define TAA_FILTER_HISTORY FILTER_BICUBIC // [FILTER_BILINEAR FILTER_BICUBIC]
 
-const bool colortex6MipmapEnabled = true;
-
 //--// Uniforms //------------------------------------------------------------//
 
 uniform sampler2D depthtex0;
@@ -66,24 +64,9 @@ uniform vec3 shadowLightVector;
 	const float minExposure = exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi /  dot(sunIlluminance, RgbToXyz[1]);
 	const float maxExposure = 0.03 * exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi / (dot(moonIlluminance, RgbToXyz[1]) * NIGHT_SKY_BRIGHTNESS);
 
-	#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_SIMPLE
-		float CalculateTargetExposureSimple() {
-			float maxLod = MaxOf(ceil(log2(viewResolution)));
-			float averageLuminance = pow(textureLod(colortex6, vec2(0.5), maxLod).a, 2.0);
-
-			const float a =     calibration / minExposure;
-			const float b = a - calibration / maxExposure;
-			return calibration / (a - b * exp(-averageLuminance / b));
-		}
-	#endif
-
 	void CalculateExposure(out float exposure, out float previousExposure) {
 		#if CAMERA_AUTOEXPOSURE != CAMERA_AUTOEXPOSURE_OFF
-			#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_HISTOGRAM
-				float targetExposure = uintBitsToFloat(texelFetch(colortex2, ivec2(HISTOGRAM_BIN_COUNT, 0), 0).x);
-			#else
-				float targetExposure = CalculateTargetExposureSimple();
-			#endif
+			float targetExposure = uintBitsToFloat(texelFetch(colortex2, ivec2(HISTOGRAM_BIN_COUNT, 0), 0).x);
 
 			// Get previous exposure
 			previousExposure = texture(colortex3, vec2(0.5)).a;
