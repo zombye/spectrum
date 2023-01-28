@@ -30,6 +30,9 @@
 #define HISTOGRAM_LUMINANCE_MIN 1e-4 // The minimum luminance represented by the histogram. Dimmer non-0 and non-negative values are effectively clamped to this.
 #define HISTOGRAM_LUMINANCE_MAX 1e5 // The maximum luminance represented by the histogram. Brighter non-infinite values are effectively clamped to this.
 
+#define AUTOEXPOSURE_IGNORE_DARK   0.4
+#define AUTOEXPOSURE_IGNORE_BRIGHT 0.02
+
 //--// Ambient Occlusion //---------------------------------------------------//
 
 //#define HBAO

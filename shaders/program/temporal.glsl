@@ -8,19 +8,13 @@
 #define TAA_FILTER_CURRENT FILTER_BICUBIC // [FILTER_NEAREST FILTER_BILINEAR FILTER_BICUBIC]
 #define TAA_FILTER_HISTORY FILTER_BICUBIC // [FILTER_BILINEAR FILTER_BICUBIC]
 
-#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_HISTOGRAM
-	#define HISTOGRAM_BINS           64
-	#define HISTOGRAM_PERCENT_DIM    60
-	#define HISTOGRAM_PERCENT_BRIGHT  2
-
-	//#define DEBUG_HISTOGRAM
-#endif
-
 const bool colortex6MipmapEnabled = true;
 
 //--// Uniforms //------------------------------------------------------------//
 
 uniform sampler2D depthtex0;
+
+uniform usampler2D colortex2;
 
 uniform sampler2D colortex3;
 uniform sampler2D colortex8;
@@ -60,10 +54,6 @@ uniform vec3 shadowLightVector;
 	out vec2 screenCoord;
 	out float exposure, previousExposure;
 
-	#ifdef DEBUG_HISTOGRAM
-		out vec4[16] histogram;
-	#endif
-
 	//--// Vertex Includes //-------------------------------------------------//
 
 	#include "/include/shared/celestialConstants.glsl"
@@ -75,94 +65,6 @@ uniform vec3 shadowLightVector;
 
 	const float minExposure = exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi /  dot(sunIlluminance, RgbToXyz[1]);
 	const float maxExposure = 0.03 * exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi / (dot(moonIlluminance, RgbToXyz[1]) * NIGHT_SKY_BRIGHTNESS);
-
-	#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_HISTOGRAM
-		float CalculateHistogramExposure() {
-			float maxLod = MaxOf(ceil(log2(viewResolution)));
-			float averageLuminance = pow(textureLod(colortex6, vec2(0.5), maxLod).a, 2.0);
-
-			return clamp(1.0 / averageLuminance, minExposure / calibration, maxExposure / calibration);
-		}
-		float HistogramLuminanceFromBin(float bin) {
-			return exp2((bin - (HISTOGRAM_BINS / 2 - 1)) / 4.0);
-		}
-		float HistogramBinFromLuminance(float luminance) {
-			luminance = clamp(luminance, HistogramLuminanceFromBin(0), HistogramLuminanceFromBin(HISTOGRAM_BINS - 1));
-			return log2(luminance) * 4.0 + (HISTOGRAM_BINS / 2 - 1);
-		}
-		float[HISTOGRAM_BINS] CalculateHistogram(float histogramExposure) {
-			// create empty histogram
-			float[HISTOGRAM_BINS] histogram;
-			for (int i = 0; i < HISTOGRAM_BINS; ++i) { histogram[i] = 0.0; }
-
-			const ivec2 samples = ivec2(64, 36);
-			float sampleLod = MaxOf(viewResolution / samples);
-			      sampleLod = ceil(log2(sampleLod));
-
-			// sample into histogram
-			for (int x = 0; x < samples.x; ++x) {
-				for (int y = 0; y < samples.y; ++y) {
-					vec2 samplePos = (vec2(x, y) + 0.5) / samples;
-					float luminanceSample = pow(textureLod(colortex6, samplePos, sampleLod).a, 2.0) * histogramExposure;
-
-					float bin = HistogramBinFromLuminance(luminanceSample);
-					      bin = clamp(bin, 0, HISTOGRAM_BINS - 1);
-
-					int bin0 = int(bin);
-					int bin1 = bin0 + 1;
-
-					float weight1 = fract(bin);
-					float weight0 = 1.0 - weight1;
-
-					// Pixels around the center of the screen are more important, so give them a higher weight in the histogram.
-					samplePos = samplePos * 2.0 - 1.0;
-					float sampleWeight  = (1.0 - samplePos.x * samplePos.x) * (1.0 - samplePos.y * samplePos.y);
-					      sampleWeight *= sampleWeight;
-
-					if (bin0 >= 0) histogram[bin0] += sampleWeight * weight0;
-					if (bin1 <= HISTOGRAM_BINS - 1) histogram[bin1] += sampleWeight * weight1;
-				}
-			}
-
-			return histogram;
-		}
-
-		float CalculateTargetExposure(float[HISTOGRAM_BINS] histogram, float histogramExposure) {
-			const float brightFraction = 0.01 * HISTOGRAM_PERCENT_BRIGHT;
-			const float dimFraction    = 0.01 * HISTOGRAM_PERCENT_DIM;
-
-			float sum = 0.0;
-			for (int i = 0; i < HISTOGRAM_BINS; ++i) { sum += histogram[i]; }
-
-			float dimSum = sum * dimFraction;
-			float brightSum = sum * (1.0 - brightFraction);
-
-			float l = 0.0, n = 0.0;
-			for (int bin = 0; bin < HISTOGRAM_BINS; ++bin) {
-				float binValue = histogram[bin];
-
-				// remove dim range
-				float dimSub = min(binValue, dimSum);
-				binValue  -= dimSub;
-				dimSum    -= dimSub;
-				brightSum -= dimSub;
-
-				// remove bright range
-				binValue = min(binValue, brightSum);
-				brightSum -= binValue;
-
-				float binLuminance = HistogramLuminanceFromBin(bin);
-				l += binValue * binLuminance / histogramExposure;
-				n += binValue;
-			}
-
-			l /= n > 0.0 ? n : 1.0;
-
-			const float a =     calibration / minExposure;
-			const float b = a - calibration / maxExposure;
-			return calibration / (a - b * exp(-l / b));
-		}
-	#endif
 
 	#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_SIMPLE
 		float CalculateTargetExposureSimple() {
@@ -178,25 +80,7 @@ uniform vec3 shadowLightVector;
 	void CalculateExposure(out float exposure, out float previousExposure) {
 		#if CAMERA_AUTOEXPOSURE != CAMERA_AUTOEXPOSURE_OFF
 			#if CAMERA_AUTOEXPOSURE == CAMERA_AUTOEXPOSURE_HISTOGRAM
-				float histogramExposure = CalculateHistogramExposure();
-				float[HISTOGRAM_BINS] histogram = CalculateHistogram(histogramExposure);
-				float targetExposure = CalculateTargetExposure(histogram, histogramExposure);
-
-				#ifdef DEBUG_HISTOGRAM
-					float histogramMax = 0.0;
-					for (int i = 0; i < 64; ++i) {
-						histogramMax = max(histogramMax, histogram[i]);
-					}
-
-					for (int i = 0; i < 16; ++i) {
-						::histogram[i] = vec4(
-							histogram[4*i],
-							histogram[4*i+1],
-							histogram[4*i+2],
-							histogram[4*i+3]
-						) / histogramMax;
-					}
-				#endif
+				float targetExposure = uintBitsToFloat(texelFetch(colortex2, ivec2(HISTOGRAM_BIN_COUNT, 0), 0).x);
 			#else
 				float targetExposure = CalculateTargetExposureSimple();
 			#endif
@@ -228,10 +112,6 @@ uniform vec3 shadowLightVector;
 
 	in vec2 screenCoord;
 	in float exposure, previousExposure;
-
-	#ifdef DEBUG_HISTOGRAM
-		in vec4[16] histogram;
-	#endif
 
 	//--// Fragment Outputs //------------------------------------------------//
 
@@ -476,22 +356,5 @@ uniform vec3 shadowLightVector;
 		#endif
 
 		temporal = vec4(color * exposure, exposure);
-
-		#ifdef DEBUG_HISTOGRAM
-			{
-				const ivec2 pos  = ivec2(4, 3);
-				const ivec2 size = ivec2(512, 128);
-
-				vec2 coord = gl_FragCoord.xy - pos;
-
-				if (clamp(coord, vec2(0.0), size) == coord) {
-					int idx = int(coord.x / 8.0);
-					float barMask = 129.0 * histogram[idx/4][idx%4];
-					      barMask = LinearStep(coord.y, coord.y + 1.0, barMask);
-
-					temporal.rgb = mix(temporal.rgb * 0.2, vec3(1.0), barMask);
-				}
-			}
-		#endif
 	}
 #endif
