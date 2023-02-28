@@ -1,15 +1,13 @@
 #if !defined INCLUDE_FRAGMENT_DIFFUSELIGHTING
 #define INCLUDE_FRAGMENT_DIFFUSELIGHTING
 
-vec3 DiffuseHammon(float NoL, float NoH, float NoV, float LoV, vec3 diffuseAlbedo, float roughness) {
+vec3 BRDFDiffuseHammon(float NoL, float NoH, float NoV, float LoV, vec3 diffuseAlbedo, float roughness) {
 	// Diffuse approximation for GGX + Smith microsurfaces.
 	// Uses Schlick fresnel; will not match specular as well if specular is not using Schlick.
 	// From what I can tell, the albedo input should be multiplied by `1.0 - f0`.
 	// I am not entirely sure of this though, it's possible that the multiply should happen to the output instead.
 	// For more details see http://gdcvault.com/play/1024478/PBR-Diffuse-Lighting-for-GGX
 	// ~ Zombye
-
-	if (NoL <= 0.0) { return vec3(0.0); }
 
 	float facing = 0.5 * LoV + 0.5;
 
@@ -19,7 +17,7 @@ vec3 DiffuseHammon(float NoL, float NoH, float NoV, float LoV, vec3 diffuseAlbed
 	float single = mix(single_smooth, single_rough, roughness) / pi;
 	float multi  = 0.1159 * roughness;
 
-	return NoL * (diffuseAlbedo * multi + single);
+	return diffuseAlbedo * multi + single;
 }
 vec3 DiffuseHammonAmbient(float NoV, vec3 diffuseAlbedo, float roughness) {
 	// Diffuse approximation for GGX + Smith microsurfaces.
@@ -102,10 +100,10 @@ vec3 CalculateDiffuseLighting(
 		if (lightmap.y > 0.0) {
 			float falloff = lightmap.y * exp(6.0 * (lightmap.y - 1.0));
 
-			vec3 diffuse    = DiffuseHammon(NoL, NoH, NoV, LoV, material.albedo, material.roughness);
+			vec3 brdf       = BRDFDiffuseHammon(NoL, NoH, NoV, LoV, material.albedo, material.roughness);
 			vec3 subsurface = SubsurfaceApprox(NoL, -LoV, material.albedo, material.translucency, sssDepth);
 
-			diffuseLighting += (diffuse * shadows + subsurface * cloudShadows + bounced) * illuminanceShadowlight * falloff;
+			diffuseLighting += (brdf * max(NoL, 0.0) * shadows + subsurface * cloudShadows + bounced) * illuminanceShadowlight * falloff;
 
 			#ifdef GLOBAL_LIGHT_USE_AO
 				diffuseLighting += falloff * hemisphereDiffuse * skylight;
@@ -116,13 +114,13 @@ vec3 CalculateDiffuseLighting(
 		}
 	#else
 		// Sunlight
-		vec3 diffuse    = DiffuseHammon(NoL, NoH, NoV, LoV, material.albedo, material.roughness);
+		vec3 brdf       = BRDFDiffuseHammon(NoL, NoH, NoV, LoV, material.albedo, material.roughness);
 		vec3 subsurface = SubsurfaceApprox(NoL, -LoV, material.albedo, material.translucency, sssDepth);
 
 		#ifdef GLOBAL_LIGHT_USE_AO
-			diffuseLighting += illuminanceShadowlight * (diffuse * ao * shadows + subsurface * cloudShadows + bounced);
+			diffuseLighting += illuminanceShadowlight * (brdf * max(NoL, 0.0) * ao * shadows + subsurface * cloudShadows + bounced);
 		#else
-			diffuseLighting += illuminanceShadowlight * (diffuse * shadows + subsurface * cloudShadows + bounced);
+			diffuseLighting += illuminanceShadowlight * (brdf * max(NoL, 0.0) * shadows + subsurface * cloudShadows + bounced);
 		#endif
 
 		// Skylight

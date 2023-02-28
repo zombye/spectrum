@@ -582,7 +582,7 @@ uniform vec3 shadowLightVector;
 		float NoH = (NoL + NoV) * rcpLen_LV;
 		float VoH = LoV * rcpLen_LV + rcpLen_LV;
 
-		vec3 diffuse = DiffuseHammon(NoL, NoH, NoV, LoV, moonAlbedo, roughness);
+		vec3 diffuse = NoL * BRDFDiffuseHammon(NoL, NoH, NoV, LoV, moonAlbedo, roughness);
 
 		// Specular
 		float f  = FresnelDielectric(VoH, 1.0 / 1.45);
