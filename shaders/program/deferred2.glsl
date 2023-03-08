@@ -271,12 +271,18 @@ uniform vec3 shadowLightVector;
 				float weight  = CalculateSampleWeight(flatNormal, sampleNormal, mat3(gbufferModelViewInverse) * (samplePosition - position));
 				      weight *= (1.0 - 0.2 * abs(offset.x)) * (1.0 - 0.2 * abs(offset.y));
 
-				hbao += texelFetch(colortex5, sampleFragCoord, 0) * weight;
+				vec4 aosample = texelFetch(colortex5, sampleFragCoord, 0);
+
+				if (any(isnan(aosample)) || any(isinf(aosample))) {
+					aosample = vec4(flatNormal, 1.0);
+				}
+
+				hbao += aosample * weight;
 				weightSum += weight;
 			}
 		}
 
-		hbao.xyz = normalize(hbao.xyz);
+		hbao.xyz = length(hbao.xyz) > 0.0 ? normalize(hbao.xyz) : flatNormal;
 		hbao.w /= weightSum;
 	}
 	#endif
