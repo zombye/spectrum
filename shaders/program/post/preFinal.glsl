@@ -171,7 +171,7 @@ uniform vec2 viewPixelSize;
 		float exposure = texture(colortex3, screenCoord).a;
 
 		#ifdef BLOOM
-			color = mix(TextureCubic(colortex6, screenCoord * 0.5).rgb, color, 1.0 / (1.0 + BLOOM_AMOUNT));
+			color += BLOOM_STRENGTH * TextureCubic(colortex6, screenCoord * 0.5).rgb;
 		#endif
 
 		#ifdef LOWLIGHT_NOISE

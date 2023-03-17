@@ -106,5 +106,9 @@ uniform vec2 viewPixelSize;
 		fragColor +=       textureLod(SOURCE_SAMPLER, vec2( 1.75, 1.75) * viewPixelSize + srcUv, 0.0).rgb;
 		fragColor *= 1.0 / 16.0;
 		//*/
+
+		#if DOWNSAMPLE_LOD == 0
+		fragColor -= fragColor * inversesqrt(1.0 + fragColor * fragColor);
+		#endif
 	}
 #endif
