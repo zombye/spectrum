@@ -46,7 +46,7 @@ uniform vec2 viewPixelSize;
 	}
 	float WeightNorm() {
 		float sum = 0.0;
-		for (int i = 0; i <= 6; ++i) {
+		for (int i = 0; i <= 9; ++i) {
 			sum += TileWeight(i);
 		}
 		return 1.0 / sum;
@@ -62,7 +62,7 @@ uniform vec2 viewPixelSize;
 		#endif
 
 		// Weigh lods
-		#if UPSAMPLE_LOD == 5
+		#if UPSAMPLE_LOD == 8
 		fragColor.rgb *= TileWeight(UPSAMPLE_LOD + 1) * WeightNorm();
 		#endif
 		fragColor.a = TileWeight(UPSAMPLE_LOD) * WeightNorm();

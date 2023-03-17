@@ -3,5 +3,5 @@
 #define WORLD_OVERWORLD
 #define PROGRAM_COMPOSITE83
 #define STAGE_FRAGMENT
-#define UPSAMPLE_LOD 2
+#define UPSAMPLE_LOD 5
 #include "/program/post/bloom/upsample.glsl"
