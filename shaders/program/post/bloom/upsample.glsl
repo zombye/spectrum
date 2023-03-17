@@ -9,6 +9,8 @@ uniform sampler2D SOURCE_SAMPLER;
 
 //--// Custom uniforms
 
+uniform float viewHeight;
+
 uniform vec2 viewPixelSize;
 
 #if defined STAGE_VERTEX
@@ -33,6 +35,23 @@ uniform vec2 viewPixelSize;
 
 	//--// Fragment Functions //----------------------------------------------//
 
+	float TileWeight(int tile) {
+		// Use the default 480p window as a reference point
+		// From there, scale width of bloom linearly with resolution for consistent results across resolutions
+		float tmp = float(tile) + log2(480.0 / viewHeight);
+		if (tmp < 0.0) {
+			return max(tmp + 1.0, 0.0);
+		}
+		return exp2(-0.5 * tmp);
+	}
+	float WeightNorm() {
+		float sum = 0.0;
+		for (int i = 0; i <= 6; ++i) {
+			sum += TileWeight(i);
+		}
+		return 1.0 / sum;
+	}
+
 	void main() {
 		vec2 uv = viewPixelSize * gl_FragCoord.xy;
 		vec2 srcUv = uv * 0.5 + 0.5;
@@ -43,12 +62,9 @@ uniform vec2 viewPixelSize;
 		#endif
 
 		// Weigh lods
-		const float[7] weights = float[7](1.0/1.0, 1.0/1.0, 1.0/1.0, 1.0/1.0, 1.0/1.0, 1.0/1.0, 1.0);
-		const float wSum = weights[0] + weights[1] + weights[2] + weights[3] + weights[4] + weights[5] + weights[6];
-
 		#if UPSAMPLE_LOD == 5
-		fragColor.rgb *= weights[UPSAMPLE_LOD + 1] / wSum;
+		fragColor.rgb *= TileWeight(UPSAMPLE_LOD + 1) * WeightNorm();
 		#endif
-		fragColor.a    = weights[UPSAMPLE_LOD]     / wSum;
+		fragColor.a = TileWeight(UPSAMPLE_LOD) * WeightNorm();
 	}
 #endif
