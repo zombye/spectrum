@@ -42,7 +42,7 @@ uniform vec2 viewPixelSize;
 		if (tmp < 0.0) {
 			return max(tmp + 1.0, 0.0);
 		}
-		return exp2(-0.5 * tmp);
+		return exp2(-0.7 * tmp);
 	}
 	float WeightNorm() {
 		float sum = 0.0;
