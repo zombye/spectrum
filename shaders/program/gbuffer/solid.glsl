@@ -10,6 +10,10 @@
 uniform vec4 entityColor;
 #endif
 
+#if defined PROGRAM_BLOCK
+uniform int blockEntityId;
+#endif
+
 uniform sampler2D tex;
 uniform sampler2D normals;
 uniform sampler2D specular;
@@ -148,7 +152,17 @@ uniform vec3 shadowLightVector;
 
 		#if defined MOTION_BLUR || defined TAA // Previous frame position
 			#if defined USE_VELOCITY_ATTRIBUTE && (defined PROGRAM_BLOCK || defined PROGRAM_ENTITIES)
-				vec3 previousViewPosition = viewPosition - at_velocity;
+				#if defined PROGRAM_BLOCK
+					vec3 previousViewPosition;
+					if (blockEntityId == 1000) {
+						vec3 previousScenePosition = scenePosition + cameraPosition - previousCameraPosition;
+						previousViewPosition = mat3(gbufferPreviousModelView) * previousScenePosition + gbufferPreviousModelView[3].xyz;
+					} else {
+						previousViewPosition = viewPosition - at_velocity;
+					}
+				#else
+					vec3 previousViewPosition = viewPosition - at_velocity;
+				#endif
 			#else
 				#if defined PROGRAM_HAND || defined PROGRAM_HAND_WATER
 					vec3 previousScenePosition = scenePosition;
