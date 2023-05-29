@@ -1,6 +1,6 @@
 /*\
  * Program Description:
- * Renders HBAO, RSM, and the sky
+ * Renders HBAO and the sky
 \*/
 
 //--// Settings //------------------------------------------------------------//
@@ -60,13 +60,6 @@ uniform mat4 shadowModelView;
 uniform mat4 shadowModelViewInverse;
 uniform mat4 shadowProjection;
 uniform mat4 shadowProjectionInverse;
-
-#ifdef RSM
-	uniform sampler2D shadowtex0;
-	uniform sampler2D shadowtex1;
-	uniform sampler2D shadowcolor0;
-	uniform sampler2D shadowcolor1;
-#endif
 
 //--// Custom uniforms
 
@@ -164,7 +157,7 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Outputs //------------------------------------------------//
 
-	#if defined HBAO || defined RSM
+	#ifdef HBAO
 		/* DRAWBUFFERS:465 */
 
 		layout (location = 2) out vec4 halfres;
@@ -183,8 +176,6 @@ uniform vec3 shadowLightVector;
 	#include "/include/utility/rotation.glsl"
 	#include "/include/utility/spaceConversion.glsl"
 
-	#include "/include/shared/shadowDistortion.glsl"
-
 	#include "/include/shared/atmosphere/density.glsl"
 
 	#include "/include/fragment/clouds2D.fsh"
@@ -197,7 +188,7 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Functions //----------------------------------------------//
 
-	#if defined HBAO || defined RSM
+	#ifdef HBAO
 		float GetLinearDepth(sampler2D depthSampler, vec2 coord) {
 			//float depth = texelFetch(depthSampler, ivec2(coord * viewResolution), 0).r + gbufferProjectionInverse[1].y*exp2(-3.0);
 			//return ScreenSpaceToViewSpace(depth, gbufferProjectionInverse);
@@ -214,9 +205,7 @@ uniform vec3 shadowLightVector;
 			s.xy = mix(s.wx, s.zy, f.x);
 			return mix(s.x,  s.y,  f.y) * gbufferProjectionInverse[3].z;
 		}
-	#endif
 
-	#ifdef HBAO
 		float CalculateCosBaseHorizonAngle(
 			vec3  Po,   // Point on the plane
 			vec3  Td,   // Direction to get tangent vector for
@@ -346,71 +335,6 @@ uniform vec3 shadowLightVector;
 		*/
 	#endif
 
-	#ifdef RSM
-		vec3 ReflectiveShadowMaps(vec3 position, vec3 normal, float skylight, float dither, const float ditherSize) {
-			dither = dither * ditherSize + 0.5;
-			float dither2 = dither / ditherSize;
-
-			const float radiusSquared     = RSM_RADIUS * RSM_RADIUS;
-			const float perSampleArea     = pi * radiusSquared / RSM_SAMPLES;
-			const float sampleDistanceAdd = sqrt((perSampleArea / RSM_SAMPLES) / pi); // Added to sampleDistanceSquared to prevent fireflies
-
-			vec3 projectionScale        = vec3(shadowProjection[0].x, shadowProjection[1].y, shadowProjection[2].z / SHADOW_DEPTH_SCALE);
-			vec3 projectionInverseScale = vec3(shadowProjectionInverse[0].x, shadowProjectionInverse[1].y, shadowProjectionInverse[2].z * SHADOW_DEPTH_SCALE);
-			vec2 offsetScale            = RSM_RADIUS * projectionScale.xy;
-
-			vec3 shadowPosition = mat3(shadowModelView) * position + shadowModelView[3].xyz;
-			vec3 shadowClip     = projectionScale * shadowPosition + shadowProjection[3].xyz;
-			vec3 shadowNormal   = mat3(shadowModelView) * normal;
-
-			mat2 rot = GetRotationMatrix(ditherSize * goldenAngle);
-
-			vec3 rsm = vec3(0.0);
-			vec2 dir = SinCos(dither * goldenAngle);
-			for (int i = 0; i < RSM_SAMPLES; ++i) {
-				float r = (i + dither2) / RSM_SAMPLES;
-				vec2 sampleOffset = dir * offsetScale * r;
-				dir *= rot;
-
-				vec3 sampleClip     = shadowClip;
-				     sampleClip.xy += sampleOffset;
-
-				float distortionFactor = CalculateDistortionFactor(sampleClip.xy);
-				vec2 sampleCoord    = (sampleClip.xy * distortionFactor) * 0.5 + 0.5;
-				     sampleClip.z   = textureLod(shadowtex0, sampleCoord, 0.0).r * 2.0 - 1.0;
-				vec3 samplePosition = projectionInverseScale * sampleClip + shadowProjectionInverse[3].xyz;
-
-				vec3  sampleVector          = samplePosition - shadowPosition;
-				float sampleDistanceSquared = dot(sampleVector, sampleVector);
-
-				if (sampleDistanceSquared > radiusSquared) { continue; } // Discard samples that are too far away
-
-				sampleVector *= inversesqrt(sampleDistanceSquared);
-
-				vec3 shadowcolor0Sample = textureLod(shadowcolor0, sampleCoord, 0.0).rgb;
-				vec3 sampleNormal = DecodeNormal(shadowcolor0Sample.rg * 2.0 - 1.0);
-
-				// Calculate BRDF (lambertian)
-				float sampleIn  = 2.0 * r; // Light's projected area for each sample
-				float sampleOut = Clamp01(dot(sampleNormal, -sampleVector)) / pi; // Divide by pi for energy conservation.
-				float bounceIn  = Clamp01(dot(shadowNormal,  sampleVector));
-				const float bounceOut = 1.0 / pi; // Divide by pi for energy conservation.
-
-				float brdf = sampleIn * sampleOut * bounceIn * bounceOut;
-
-				#ifdef RSM_LEAK_PREVENTION
-					float sampleSkylight = shadowcolor0Sample.b;
-					brdf *= Clamp01(1.0 - 5.0 * abs(sampleSkylight - skylight));
-				#endif
-
-				vec4 sampleAlbedo = textureLod(shadowcolor1, sampleCoord, 0.0);
-				rsm += LinearFromSrgb(sampleAlbedo.rgb) * sampleAlbedo.a * brdf / (sampleDistanceSquared + sampleDistanceAdd);
-			}
-
-			return rsm * perSampleArea;
-		}
-	#endif
-
 	#ifdef DISTANT_VL
 		mat2x3 CloudShadowedAtmosphere(vec3 startPosition, vec3 viewVector, float endDistance, float dither) {
 			const int steps = DISTANT_VL_STEPS;
@@ -493,35 +417,6 @@ uniform vec3 shadowLightVector;
 			return exp(-Calculate3DCloudsOpticalDepth(pos, shadowLightVector, 0.5, 50));
 		}
 	#endif
-
-	void DitherTiles(ivec2 fragCoord, int patternSize, float scale, out ivec2 tile, out ivec2 tileFragCoord, out vec2 tileScreenCoord) {
-		ivec2 quadResolution      = ivec2(ceil(viewResolution / scale));
-		ivec2 floorTileResolution = ivec2(floor(vec2(quadResolution) / float(patternSize)));
-		ivec2 ceilTileResolution  = ivec2( ceil(vec2(quadResolution) / float(patternSize)));
-
-		fragCoord = fragCoord % quadResolution;
-
-		ivec2 ceilTiles         = quadResolution % patternSize;
-		ivec2 tileSizeThreshold = ceilTileResolution * ceilTiles;
-		bvec2 belowThreshold;
-		belowThreshold.x = fragCoord.x < tileSizeThreshold.x;
-		belowThreshold.y = fragCoord.y < tileSizeThreshold.y;
-
-		ivec2 tileResolution;
-		tileResolution.x = belowThreshold.x ? ceilTileResolution.x : floorTileResolution.x;
-		tileResolution.y = belowThreshold.y ? ceilTileResolution.y : floorTileResolution.y;
-
-		tileFragCoord.x = belowThreshold.x ? fragCoord.x : fragCoord.x - tileSizeThreshold.x;
-		tileFragCoord.y = belowThreshold.y ? fragCoord.y : fragCoord.y - tileSizeThreshold.y;
-
-		tile = tileFragCoord / tileResolution;
-		tile.x += belowThreshold.x ? 0 : ceilTiles.x;
-		tile.y += belowThreshold.y ? 0 : ceilTiles.y;
-		tileFragCoord = tileFragCoord % tileResolution;
-
-		tileFragCoord = tileFragCoord * patternSize + tile;
-		tileScreenCoord = (tileFragCoord + 0.5) * scale / viewResolution;
-	}
 
 	//------------------------------------------------------------------------//
 
@@ -684,45 +579,10 @@ uniform vec3 shadowLightVector;
 	void main() {
 		ivec2 fragCoord = ivec2(gl_FragCoord.xy);
 
-		//--// AO & RSM //----------------------------------------------------//
-
-		#if defined HBAO || defined RSM
-			halfres = vec4(0.0);
-		#endif
-
-		#ifdef RSM
-			if (screenCoord.x > 0.5 && screenCoord.y < 0.5) {
-				ivec2 tile, tileFragCoord; vec2 tileScreenCoord;
-				DitherTiles(fragCoord, 16, 2.0, tile, tileFragCoord, tileScreenCoord);
-				//tile = fragCoord % 8; tileFragCoord = fragCoord % ivec2(viewResolution / 2); tileScreenCoord = screenCoord * 2.0;
-
-				mat3 position;
-				position[0].xy = tileScreenCoord;
-				#ifdef TAA
-				position[0].xy -= taaOffset * 0.5;
-				#endif
-				position[1]    = GetViewDirection(position[0].xy, gbufferProjectionInverse);
-				position[1]   *= GetLinearDepth(depthtex1, tileScreenCoord) / position[1].z;
-				position[0].z  = ViewSpaceToScreenSpace(position[1].z, gbufferProjection);
-
-				if (position[0].z < 1.0) {
-					position[2] = mat3(gbufferModelViewInverse) * position[1] + gbufferModelViewInverse[3].xyz;
-
-					vec3 normal = DecodeNormal(Unpack2x8(texelFetch(colortex1, tileFragCoord * 2, 0).a) * 2.0 - 1.0);
-					float skylight = Unpack2x8Y(texelFetch(colortex0, tileFragCoord * 2, 0).b);
-
-					const float ditherSize = 16.0 * 16.0;
-					float dither = Bayer16(tile);
-
-					halfres.rgb = ReflectiveShadowMaps(position[2], normal, skylight, dither, ditherSize);
-					halfres.a = 1.0;
-				} else {
-					halfres = vec4(0.0, 0.0, 0.0, 1.0);
-				}
-			}
-		#endif
+		//--// AO //----------------------------------------------------------//
 
 		#ifdef HBAO
+			halfres = vec4(0.0);
 			if (screenCoord.x < 0.5 && screenCoord.y < 0.5) {
 				mat3 position;
 				position[0].xy = screenCoord * 2.0;
