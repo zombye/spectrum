@@ -33,30 +33,27 @@ vec3 SampleVNDFGGX(
 	vec2 roughness, // along x and y axis of input space used for the view direction
 	vec2 xy // uniform random numbers from 0 to 1 - x can be limited to < 1 to clamp tail
 ) {
-	// GGX VNDF sampling
-	// http://www.jcgt.org/published/0007/04/01/
+	// GGX VNDF Sampling
+	// For more information, see the paper:
+	// https://ggx-research.github.io/publication/2023/06/09/publication-ggx.html
 
-	// transform view direction to hemisphere (section 3.2)
+	// Transform viewer direction to the hemisphere configuration.
 	viewDirection = normalize(vec3(roughness * viewDirection.xy, viewDirection.z));
 
-	// orthonrmal basis (section 4.1)
-	float clsq = dot(viewDirection.yx, viewDirection.yx);
-	vec3 T1 = vec3(clsq > 0.0 ? vec2(-viewDirection.y, viewDirection.x) * inversesqrt(clsq) : vec2(1.0, 0.0), 0.0);
-	vec3 T2 = vec3(-T1.y * viewDirection.z, viewDirection.z * T1.x, viewDirection.x * T1.y - T1.x * viewDirection.y);
+	// Sample a reflection direction off a hemisphere
+	// This is equivalent to sampling a spherical cap
+	float phi = tau * xy.x;
+	float cosTheta = fma(1.0 - xy.y, 1.0 + viewDirection.z, -viewDirection.z);
+	float sinTheta = sqrt(clamp(1.0 - cosTheta * cosTheta, 0.0, 1.0));
+	vec3 reflected = vec3(vec2(cos(phi), sin(phi)) * sinTheta, cosTheta);
 
-	// parameterization of the projected area (section 4.2)
-	float r = sqrt(xy.x);
-	float phi = tau * xy.y;
+	// Evaluate halfway direction
+	// This points along a normal on a hemisphere
+	vec3 halfway = reflected + viewDirection;
 
-	float t1 = r * cos(phi);
-	float tmp = clamp(1.0 - t1 * t1, 0.0, 1.0);
-	float t2 = mix(sqrt(tmp), r * sin(phi), 0.5 + 0.5 * viewDirection.z);
-
-	// reprojection onto hemisphere (section 4.3)
-	vec3 normalH = t1 * T1 + t2 * T2 + sqrt(clamp(tmp - t2 * t2, 0.0, 1.0)) * viewDirection;
-
-	// transform normal back to ellipsoid (sectrion 3.4)
-	return normalize(vec3(roughness * normalH.xy, normalH.z));
+	// Transform halfway direction back to hemiellispoid configuation
+	// This is the final sampled normal.
+	return normalize(vec3(roughness * halfway.xy, halfway.z));
 }
 
 #endif
