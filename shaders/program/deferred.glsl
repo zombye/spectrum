@@ -124,7 +124,7 @@ uniform vec3 shadowLightVector;
 		skyAmbientUp = vec3(0.0);
 		for (int x = 0; x < samples.x; ++x) {
 			for (int y = 0; y < samples.y; ++y) {
-				vec3 dir = GenerateUnitVector((vec2(x, y) + 0.5) / samples);
+				vec3 dir = SampleSphere((vec2(x, y) + 0.5) / samples);
 
 				vec3 skySample  = AtmosphereScattering(scatteringLut, vec3(0.0, atmosphere_planetRadius, 0.0), dir, sunVector ) * sunIlluminance;
 				     skySample += AtmosphereScattering(scatteringLut, vec3(0.0, atmosphere_planetRadius, 0.0), dir, moonVector) * moonIlluminance;
@@ -313,7 +313,7 @@ uniform vec3 shadowLightVector;
 			lightdir = vec3(0.0);
 			float ao = 0.0;
 			for (int i = 0; i < rays; ++i) {
-				vec3 dir = GenerateUnitVector(Hash2(vec2(dither, i / float(rays))));
+				vec3 dir = SampleSphere(Hash2(vec2(dither, i / float(rays))));
 				float NoL = dot(dir, normal);
 				if (NoL < 0.0) {
 					dir = -dir;

@@ -86,7 +86,7 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 		for (int i = 0; i < SSR_RAY_COUNT; ++i) {
 			vec2 xy = R2((i + dither) * ditherSize);
 			xy.x *= 1.0 - SSR_TAIL_CLAMP;
-			vec3 facetNormal = rot * GetFacetGGX(-tangentView, vec2(material.roughness), xy);
+			vec3 facetNormal = rot * SampleVNDFGGX(-tangentView, vec2(material.roughness), xy);
 
 			float MdotV = dot(facetNormal, -viewDirection);
 			vec3 rayDirection = viewDirection + 2.0 * MdotV * facetNormal;//reflect(viewDirection, facetNormal);

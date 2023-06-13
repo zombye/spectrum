@@ -133,7 +133,7 @@ uniform vec3 shadowLightVector;
 
 		for (int x = 0; x < samples.x; ++x) {
 			for (int y = 0; y < samples.y; ++y) {
-				vec3 dir = GenerateUnitVector((vec2(x, y) + 0.5) / samples);
+				vec3 dir = SampleSphere((vec2(x, y) + 0.5) / samples);
 				if (dir.y < 0.0) { dir.y = -dir.y; }
 
 				vec3 skySample = texture(colortex6, ProjectSky(dir)).rgb;

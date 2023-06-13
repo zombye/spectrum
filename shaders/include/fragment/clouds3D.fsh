@@ -165,7 +165,7 @@ void Calculate3DCloudsScattering(
 	float sunPathTransmittance = exp(-sunPathOpticalDepth);
 
 	#ifdef CLOUDS3D_ALTERNATE_SKYLIGHT
-	vec3 skyDir = GenerateUnitVector(Hash2(position));
+	vec3 skyDir = SampleSphere(Hash2(position));
 	if (skyDir.y < 0.0) { skyDir.y = -skyDir.y; }
 	float skyOpticalDepth = Calculate3DCloudsOpticalDepth(position, skyDir, dither, CLOUDS3D_STEPS_SKY, 1.5);
 	#else
@@ -332,7 +332,7 @@ float Calculate3DCloudsAverageTransmittance() {
 		for (int y = 0; y < samples.y; ++y) {
 			vec2 xy = (vec2(x, y) + 0.5) / samples;
 			xy.y = xy.y * 0.5 + 0.5;
-			vec3 dir = GenerateUnitVector(xy).xzy;
+			vec3 dir = SampleSphere(xy).xzy;
 
 			transmittance += exp(-Calculate3DCloudsOpticalDepth(viewPosition, dir, 0.5, 25));
 		}

@@ -118,7 +118,7 @@ uniform vec3 shadowLightVector;
 		illuminanceSky = vec3(0.0);
 		for (int x = 0; x < samples.x; ++x) {
 			for (int y = 0; y < samples.y; ++y) {
-				vec3 dir = GenerateUnitVector((vec2(x, y) + 0.5) / samples);
+				vec3 dir = SampleSphere((vec2(x, y) + 0.5) / samples);
 
 				vec3 skySample = texture(colortex6, ProjectSky(dir, SKY_IMAGE_LOD)).rgb;
 				illuminanceSky += skySample * step(0.0, dir.y);
