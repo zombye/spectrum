@@ -56,12 +56,12 @@ uniform vec2 taaOffset;
 	//--// Fragment Outputs //------------------------------------------------//
 
 	#ifdef DOF_SIMPLE
-		/* DRAWBUFFERS:01 */
+		/* RENDERTARGETS: 0,1 */
 
 		layout (location = 0) out vec4 colortex0Write;
 		layout (location = 1) out vec4 colortex1Write;
 	#else
-		/* DRAWBUFFERS:0 */
+		/* RENDERTARGETS: 0 */
 
 		layout (location = 0) out vec4 colortex0Write;
 	#endif

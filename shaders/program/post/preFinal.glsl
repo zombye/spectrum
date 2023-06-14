@@ -34,12 +34,12 @@ uniform vec2 viewPixelSize;
 	//--// Fragment Outputs //------------------------------------------------//
 
 	#if defined MC_GL_RENDERER_RADEON // workaround for AMD driver bug(?) causing colortex0 to not get cleared
-	/* DRAWBUFFERS:40 */
+	/* RENDERTARGETS: 4,0 */
 
 	layout (location = 0) out vec4 colortex4Write;
 	layout (location = 1) out vec4 colortex0Write;
 	#else
-	/* DRAWBUFFERS:4 */
+	/* RENDERTARGETS: 4 */
 
 	layout (location = 0) out vec4 colortex4Write;
 	#endif

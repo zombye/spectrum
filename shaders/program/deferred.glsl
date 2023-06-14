@@ -158,11 +158,11 @@ uniform vec3 shadowLightVector;
 	//--// Fragment Outputs //------------------------------------------------//
 
 	#ifdef HBAO
-		/* DRAWBUFFERS:465 */
+		/* RENDERTARGETS: 4,6,5 */
 
 		layout (location = 2) out vec4 halfres;
 	#else
-		/* DRAWBUFFERS:46 */
+		/* RENDERTARGETS: 4,6 */
 	#endif
 
 	layout (location = 0) out vec4 skyEncode;

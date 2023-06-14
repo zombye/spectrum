@@ -184,7 +184,7 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Outputs //------------------------------------------------//
 
-	/* DRAWBUFFERS:457 */
+	/* RENDERTARGETS: 4,5,7 */
 
 	layout (location = 0) out vec4 colortex4Write;
 	layout (location = 1) out vec4 colortex5Write;

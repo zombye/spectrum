@@ -20,7 +20,7 @@ uniform sampler2D colortex3;
 #elif defined STAGE_FRAGMENT
 	//--// Fragment Outputs //------------------------------------------------//
 
-	/* DRAWBUFFERS:3 */
+	/* RENDERTARGETS: 3 */
 
 	layout (location = 0) out vec4 colortex3Write;
 

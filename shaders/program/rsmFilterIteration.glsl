@@ -37,7 +37,7 @@ uniform vec2 taaOffset;
 
 	//--// Fragment Outputs
 
-	/* DRAWBUFFERS:5 */
+	/* RENDERTARGETS: 5 */
 
 	layout (location = 0) out vec4 lighting;
 

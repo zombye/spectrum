@@ -98,7 +98,7 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Outputs //------------------------------------------------//
 
-	/* DRAWBUFFERS:3 */
+	/* RENDERTARGETS: 3 */
 
 	layout (location = 0) out vec4 temporal;
 

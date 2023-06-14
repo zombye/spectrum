@@ -276,9 +276,9 @@ uniform vec3 shadowLightVector;
 	//--// Fragment Outputs //------------------------------------------------//
 
 	#if defined MOTION_BLUR || defined TAA
-		/* DRAWBUFFERS:01738 */
+		/* RENDERTARGETS: 0,1,7,3,8 */
 	#else
-		/* DRAWBUFFERS:0173 */
+		/* RENDERTARGETS: 0,1,7,3 */
 	#endif
 
 	layout (location = 0) out vec4 colortex0Write;

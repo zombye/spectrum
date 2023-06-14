@@ -25,7 +25,7 @@ uniform vec2 viewPixelSize;
 #elif defined STAGE_FRAGMENT
 	//--// Fragment Outputs //------------------------------------------------//
 
-	/* DRAWBUFFERS:6 */
+	/* RENDERTARGETS: 6 */
 
 	out vec4 fragColor;
 

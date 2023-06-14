@@ -144,7 +144,7 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Outputs //------------------------------------------------//
 
-	/* DRAWBUFFERS:6 */
+	/* RENDERTARGETS: 6 */
 
 	out vec4 fragData;
 	#define color (fragData.rgb)
