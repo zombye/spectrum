@@ -205,5 +205,5 @@ void main() {
 	}
 
 	// Save output
-	imageStore(colorimg5, ivec2(gl_GlobalInvocationID.xy) + ivec2(workGroups.x * viewResolution.x, 0), vec4(rsm, 1.0));
+	imageStore(colorimg5, ivec2(gl_GlobalInvocationID.xy) + ivec2(ceil(workGroups.x * viewResolution.x), 0), vec4(rsm, 1.0));
 }
