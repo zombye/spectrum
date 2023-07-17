@@ -62,7 +62,7 @@ uniform vec2 taaOffset;
 	void main() {
 		ivec2 fragCoord = ivec2(gl_FragCoord.st);
 
-		if (fragCoord.x <= ceil(viewResolution.x / 2.0) || fragCoord.y >= viewResolution.y / 2) {
+		if (fragCoord.x < ceil(viewResolution.x / 2.0) || fragCoord.y >= viewResolution.y / 2) {
 			lighting = texelFetch(colortex5, fragCoord, 0);
 			return;
 		}
