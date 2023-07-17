@@ -98,6 +98,9 @@ uniform vec2 taaOffset;
 
 					ivec2 offset = ivec2(x, y) * stepSize;
 					ivec2 samplePos = fragCoord + offset;
+					if (clamp(samplePos, ivec2(ceil(viewResolution.x / 2.0), 0), ivec2(viewResolution.x - 1.0, viewResolution.y / 2.0)) != samplePos) {
+						continue;
+					}
 					ivec2 samplePos2 = fragCoord2 + 2 * offset;
 
 					vec3  posSample      = vec3(viewPixelSize * samplePos2, texelFetch(depthtex1, samplePos2, 0).r);
