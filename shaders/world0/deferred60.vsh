@@ -1,9 +1,6 @@
 #version 440 compatibility
 #include "/include/shared/header.glsl"
 #define WORLD_OVERWORLD
-#define PROGRAM_DEFERRED2
+#define PROGRAM_DEFERRED60
 #define STAGE_VERTEX
-
-#define FILTER_ITERATION 0
-
-#include "/program/rsmFilterIteration.glsl"
+#include "/program/shadeSolid.glsl"

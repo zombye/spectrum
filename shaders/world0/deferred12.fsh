@@ -1,9 +1,9 @@
 #version 440 compatibility
 #include "/include/shared/header.glsl"
 #define WORLD_OVERWORLD
-#define PROGRAM_DEFERRED4
+#define PROGRAM_DEFERRED12
 #define STAGE_FRAGMENT
 
-#define FILTER_ITERATION 2
+#define FILTER_ITERATION 1
 
 #include "/program/rsmFilterIteration.glsl"
