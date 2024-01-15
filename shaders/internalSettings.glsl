@@ -23,6 +23,7 @@ const int colortex5Format = RGBA16F;    // Some misc half-res stuff
 const int colortex6Format = RGBA32F;    // Sky Scattering Image & cloud shadow, then loddable color, then bloom
 const int colortex7Format = RGBA8;      // Shadows
 const int colortex8Format = RG32F;      // Velocity buffer
+const int colortex9Format = RG8;
 
 const bool colortex3Clear = false;
 const bool colortex4Clear = false;

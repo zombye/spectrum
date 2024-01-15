@@ -22,6 +22,7 @@ uniform sampler2D colortex1;
 uniform sampler2D colortex8; // Velocity buffer
 uniform sampler2D colortex5; // Previous frame data
 uniform sampler3D colortex7; // 3D noise
+uniform sampler2D colortex9; // Cloud patch noise
 uniform sampler2D noisetex;
 
 uniform sampler2D depthtex0; // Sky Transmittance LUT
