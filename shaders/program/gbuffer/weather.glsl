@@ -57,9 +57,7 @@ uniform vec3 shadowLightVector;
 	out vec2 lightmapCoordinates;
 	out vec2 textureCoordinates;
 	out float vertexAo;
-
-	// Flat
-	flat out vec3 tint;
+	out vec3 tint;
 
 	//--// Vertex Functions //------------------------------------------------//
 
@@ -128,9 +126,7 @@ uniform vec3 shadowLightVector;
 	in vec2 lightmapCoordinates;
 	in vec2 textureCoordinates;
 	in float vertexAo;
-
-	// Flat
-	flat in vec3 tint; // Interestingly, the tint color seems to always be the same for the entire quad.
+	in vec3 tint;
 
 	//--// Fragment Outputs //------------------------------------------------//
 

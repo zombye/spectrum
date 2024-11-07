@@ -121,6 +121,7 @@ uniform vec3 shadowLightVector;
 	out vec2 lightmapCoordinates;
 	out vec2 textureCoordinates;
 	out float vertexAo;
+	out vec3 tint;
 
 	// Flat
 	flat out mat3 tbn;
@@ -130,7 +131,6 @@ uniform vec3 shadowLightVector;
 		#define atlasTileSize       atlasTileInfo[1]
 		#define atlasTileResolution atlasTileInfo[2]
 	#endif
-	flat out vec3 tint; // Interestingly, the tint color seems to always be the same for the entire quad.
 	flat out int blockId;
 
 	// Stuff that would ideally be uniforms
@@ -248,6 +248,7 @@ uniform vec3 shadowLightVector;
 	in vec2 lightmapCoordinates;
 	in vec2 textureCoordinates;
 	in float vertexAo;
+	in vec3 tint;
 
 	// Flat
 	flat in mat3 tbn;
@@ -257,7 +258,6 @@ uniform vec3 shadowLightVector;
 		#define atlasTileSize       atlasTileInfo[1]
 		#define atlasTileResolution atlasTileInfo[2]
 	#endif
-	flat in vec3 tint; // Interestingly, the tint color seems to always be the same for the entire quad.
 	flat in int blockId;
 
 	// Stuff that would ideally be uniforms

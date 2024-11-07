@@ -178,6 +178,7 @@ uniform vec3 shadowLightVector;
 	in vec2 lightmapCoordinates;
 	in vec2 textureCoordinates;
 	in float vertexAo;
+	in vec3 tint;
 
 	// Flat
 	#if defined PARALLAX || defined SMOOTH_ALBEDO || defined SMOOTH_NORMALS || defined SMOOTH_SPECULAR
@@ -186,7 +187,6 @@ uniform vec3 shadowLightVector;
 		#define atlasTileSize       atlasTileInfo[1]
 		#define atlasTileResolution atlasTileInfo[2]
 	#endif
-	flat in vec3 tint; // Interestingly, the tint color seems to always be the same for the entire quad.
 	flat in int blockId;
 
 	//--// Fragment Outputs //------------------------------------------------//

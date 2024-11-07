@@ -82,7 +82,7 @@ uniform vec3 shadowLightVector;
 		#define atlasTileSize       atlasTileInfo[1]
 		#define atlasTileResolution atlasTileInfo[2]
 	#endif
-	flat out vec3 tint;
+	out vec3 tint;
 	flat out int blockId;
 
 	//--// Vertex Includes //-------------------------------------------------//
@@ -235,7 +235,7 @@ uniform vec3 shadowLightVector;
 		#define atlasTileSize       atlasTileInfo[1]
 		#define atlasTileResolution atlasTileInfo[2]
 	#endif
-	flat in vec3 tint; // Interestingly, the tint color seems to always be the same for the entire quad.
+	in vec3 tint;
 	flat in int blockId;
 
 	//--// Fragment Outputs //------------------------------------------------//
