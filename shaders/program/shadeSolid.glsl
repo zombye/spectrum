@@ -105,13 +105,6 @@ uniform vec3 shadowLightVector;
 
 	out vec2 screenCoord;
 
-	flat out vec3 skylightPosX;
-	flat out vec3 skylightPosY;
-	flat out vec3 skylightPosZ;
-	flat out vec3 skylightNegX;
-	flat out vec3 skylightNegY;
-	flat out vec3 skylightNegZ;
-
 	flat out vec3 shadowlightTransmittance;
 	flat out vec3 luminanceShadowlight;
 	flat out vec3 illuminanceShadowlight;
@@ -122,47 +115,7 @@ uniform vec3 shadowLightVector;
 		screenCoord = gl_Vertex.xy;
 		gl_Position = vec4(gl_Vertex.xy * 2.0 - 1.0, 1.0, 1.0);
 
-		const ivec2 samples = ivec2(64, 32);
-
-		skylightPosX = vec3(0.0);
-		skylightPosY = vec3(0.0);
-		skylightPosZ = vec3(0.0);
-		skylightNegX = vec3(0.0);
-		skylightNegY = vec3(0.0);
-		skylightNegZ = vec3(0.0);
-
-		for (int x = 0; x < samples.x; ++x) {
-			for (int y = 0; y < samples.y; ++y) {
-				vec3 dir = SampleSphere((vec2(x, y) + 0.5) / samples);
-				if (dir.y < 0.0) { dir.y = -dir.y; }
-
-				vec3 skySample = texture(colortex6, ProjectSky(dir)).rgb;
-
-				skylightPosX += skySample * Clamp01( dir.x);
-				skylightPosY += skySample * Clamp01( dir.y);
-				skylightPosZ += skySample * Clamp01( dir.z);
-				skylightNegX += skySample * Clamp01(-dir.x);
-				skylightNegZ += skySample * Clamp01(-dir.z);
-			}
-		}
-
-		const float sampleWeight = 2.0 / (samples.x * samples.y);
-		skylightPosX *= sampleWeight;
-		skylightPosY *= sampleWeight;
-		skylightPosZ *= sampleWeight;
-		skylightNegX *= sampleWeight;
-		skylightNegZ *= sampleWeight;
-
-		// super simple fake skylight bounce
-		const float fakeBounceAlbedo = 0.2;
-		skylightPosX += skylightPosY * fakeBounceAlbedo * 0.5;
-		skylightPosZ += skylightPosY * fakeBounceAlbedo * 0.5;
-		skylightNegX += skylightPosY * fakeBounceAlbedo * 0.5;
-		skylightNegY += skylightPosY * fakeBounceAlbedo;
-		skylightNegZ += skylightPosY * fakeBounceAlbedo * 0.5;
-
-		shadowlightTransmittance  = AtmosphereTransmittance(transmittanceLut, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
-		shadowlightTransmittance *= smoothstep(0.0, 0.01, abs(shadowLightVector.y));
+		shadowlightTransmittance = texelFetch(colortex5, ivec2(0, viewResolution.y - 2), 0).rgb;
 		luminanceShadowlight   = (sunAngle < 0.5 ? sunLuminance   : moonLuminance)   * shadowlightTransmittance;
 		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : moonIlluminance) * shadowlightTransmittance;
 	}
@@ -171,24 +124,16 @@ uniform vec3 shadowLightVector;
 
 	in vec2 screenCoord;
 
-	flat in vec3 skylightPosX;
-	flat in vec3 skylightPosY;
-	flat in vec3 skylightPosZ;
-	flat in vec3 skylightNegX;
-	flat in vec3 skylightNegY;
-	flat in vec3 skylightNegZ;
-
 	flat in vec3 shadowlightTransmittance;
 	flat in vec3 luminanceShadowlight;
 	flat in vec3 illuminanceShadowlight;
 
 	//--// Fragment Outputs //------------------------------------------------//
 
-	/* RENDERTARGETS: 4,5,7 */
+	/* RENDERTARGETS: 4,7 */
 
 	layout (location = 0) out vec4 colortex4Write;
-	layout (location = 1) out vec4 colortex5Write;
-	layout (location = 2) out vec4 shadowsOut; // shadows
+	layout (location = 1) out vec4 shadowsOut; // shadows
 
 	//--// Fragment Includes //-----------------------------------------------//
 
@@ -232,6 +177,8 @@ uniform vec3 shadowLightVector;
 
 	#include "/include/fragment/clouds3D.fsh"
 
+	#include "/include/spherical_harmonics/core.glsl"
+	#include "/include/spherical_harmonics/expansion.glsl"
 
 	//--// Fragment Functions //----------------------------------------------//
 
@@ -298,27 +245,6 @@ uniform vec3 shadowLightVector;
 	}
 
 	void main() {
-		if (gl_FragCoord.x < 6.0 && gl_FragCoord.y < 1.0) {
-			if (gl_FragCoord.x < 1.0) {
-				colortex5Write.rgb = skylightPosX;
-			} else if (gl_FragCoord.x < 2.0) {
-				colortex5Write.rgb = skylightPosY;
-			} else if (gl_FragCoord.x < 3.0) {
-				colortex5Write.rgb = skylightPosZ;
-			} else if (gl_FragCoord.x < 4.0) {
-				colortex5Write.rgb = skylightNegX;
-			} else if (gl_FragCoord.x < 5.0) {
-				colortex5Write.rgb = skylightNegY;
-			} else {
-				colortex5Write.rgb = skylightNegZ;
-			}
-		} else if (gl_FragCoord.x < 1.0 && gl_FragCoord.y < 2.0) {
-			colortex5Write.rgb = shadowlightTransmittance;
-		} else {
-			colortex5Write.rgb = vec3(0.0);
-		}
-		colortex5Write.a = 1.0;
-
 		mat3 position;
 		position[0] = vec3(screenCoord, texture(depthtex1, screenCoord).r);
 		#ifdef TAA
@@ -383,12 +309,18 @@ uniform vec3 shadowLightVector;
 
 			vec3 skylight = vec3(0.0);
 			if (lightmap.y > 0.0) {
-				vec3 octahedronPoint = skyConeVector / (abs(skyConeVector.x) + abs(skyConeVector.y) + abs(skyConeVector.z));
-				vec3 wPos = Clamp01( octahedronPoint);
-				vec3 wNeg = Clamp01(-octahedronPoint);
-
-				skylight = skylightPosX * wPos.x + skylightPosY * wPos.y + skylightPosZ * wPos.z
-				         + skylightNegX * wNeg.x + skylightNegY * wNeg.y + skylightNegZ * wNeg.z;
+				vec3[9] skylight_sh_coeffs = vec3[9](
+					texelFetch(colortex5, ivec2(0, viewResolution.y - 1), 0).rgb,
+					texelFetch(colortex5, ivec2(1, viewResolution.y - 1), 0).rgb,
+					texelFetch(colortex5, ivec2(2, viewResolution.y - 1), 0).rgb,
+					texelFetch(colortex5, ivec2(3, viewResolution.y - 1), 0).rgb,
+					texelFetch(colortex5, ivec2(4, viewResolution.y - 1), 0).rgb,
+					texelFetch(colortex5, ivec2(5, viewResolution.y - 1), 0).rgb,
+					texelFetch(colortex5, ivec2(6, viewResolution.y - 1), 0).rgb,
+					texelFetch(colortex5, ivec2(7, viewResolution.y - 1), 0).rgb,
+					texelFetch(colortex5, ivec2(8, viewResolution.y - 1), 0).rgb
+				);
+				skylight = sh_integrate_product(skylight_sh_coeffs, sh_expansion_clampedcosine_order3(skyConeVector)) / pi;
 			}
 
 			vec3 shadows = vec3(0.0), bounce = vec3(0.0); float sssDepth = 0.0;

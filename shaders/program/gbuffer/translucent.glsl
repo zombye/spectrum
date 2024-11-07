@@ -133,14 +133,6 @@ uniform vec3 shadowLightVector;
 	#endif
 	flat out int blockId;
 
-	// Stuff that would ideally be uniforms
-	flat out vec3 skylightPosX;
-	flat out vec3 skylightPosY;
-	flat out vec3 skylightPosZ;
-	flat out vec3 skylightNegX;
-	flat out vec3 skylightNegY;
-	flat out vec3 skylightNegZ;
-
 	flat out vec3 luminanceShadowlight;
 	flat out vec3 illuminanceShadowlight;
 
@@ -223,14 +215,7 @@ uniform vec3 shadowLightVector;
 			tangentViewVector = (mat3(gbufferModelViewInverse) * viewPosition) * tbn;
 		#endif
 
-		skylightPosX = texelFetch(colortex5, ivec2(0, 0), 0).rgb;
-		skylightPosY = texelFetch(colortex5, ivec2(1, 0), 0).rgb;
-		skylightPosZ = texelFetch(colortex5, ivec2(2, 0), 0).rgb;
-		skylightNegX = texelFetch(colortex5, ivec2(3, 0), 0).rgb;
-		skylightNegY = texelFetch(colortex5, ivec2(4, 0), 0).rgb;
-		skylightNegZ = texelFetch(colortex5, ivec2(5, 0), 0).rgb;
-
-		vec3 shadowlightTransmittance = texelFetch(colortex5, ivec2(0, 1), 0).rgb;
+		vec3 shadowlightTransmittance = texelFetch(colortex5, ivec2(0, viewResolution.y - 2), 0).rgb;
 		luminanceShadowlight   = (sunAngle < 0.5 ? sunLuminance   : moonLuminance)   * shadowlightTransmittance;
 		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : moonIlluminance) * shadowlightTransmittance;
 	}
@@ -259,14 +244,6 @@ uniform vec3 shadowLightVector;
 		#define atlasTileResolution atlasTileInfo[2]
 	#endif
 	flat in int blockId;
-
-	// Stuff that would ideally be uniforms
-	flat in vec3 skylightPosX;
-	flat in vec3 skylightPosY;
-	flat in vec3 skylightPosZ;
-	flat in vec3 skylightNegX;
-	flat in vec3 skylightNegY;
-	flat in vec3 skylightNegZ;
 
 	#define illuminanceSky skylightPosY // TODO: Make this the thing it's supposed to be
 
@@ -319,6 +296,8 @@ uniform vec3 shadowLightVector;
 
 	#include "/include/fragment/clouds3D.fsh"
 
+	#include "/include/spherical_harmonics/core.glsl"
+	#include "/include/spherical_harmonics/expansion.glsl"
 
 	#ifdef SSR_MULTILAYER
 		#include "/include/shared/phaseFunctions.glsl"
@@ -450,11 +429,18 @@ uniform vec3 shadowLightVector;
 
 		vec3 skylight = vec3(0.0);
 		if (lightmapCoordinates.y > 0.0) {
-			vec3 octahedronPoint = normal / (abs(normal.x) + abs(normal.y) + abs(normal.z));
-			vec3 wPos = Clamp01( octahedronPoint);
-			vec3 wNeg = Clamp01(-octahedronPoint);
-			skylight = skylightPosX * wPos.x + skylightPosY * wPos.y + skylightPosZ * wPos.z
-			         + skylightNegX * wNeg.x + skylightNegY * wNeg.y + skylightNegZ * wNeg.z;
+			vec3[9] skylight_sh_coeffs = vec3[9](
+				texelFetch(colortex5, ivec2(0, viewResolution.y - 1), 0).rgb,
+				texelFetch(colortex5, ivec2(1, viewResolution.y - 1), 0).rgb,
+				texelFetch(colortex5, ivec2(2, viewResolution.y - 1), 0).rgb,
+				texelFetch(colortex5, ivec2(3, viewResolution.y - 1), 0).rgb,
+				texelFetch(colortex5, ivec2(4, viewResolution.y - 1), 0).rgb,
+				texelFetch(colortex5, ivec2(5, viewResolution.y - 1), 0).rgb,
+				texelFetch(colortex5, ivec2(6, viewResolution.y - 1), 0).rgb,
+				texelFetch(colortex5, ivec2(7, viewResolution.y - 1), 0).rgb,
+				texelFetch(colortex5, ivec2(8, viewResolution.y - 1), 0).rgb
+			);
+			skylight = sh_integrate_product(skylight_sh_coeffs, sh_expansion_clampedcosine_order3(normal)) / pi;
 		}
 
 		float sssDepth = 0.0;

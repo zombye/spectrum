@@ -1,0 +1,141 @@
+//--// Settings //------------------------------------------------------------//
+
+#include "/settings.glsl"
+
+//--// Uniforms //------------------------------------------------------------//
+
+uniform float sunAngle;
+
+uniform sampler2D colortex6; // Sky Scattering Image
+
+uniform sampler2D depthtex0; // Sky Transmittance LUT
+uniform sampler3D depthtex2; // Sky Scattering LUT
+#define transmittanceLut depthtex0
+#define scatteringLut depthtex2
+
+writeonly uniform image2D colorimg5;
+
+//--// Camera uniforms
+
+uniform mat4 gbufferModelViewInverse;
+
+//--// Custom uniforms
+
+uniform vec2 viewResolution;
+
+uniform vec3 shadowLightVector;
+
+//--// Inputs //--------------------------------------------------------------//
+
+// Can have up to 303 threads before hitting OpenGL-mandated limit for shared memory size
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+const ivec3 workGroups = ivec3(1, 1, 1);
+
+shared vec3[9] coeffs[gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z];
+
+//--// Includes //------------------------------------------------------------//
+
+#include "/include/utility.glsl"
+#include "/include/utility/color.glsl"
+#include "/include/utility/fastMath.glsl"
+#include "/include/utility/sequence.glsl"
+
+#include "/include/spherical_harmonics/core.glsl"
+#include "/include/spherical_harmonics/expansion.glsl"
+
+#include "/include/shared/celestialConstants.glsl"
+#include "/include/shared/phaseFunctions.glsl"
+#include "/include/shared/skyProjection.glsl"
+
+#include "/include/shared/atmosphere/constants.glsl"
+#include "/include/shared/atmosphere/lookup.glsl"
+#include "/include/shared/atmosphere/transmittance.glsl"
+#include "/include/shared/atmosphere/phase.glsl"
+#include "/include/shared/atmosphere/scattering.glsl"
+
+//--// Functions //-----------------------------------------------------------//
+
+vec3 sample_sphere(vec2 uv) {
+	float phi       = uv.x * 6.2831853;
+	float cos_theta = uv.y * 2.0 - 1.0;
+	float sin_theta = sqrt(1.0 - cos_theta * cos_theta);
+	return vec3(
+		cos(phi) * sin_theta,
+		sin(phi) * sin_theta,
+		cos_theta
+	);
+}
+
+void main() {
+	// init
+	for (int coeff = 0; coeff < 9; ++coeff) {
+		coeffs[gl_LocalInvocationIndex][coeff] = vec3(0.9);
+	}
+
+	// Sample & sum sky for this invocation
+	const int invocation_count = int(gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z);
+	const int invocation_sample_count = 16;
+	const int total_sample_count = invocation_count * invocation_sample_count;
+
+	for (int invocation_sample_index = 0; invocation_sample_index < invocation_sample_count; ++invocation_sample_index) {
+		int sample_index = invocation_sample_count * int(gl_LocalInvocationIndex) + invocation_sample_index;
+
+		// Sample the sky
+		vec2 uv = R2(sample_index);
+		uv.y = uv.y * 0.5 + 0.5;
+		vec3 sample_direction = sample_sphere(uv).xzy;
+
+		vec3 sky_radiance = texture(colortex6, ProjectSky(sample_direction)).rgb;
+
+		// Encode this sample into SH and add to the sum
+		float[9] sample_basis = sh_basis_order3(sample_direction);
+		for (int coeff = 0; coeff < 9; ++coeff) {
+			coeffs[gl_LocalInvocationIndex][coeff] += sample_basis[coeff] * sky_radiance;
+		}
+	}
+
+	// Combine thread sums using a parallel sum
+	for (int stride = invocation_count / 2; stride > 0; stride /= 2) {
+		memoryBarrierShared();
+		barrier();
+		if (gl_LocalInvocationIndex < stride) {
+			for (int coeff = 0; coeff < 9; ++coeff) {
+				coeffs[gl_LocalInvocationIndex][coeff] += coeffs[gl_LocalInvocationIndex + stride][coeff];
+			}
+		}
+	}
+
+	if (gl_LocalInvocationIndex == 0) {
+		// Divide sum of samples by thread count and divide out the sampled PDF to produce the final estimate
+		// Since we're sampling a hemisphere, it works out to multiplying by 4*pi.
+		const float normalization = 2.0 * 3.14159265 / float(total_sample_count);
+		for (int coeff = 0; coeff < 9; ++coeff) {
+			coeffs[0][coeff] *= normalization;
+		}
+
+		// Shadow light transmittance is computed here, it'll be needed here later on and this is a decent place for it anyway.
+		vec3 light_transmittance = AtmosphereTransmittance(transmittanceLut, vec3(0.0, atmosphere_planetRadius, 0.0), shadowLightVector);
+		light_transmittance *= smoothstep(0.0, 0.01, abs(shadowLightVector.y)); // Force fadeout before transitioning between sunlight/moonlight
+		imageStore(colorimg5, ivec2(0, viewResolution.y - 2), vec4(light_transmittance, 1.0));
+
+		// For the lower hemisphere, add an approximate representation of the ground
+		vec3 sky_irradiance = sh_integrate_product(coeffs[0], sh_expansion_clampedcosine_order3(vec3(0.0, 1.0, 0.0)));
+
+		const vec3 ground_albedo = vec3(0.2);
+		vec3 ground_radiance = sky_irradiance * ground_albedo / 3.14159265;
+
+		float[9] hemisphere_basis = sh_expansion_hemisphere_order3(vec3(0.0, -1.0, 0.0));
+		for (int coeff = 0; coeff < 9; ++coeff) {
+			coeffs[0][coeff] += hemisphere_basis[coeff] * ground_radiance;
+		}
+	}
+
+	memoryBarrierShared();
+	barrier();
+
+	if (gl_LocalInvocationIndex < 9) {
+		// Finally, save the result
+		ivec2 dst = ivec2(gl_LocalInvocationIndex, viewResolution.y - 1);
+		imageStore(colorimg5, dst, vec4(coeffs[0][gl_LocalInvocationIndex], 1.0));
+	}
+}
