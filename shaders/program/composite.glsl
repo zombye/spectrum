@@ -128,7 +128,7 @@ uniform vec3 shadowLightVector;
 		const float sampleWeight = 4.0 * pi / (samples.x * samples.y);
 		illuminanceSky *= sampleWeight;
 
-		vec3 shadowlightTransmittance = texelFetch(colortex5, ivec2(0, 1), 0).rgb;
+		vec3 shadowlightTransmittance = texelFetch(colortex5, ivec2(0, viewResolution.y - 2), 0).rgb;
 		luminanceShadowlight   = (sunAngle < 0.5 ? sunLuminance   : moonLuminance)   * shadowlightTransmittance;
 		illuminanceShadowlight = (sunAngle < 0.5 ? sunIlluminance : moonIlluminance) * shadowlightTransmittance;
 	}
