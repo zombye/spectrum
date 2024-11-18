@@ -107,26 +107,29 @@ uniform vec3 shadowLightVector;
 
 	out vec3 illuminanceSky;
 
+	//--// Vertex Includes //-------------------------------------------------//
+
+	#include "/include/spherical_harmonics/core.glsl"
+	#include "/include/spherical_harmonics/expansion.glsl"
+
 	//--// Vertex Functions //------------------------------------------------//
 
 	void main() {
 		screenCoord = gl_Vertex.xy;
 		gl_Position = vec4(gl_Vertex.xy * 2.0 - 1.0, 1.0, 1.0);
 
-		const ivec2 samples = ivec2(16, 8);
-
-		illuminanceSky = vec3(0.0);
-		for (int x = 0; x < samples.x; ++x) {
-			for (int y = 0; y < samples.y; ++y) {
-				vec3 dir = SampleSphere((vec2(x, y) + 0.5) / samples);
-
-				vec3 skySample = texture(colortex6, ProjectSky(dir, SKY_IMAGE_LOD)).rgb;
-				illuminanceSky += skySample * step(0.0, dir.y);
-			}
-		}
-
-		const float sampleWeight = 4.0 * pi / (samples.x * samples.y);
-		illuminanceSky *= sampleWeight;
+		vec3[9] skylight_sh_coeffs = vec3[9](
+			texelFetch(colortex5, ivec2(0, viewResolution.y - 1), 0).rgb,
+			texelFetch(colortex5, ivec2(1, viewResolution.y - 1), 0).rgb,
+			texelFetch(colortex5, ivec2(2, viewResolution.y - 1), 0).rgb,
+			texelFetch(colortex5, ivec2(3, viewResolution.y - 1), 0).rgb,
+			texelFetch(colortex5, ivec2(4, viewResolution.y - 1), 0).rgb,
+			texelFetch(colortex5, ivec2(5, viewResolution.y - 1), 0).rgb,
+			texelFetch(colortex5, ivec2(6, viewResolution.y - 1), 0).rgb,
+			texelFetch(colortex5, ivec2(7, viewResolution.y - 1), 0).rgb,
+			texelFetch(colortex5, ivec2(8, viewResolution.y - 1), 0).rgb
+		);
+		illuminanceSky = sh_integrate_product(skylight_sh_coeffs, sh_expansion_hemisphere_order3(vec3(0.0, 1.0, 0.0)));
 
 		vec3 shadowlightTransmittance = texelFetch(colortex5, ivec2(0, viewResolution.y - 2), 0).rgb;
 		luminanceShadowlight   = (sunAngle < 0.5 ? sunLuminance   : moonLuminance)   * shadowlightTransmittance;
