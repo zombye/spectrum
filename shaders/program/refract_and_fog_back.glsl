@@ -199,9 +199,7 @@ uniform vec3 shadowLightVector;
 	#include "/include/fragment/fog.fsh"
 
 	#include "/include/fragment/material.fsh"
-	#include "/include/fragment/brdf.fsh"
 	#include "/include/fragment/raytracer.fsh"
-	#include "/include/fragment/specularLighting.fsh"
 
 	//--// Fragment Functions //----------------------------------------------//
 
@@ -315,25 +313,26 @@ uniform vec3 shadowLightVector;
 		#endif
 		backPosition[1] = ScreenSpaceToViewSpace(backPosition[0], gbufferProjectionInverse);
 		backPosition[2] = mat3(gbufferModelViewInverse) * backPosition[1] + gbufferModelViewInverse[3].xyz;
-		vec3 viewVector = normalize(frontPosition[2] - gbufferModelViewInverse[3].xyz);
-		vec3 backDirection = viewVector;
-
-		float LoV = dot(shadowLightVector, -viewVector);
-
-		float eyeSkylight = eyeBrightness.y / 240.0;
-		      eyeSkylight = eyeSkylight * exp(eyeSkylight * 6.0 - 6.0);
-
-		// Dither pattern
-		const float ditherSize = 32.0 * 32.0;
-		float dither = Bayer32(gl_FragCoord.st);
-		#ifdef TAA
-		      dither = fract(dither + frameR1);
-		#endif
 
 		vec3 transparentFlatNormal = normalize(cross(dFdx(frontPosition[2]), dFdy(frontPosition[2])));
 
 		vec3 color;
-		if (frontPosition[0].z < 1.0) {
+		if (backPosition[0].z != frontPosition[0].z) {
+			vec3 viewVector = normalize(frontPosition[2] - gbufferModelViewInverse[3].xyz);
+			vec3 backDirection = viewVector;
+
+			float LoV = dot(shadowLightVector, -viewVector);
+
+			float eyeSkylight = eyeBrightness.y / 240.0;
+			      eyeSkylight = eyeSkylight * exp(eyeSkylight * 6.0 - 6.0);
+
+			// Dither pattern
+			const float ditherSize = 32.0 * 32.0;
+			float dither = Bayer32(gl_FragCoord.st);
+			#ifdef TAA
+			      dither = fract(dither + frameR1);
+			#endif
+
 			// Gbuffer data
 			vec4 colortex0Sample = texture(colortex0, screenCoord);
 			vec4 colortex1Sample = texture(colortex1, screenCoord);
@@ -382,69 +381,25 @@ uniform vec3 shadowLightVector;
 
 			float skylightFade = lightmap.y * exp(lightmap.y * 6.0 - 6.0);
 
-			if (backPosition[0].z != frontPosition[0].z) {
-				// Front to back fog
-				bool backIsSky = backPosition[0].z >= 1.0;
-				if (isEyeInWater != 1 && (blockId == 8 || blockId == 9)) { // Water fog
-					#ifdef VL_WATER
-					color = CalculateWaterFogVL(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, dither, backIsSky);
-					#else
-					color = CalculateWaterFog(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, dither, backIsSky);
-					#endif
-				} else { // Air fog
-					#ifdef VL_AIR
-					color = CalculateAirFogVL(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, skylightFade, dither, backIsSky);
-					#else
-					color = CalculateAirFog(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, skylightFade, dither, backIsSky);
-					#endif
-				}
-
-				// Apply transparents
-				vec4 transparentSurfaceCol = texture(colortex3, screenCoord);
-				color = color * (1.0 - transparentSurfaceCol.a) + transparentSurfaceCol.rgb;
-			} else if (wetness > 0.01) {
-				// rain puddles, idk where to do these tbh but here works
-				vec3 flatNormal = DecodeNormal(Unpack2x8(colortex1Sample.a) * 2.0 - 1.0);;
-
-				float rainMask  = 1.0 - Pow2(LinearStep(1.0, 0.01, wetness));
-				      rainMask *= Clamp01(lightmap.y * 15.0 - 13.5);
-				      rainMask *= LinearStep(0.5, 0.9, normal.y);
-
-				float noise  = TextureCubic(noisetex, fract(0.5 * (backPosition[2].xz + cameraPosition.xz) / 256.0)).x;
-				      noise += TextureCubic(noisetex, fract(1.0 * (backPosition[2].xz + cameraPosition.xz) / 256.0)).x * 0.5;
-				      noise /= 1.5;
-
-				float wetMask = Clamp01(Clamp01(noise * 1.7) + rainMask - 1.0);
-				float puddleMask = LinearStep(0.9, 0.95, Clamp01(noise * 1.5) - 0.1 + LinearStep(0.5, 1.0, rainMask)*0.1);
-
-				material.n += 0.3 * LinearStep(0.3, 0.9, wetMask);
-				material.roughness *= (1.0 - puddleMask) * pow(1.0 - wetMask * 0.75, 2.0) + puddleMask * 0.01;
-				normal = normalize(mix(normal, flatNormal, puddleMask));
-			}
-
-			// Specular
-			if (material.n != eyeN) {
-				color *= 1.0 - material.metalness;
-				color += material.emission * material.metalness; // as emissive is done before this it needs to be readded here for metals
-
-				float NoV = dot(normal, -viewVector);
-
-				float NoL = dot(normal, shadowLightVector);
-				float rcpLen_LV = inversesqrt(2.0 * LoV + 2.0);
-				float NoH = (NoL + NoV) * rcpLen_LV;
-				float VoH = LoV * rcpLen_LV + rcpLen_LV;
-
-				float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
-				color += CalculateSpecularHighlight(NoL, NoV, LoV, VoH, material, lightAngularRadius) * illuminanceShadowlight * LinearFromSrgb(texture(colortex7, screenCoord).rgb);
-
-				#ifdef SSR_MULTILAYER
-					if (backPosition[0].z == frontPosition[0].z) {
-						color += CalculateEnvironmentReflections(colortex4, frontPosition, normal, NoV, material, skylightFade, blockId == 8, dither, ditherSize);
-					}
+			// Front to back fog
+			bool backIsSky = backPosition[0].z >= 1.0;
+			if (isEyeInWater != 1 && (blockId == 8 || blockId == 9)) { // Water fog
+				#ifdef VL_WATER
+				color = CalculateWaterFogVL(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, dither, backIsSky);
 				#else
-					color += CalculateEnvironmentReflections(colortex4, frontPosition, normal, NoV, material, skylightFade, blockId == 8, dither, ditherSize);
+				color = CalculateWaterFog(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, dither, backIsSky);
+				#endif
+			} else { // Air fog
+				#ifdef VL_AIR
+				color = CalculateAirFogVL(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, skylightFade, dither, backIsSky);
+				#else
+				color = CalculateAirFog(color, frontPosition[2], backPosition[2], viewVector, -LoV, skylightFade, skylightFade, dither, backIsSky);
 				#endif
 			}
+
+			// Apply transparents
+			vec4 transparentSurfaceCol = texture(colortex3, screenCoord);
+			color = color * (1.0 - transparentSurfaceCol.a) + transparentSurfaceCol.rgb;
 		} else { // Sky
 			color = DecodeRGBE8(texture(colortex4, screenCoord));
 		}

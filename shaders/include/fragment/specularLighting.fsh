@@ -20,7 +20,7 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 
 //--//
 
-#if defined PROGRAM_COMPOSITE || defined PROGRAM_WATER || defined PROGRAM_HAND_WATER
+#if defined PROGRAM_COMPOSITE1 || defined PROGRAM_WATER || defined PROGRAM_HAND_WATER
 	float EstimateMipLevel(vec3 position, vec3 hitPosition, float sampleDensity /* pdf*sampleCount */) {
 		// Approximate solid angle represented by this sample & pixel
 		// We only care about the ratio of these so units might be weird
