@@ -104,47 +104,6 @@
 
 		return normalize(normal);
 	}
-
-	#ifdef WATER_PARALLAX
-		vec3 CalculateWaterParallax(vec3 position, vec3 direction) {
-			const int steps = WATER_PARALLAX_STEPS;
-
-			// Init & first step
-			vec3  interval = inversesqrt(steps) * direction / -direction.y;
-			float height   = CalculateWaterWaves(position) * WATER_PARALLAX_DEPTH_MULTIPLIER;
-			float stepSize = -height;
-			position.xz += stepSize * interval.xz;
-
-			if (steps > 1) {
-				float offset = stepSize * interval.y;
-				height = CalculateWaterWaves(position) * WATER_PARALLAX_DEPTH_MULTIPLIER;
-
-				// Loop from second step to second to last step
-				for (int i = 1; i < steps - 1 && height < offset; ++i) {
-					stepSize = offset - height;
-					position.xz += stepSize * interval.xz;
-
-					offset += stepSize * interval.y;
-					height = CalculateWaterWaves(position) * WATER_PARALLAX_DEPTH_MULTIPLIER;
-				}
-
-				// Last step
-				if (height < offset) {
-					stepSize = offset - height;
-					position.xz += stepSize * interval.xz;
-				}
-			}
-
-			return position;
-		}
-
-		vec3 CalculateWaterNormal(vec3 position, vec3 tangentViewVector) {
-			position = CalculateWaterParallax(position, tangentViewVector.xzy);
-
-			return CalculateWaterNormal(position).xzy;
-			//return CalculateWaterNormal(position, sqrt(1.0 - Pow4(1.0 - abs(normalize(tangentViewVector).z)))).xzy;
-		}
-	#endif
 #else
 	#define WATER_WAVES_HQ // approx. 2x more demanding, needed for projected caustics to look good (and makes it look a lot better when you don't have a lot of iterations)
 
@@ -437,47 +396,47 @@
 		return normalize(normal);
 	}
 	#endif
+#endif
 
-	#ifdef WATER_PARALLAX
-		vec3 CalculateWaterParallax(vec3 position, vec3 direction) {
-			const int steps = WATER_PARALLAX_STEPS;
+#ifdef WATER_PARALLAX
+	vec3 CalculateWaterParallax(vec3 position, vec3 direction) {
+		const int steps = WATER_PARALLAX_STEPS;
 
-			// Init & first step
-			vec3  interval = inversesqrt(steps) * direction / -direction.y;
-			float height   = CalculateWaterWaves(position) * WATER_PARALLAX_DEPTH_MULTIPLIER;
-			float stepSize = -height;
-			position.xz += stepSize * interval.xz;
+		// Init & first step
+		vec3  interval = inversesqrt(steps) * direction / -direction.y;
+		float height   = CalculateWaterWaves(position) * WATER_PARALLAX_DEPTH_MULTIPLIER;
+		float stepSize = -height;
+		position.xz += stepSize * interval.xz;
 
-			if (steps > 1) {
-				float offset = stepSize * interval.y;
+		if (steps > 1) {
+			float offset = stepSize * interval.y;
+			height = CalculateWaterWaves(position) * WATER_PARALLAX_DEPTH_MULTIPLIER;
+
+			// Loop from second step to second to last step
+			for (int i = 1; i < steps - 1 && height < offset; ++i) {
+				stepSize = offset - height;
+				position.xz += stepSize * interval.xz;
+
+				offset += stepSize * interval.y;
 				height = CalculateWaterWaves(position) * WATER_PARALLAX_DEPTH_MULTIPLIER;
-
-				// Loop from second step to second to last step
-				for (int i = 1; i < steps - 1 && height < offset; ++i) {
-					stepSize = offset - height;
-					position.xz += stepSize * interval.xz;
-
-					offset += stepSize * interval.y;
-					height = CalculateWaterWaves(position) * WATER_PARALLAX_DEPTH_MULTIPLIER;
-				}
-
-				// Last step
-				if (height < offset) {
-					stepSize = offset - height;
-					position.xz += stepSize * interval.xz;
-				}
 			}
 
-			return position;
+			// Last step
+			if (height < offset) {
+				stepSize = offset - height;
+				position.xz += stepSize * interval.xz;
+			}
 		}
 
-		vec3 CalculateWaterNormal(vec3 position, vec3 tangentViewVector) {
-			position = CalculateWaterParallax(position, tangentViewVector.xzy);
+		return position;
+	}
 
-			return CalculateWaterNormal(position).xzy;
-			//return CalculateWaterNormal(position, sqrt(1.0 - Pow4(1.0 - abs(normalize(tangentViewVector).z)))).xzy;
-		}
-	#endif
+	vec3 CalculateWaterNormal(vec3 position, vec3 tangentViewVector) {
+		position = CalculateWaterParallax(position, tangentViewVector.xzy);
+
+		return CalculateWaterNormal(position).xzy;
+		//return CalculateWaterNormal(position, sqrt(1.0 - Pow4(1.0 - abs(normalize(tangentViewVector).z)))).xzy;
+	}
 #endif
 
 #endif
