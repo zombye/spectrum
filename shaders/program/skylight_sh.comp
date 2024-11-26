@@ -69,7 +69,7 @@ vec3 sample_sphere(vec2 uv) {
 void main() {
 	// init
 	for (int coeff = 0; coeff < 9; ++coeff) {
-		coeffs[gl_LocalInvocationIndex][coeff] = vec3(0.9);
+		coeffs[gl_LocalInvocationIndex][coeff] = vec3(0.0);
 	}
 
 	// Sample & sum sky for this invocation
