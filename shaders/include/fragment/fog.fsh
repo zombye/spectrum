@@ -267,9 +267,13 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 			if (waterDepth > 0.0) {
 				lightingSun *= exp(-baseAttenuationCoefficient * fogDensity * waterDepth);
 
-				#if CAUSTICS == CAUSTICS_HIGH && defined VL_WATER_CAUSTICS
+				#if defined VL_WATER_CAUSTICS && (CAUSTICS == CAUSTICS_HIGH || CAUSTICS == CAUSTICS_MEDIUM)
 					vec3 shadowView = mat3(shadowProjectionInverse) * shadowPosition + shadowProjectionInverse[3].xyz;
+					#if CAUSTICS == CAUSTICS_HIGH
 					lightingSun *= CalculateCaustics(shadowView, waterDepth, vec2(0.5));
+					#elif CAUSTICS == CAUSTICS_MEDIUM
+					lightingSun *= CalculateCaustics(shadowView, waterDepth);
+					#endif
 				#elif CAUSTICS != CAUSTICS_OFF
 					lightingSun *= GetProjectedCaustics(clamp(waterDepth, 0.0, 2.0), causticsCoeffs);
 				#endif

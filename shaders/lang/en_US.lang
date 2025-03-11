@@ -219,12 +219,15 @@ option.WATER_PARALLAX_STEPS=Water Parallax Steps
 option.CAUSTICS=Water Caustics
 value.CAUSTICS.CAUSTICS_OFF=Off
 value.CAUSTICS.CAUSTICS_LOW=Low
+value.CAUSTICS.CAUSTICS_MEDIUM=Medium
 value.CAUSTICS.CAUSTICS_HIGH=High
 option.CAUSTICS_POWER=Contrast
 option.CAUSTICS_QUALITY=Quality
 option.CAUSTICS_QUALITY.comment=Higher values allow for finer detail and (generally) less noise.
 option.CAUSTICS_DITHERED=Use Dithering
-option.CAUSTICS_DITHERED.comment=This should usually be left on.
+option.CAUSTICS_DITHERED.comment=This should usually be left on. Does not affect low & medium settings.
+option.CAUSTICS_HIGH_SUBSEARCH_ITERATIONS = High: Subsearch Iterations
+option.CAUSTICS_HIGH_SUBSEARCH_ITERATIONS.comment = Subsearch iterations help provide significantly more precise caustics at a rather small performance cost.
 
 ##--## Miscellaneous ##-------------------------------------------------------##
 

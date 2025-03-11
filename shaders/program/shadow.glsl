@@ -200,7 +200,7 @@ uniform vec3 shadowLightVector;
 			#else
 				shadowcolor0Write.zw = vec2(0.0);
 			#endif
-			#if CAUSTICS == CAUSTICS_HIGH
+			#if CAUSTICS == CAUSTICS_HIGH || CAUSTICS == CAUSTICS_MEDIUM
 				shadowcolor0Write.xy = EncodeNormal(waterNormal) * 0.5 + 0.5;
 			#endif
 		} else
@@ -217,12 +217,12 @@ uniform vec3 shadowLightVector;
 			shadowcolor1Write.rgb *= tint;
 
 			shadowcolor0Write.zw = vec2(0.0);
-			#if defined PROCEDURAL_WATER && CAUSTICS == CAUSTICS_HIGH
+			#if defined PROCEDURAL_WATER && (CAUSTICS == CAUSTICS_HIGH || CAUSTICS == CAUSTICS_MEDIUM)
 				shadowcolor0Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
 			#endif
 		}
 
-		#if defined PROCEDURAL_WATER && CAUSTICS != CAUSTICS_HIGH
+		#if defined PROCEDURAL_WATER && (CAUSTICS != CAUSTICS_HIGH && CAUSTICS != CAUSTICS_MEDIUM)
 			shadowcolor0Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
 		#endif
 	}

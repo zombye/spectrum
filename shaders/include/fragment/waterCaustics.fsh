@@ -17,8 +17,42 @@ float GetProjectedCaustics(vec2 uv, float depth) {
 	return GetProjectedCaustics(depth, texture(shadowcolor0, uv).zw);
 }
 
-#if CAUSTICS == CAUSTICS_HIGH
-float DensityCaustics(vec3 position, float waterDepth, float dither, float ditherSize) {
+#if CAUSTICS == CAUSTICS_MEDIUM || (CAUSTICS == CAUSTICS_HIGH && CAUSTICS_HIGH_SUBSEARCH_ITERATIONS >= 1)
+float DoCausticSearch(vec2 targetPos, vec2 initialGuess, float waterDepth, int iterations) {
+	vec2 searchPos = initialGuess;
+	for (int i = 0; i < iterations; ++i) {
+		// Sample normal
+		vec2 sampleUv = Diagonal(shadowProjection).xy * searchPos + shadowProjection[3].xy;
+		     sampleUv = DistortShadowSpace(sampleUv) * 0.5 + 0.5;
+
+		vec4 normalSample = texture(shadowcolor0, sampleUv);
+		vec3 normal = normalSample.a < (0.5/255.0) ? vec3(0.0, 1.0, 0.0) : DecodeNormal(normalSample.xy * 2.0 - 1.0);
+
+		vec3 refractionDirection = mat3(shadowModelView) * refract(-shadowLightVector, normal, 0.75);
+		vec3 refraction = refractionDirection * abs(waterDepth / refractionDirection.z);
+		vec2 refractsTo = searchPos + refraction.xy;
+		searchPos += (targetPos - refractsTo) / (iterations - i);
+	}
+
+	vec2 finalUv = Diagonal(shadowProjection).xy * searchPos + shadowProjection[3].xy;
+	     finalUv = DistortShadowSpace(finalUv) * 0.5 + 0.5;
+
+	return GetProjectedCaustics(finalUv, waterDepth);
+}
+#endif
+
+#if CAUSTICS == CAUSTICS_MEDIUM
+float CalculateCaustics(vec3 position, float waterDepth) {
+	if (waterDepth <= 0.0) { return 1.0; }
+
+	vec3 flatRefractVector = refract(vec3(0.0, 0.0, -1.0), mat3(shadowModelView) * vec3(0.0, 1.0, 0.0), 0.75);
+	vec3 flatRefraction = flatRefractVector * waterDepth / -flatRefractVector.z;
+
+	float result = DoCausticSearch(position.xy + flatRefraction.xy, position.xy, waterDepth, CAUSTICS_MEDIUM_SEARCH_ITERATIONS);
+	return pow(result, CAUSTICS_POWER);
+}
+#elif CAUSTICS == CAUSTICS_HIGH
+float DensityCaustics(vec3 position, float waterDepth, vec2 offs) {
 	if (waterDepth <= 0.0) { return 1.0; }
 
 	const int samples = (CAUSTICS_QUALITY + 1) * (CAUSTICS_QUALITY + 1);
@@ -33,7 +67,7 @@ float DensityCaustics(vec3 position, float waterDepth, float dither, float dithe
 
 	float caustics = 0.0;
 	for (int i = 0; i < samples; ++i) {
-		vec2 xy = R2((i + dither) * ditherSize);
+		vec2 xy = fract(R2(i) + offs);
 		vec2 offset = vec2(cos(tau * xy.x), sin(tau * xy.x)) * sqrt(xy.y);
 
 		vec3 samplePosition = surfacePosition;
@@ -71,7 +105,7 @@ vec2 HexPoint(vec2 xy) {
 }
 
 float CalculateCaustics(vec3 position, float waterDepth, vec2 offs) {
-	//return DensityCaustics(position, waterDepth, dither, ditherSize);
+	//return DensityCaustics(position, waterDepth, offs);
 
 	if (waterDepth <= 0.0) { return 1.0; }
 
@@ -143,9 +177,13 @@ float CalculateCaustics(vec3 position, float waterDepth, vec2 offs) {
 				vec2 barycentric = inverse(T) * (position.xy - rp2);
 				vec2 sourcePos = barycentric.x * sp0 + barycentric.y * sp1 + (1.0 - barycentric.x - barycentric.y) * sp2;
 
+				#if CAUSTICS_HIGH_SUBSEARCH_ITERATIONS >= 1
+				result += DoCausticSearch(position.xy + flatRefraction.xy, sourcePos, waterDepth, CAUSTICS_HIGH_SUBSEARCH_ITERATIONS);
+				#else
 				vec2 sourceUv = vec2(shadowProjection[0].x, shadowProjection[1].y) * sourcePos + shadowProjection[3].xy;
 				     sourceUv = DistortShadowSpace(sourceUv) * 0.5 + 0.5;
 				result += GetProjectedCaustics(sourceUv, waterDepth);
+				#endif
 			}
 
 			rp1 = refrPositions[idx_x.z][idx_y.z], sp1 = surfPositions[idx_x.z][idx_y.z];
@@ -156,9 +194,13 @@ float CalculateCaustics(vec3 position, float waterDepth, vec2 offs) {
 				vec2 barycentric = inverse(T) * (position.xy - rp2);
 				vec2 sourcePos = barycentric.x * sp0 + barycentric.y * sp1 + (1.0 - barycentric.x - barycentric.y) * sp2;
 
+				#if CAUSTICS_HIGH_SUBSEARCH_ITERATIONS >= 1
+				result += DoCausticSearch(position.xy + flatRefraction.xy, sourcePos, waterDepth, CAUSTICS_HIGH_SUBSEARCH_ITERATIONS);
+				#else
 				vec2 sourceUv = vec2(shadowProjection[0].x, shadowProjection[1].y) * sourcePos + shadowProjection[3].xy;
 				     sourceUv = DistortShadowSpace(sourceUv) * 0.5 + 0.5;
 				result += GetProjectedCaustics(sourceUv, waterDepth);
+				#endif
 			}
 		}
 	}
