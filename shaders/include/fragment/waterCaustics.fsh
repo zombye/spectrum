@@ -2,10 +2,6 @@
 #define INCLUDE_FRAGMENT_WATERCAUSTICS
 
 float GetProjectedCaustics(float depth, vec2 coeffs) {
-	if (coeffs.x == 0.0 || coeffs.y == 0.0) {
-		return 1.0;
-	}
-	coeffs = coeffs * (255.0 / 254.0) - (1.0 / 254.0);
 	coeffs = log2(1.0 / coeffs - 1.0);
 
 	float area = abs(1.0 + depth * (coeffs.x + depth * coeffs.y));

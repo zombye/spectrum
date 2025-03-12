@@ -33,4 +33,6 @@ const bool colortex8Clear = false;
 
 const vec4 colortex0ClearColor = vec4(0.0, 0.0, 0.0, 1.0);
 const vec4 colortex1ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
+
+const vec4 shadowcolor0ClearColor = vec4(0.5, 0.5, 0.5, 0.5);
 */

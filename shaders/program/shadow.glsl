@@ -196,7 +196,7 @@ uniform vec3 shadowLightVector;
 
 				vec2 projectedCausticsCoeffs = CalculateProjectedCausticsCoeffs(mat3(shadowModelView) * scenePosition + shadowModelView[3].xyz, waterNormal);
 				     projectedCausticsCoeffs = 1.0 / (1.0 + exp2(projectedCausticsCoeffs));
-				shadowcolor0Write.zw = projectedCausticsCoeffs * (254.0 / 255.0) + (1.0 / 255.0);
+				shadowcolor0Write.zw = projectedCausticsCoeffs;
 			#else
 				shadowcolor0Write.zw = vec2(0.0);
 			#endif
@@ -216,7 +216,7 @@ uniform vec3 shadowLightVector;
 			#endif
 			shadowcolor1Write.rgb *= tint;
 
-			shadowcolor0Write.zw = vec2(0.0);
+			shadowcolor0Write.zw = vec2(0.5);
 			#if defined PROCEDURAL_WATER && (CAUSTICS == CAUSTICS_HIGH || CAUSTICS == CAUSTICS_MEDIUM)
 				shadowcolor0Write.xy = EncodeNormal(normal) * 0.5 + 0.5;
 			#endif
