@@ -45,6 +45,8 @@ float DoCausticSearch(vec2 targetPos, vec2 initialGuess, float waterDepth, int i
 float CalculateCaustics(vec3 position, float waterDepth) {
 	if (waterDepth <= 0.0) { return 1.0; }
 
+	waterDepth = min(waterDepth, CAUSTICS_MEDIUM_MAX_DEPTH);
+
 	vec3 flatRefractVector = refract(vec3(0.0, 0.0, -1.0), mat3(shadowModelView) * vec3(0.0, 1.0, 0.0), 0.75);
 	vec3 flatRefraction = flatRefractVector * waterDepth / -flatRefractVector.z;
 
@@ -108,6 +110,8 @@ float CalculateCaustics(vec3 position, float waterDepth, vec2 offs) {
 	//return DensityCaustics(position, waterDepth, offs);
 
 	if (waterDepth <= 0.0) { return 1.0; }
+
+	waterDepth = min(waterDepth, CAUSTICS_HIGH_MAX_DEPTH);
 
 	// pretty much this entire function can be optimized
 
