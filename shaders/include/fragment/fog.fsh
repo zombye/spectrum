@@ -275,7 +275,7 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 					lightingSun *= CalculateCaustics(shadowView, waterDepth);
 					#endif
 				#elif CAUSTICS != CAUSTICS_OFF
-					lightingSun *= GetProjectedCaustics(clamp(waterDepth, 0.0, 2.0), causticsCoeffs);
+					lightingSun *= GetProjectedCaustics(clamp(waterDepth, 0.0, CAUSTICS_LOW_MAX_DEPTH), causticsCoeffs);
 				#endif
 			}
 		}
