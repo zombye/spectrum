@@ -22,9 +22,9 @@ float DoCausticSearch(vec2 targetPos, vec2 initialGuess, float waterDepth, int i
 		     sampleUv = DistortShadowSpace(sampleUv) * 0.5 + 0.5;
 
 		vec4 normalSample = texture(shadowcolor0, sampleUv);
-		vec3 normal = normalSample.a < (0.5/255.0) ? vec3(0.0, 1.0, 0.0) : DecodeNormal(normalSample.xy * 2.0 - 1.0);
+		vec3 normal = normalSample.a < (0.5/255.0) ? (mat3(shadowModelView) * vec3(0.0, 1.0, 0.0)) : DecodeNormal(normalSample.xy * 2.0 - 1.0);
 
-		vec3 refractionDirection = mat3(shadowModelView) * refract(-shadowLightVector, normal, 0.75);
+		vec3 refractionDirection = refract(vec3(0.0, 0.0, -1.0), normal, 0.75);
 		vec3 refraction = refractionDirection * abs(waterDepth / refractionDirection.z);
 		vec2 refractsTo = searchPos + refraction.xy;
 		searchPos += (targetPos - refractsTo) / (iterations - i);
@@ -59,7 +59,7 @@ float DensityCaustics(vec3 position, float waterDepth, vec2 offs) {
 	float radius = CAUSTICS_RADIUS * waterDepth;
 	float inverseDistanceThreshold = sqrt(samples / pi) * focus / radius;
 
-	vec3 flatRefractionDirection = mat3(shadowModelView) * refract(-shadowLightVector, vec3(0.0, 1.0, 0.0), 0.75);
+	vec3 flatRefractionDirection = refract(vec3(0.0, 0.0, -1.0), mat3(shadowModelView) * vec3(0.0, 1.0, 0.0), 0.75);
 	vec3 flatRefraction = flatRefractionDirection * abs(waterDepth / flatRefractionDirection.z);
 	vec3 surfacePosition = position - flatRefraction;
 
@@ -76,10 +76,10 @@ float DensityCaustics(vec3 position, float waterDepth, vec2 offs) {
 		     sampleUv = DistortShadowSpace(sampleUv) * 0.5 + 0.5;
 
 		vec4 normalSample = texture(shadowcolor0, sampleUv);
-		vec3 normal = normalSample.a < (0.5/255.0) ? vec3(0.0, 1.0, 0.0) : DecodeNormal(normalSample.xy * 2.0 - 1.0);
+		vec3 normal = normalSample.a < (0.5/255.0) ? (mat3(shadowModelView) * vec3(0.0, 1.0, 0.0)) : DecodeNormal(normalSample.xy * 2.0 - 1.0);
 
 		// Refract
-		vec3 refractionDirection = mat3(shadowModelView) * refract(-shadowLightVector, normal, 0.75);
+		vec3 refractionDirection = refract(vec3(0.0, 0.0, -1.0), normal, 0.75);
 		vec3 refraction = refractionDirection * abs(waterDepth / refractionDirection.z);
 		vec3 refractedPosition = samplePosition + refraction;
 
@@ -147,10 +147,10 @@ float CalculateCaustics(vec3 position, float waterDepth, vec2 offs) {
 			     sampleUv = DistortShadowSpace(sampleUv) * 0.5 + 0.5;
 
 			vec4 normalSample = texture(shadowcolor0, sampleUv);
-			vec3 normal = normalSample.a < (0.5/255.0) ? vec3(0.0, 1.0, 0.0) : DecodeNormal(normalSample.xy * 2.0 - 1.0);
+			vec3 normal = normalSample.a < (0.5/255.0) ? (mat3(shadowModelView) * vec3(0.0, 1.0, 0.0)) : DecodeNormal(normalSample.xy * 2.0 - 1.0);
 
 			// refract
-			vec3 refractVec = refract(vec3(0.0, 0.0, -1.0), mat3(shadowModelView) * normal, 0.75);
+			vec3 refractVec = refract(vec3(0.0, 0.0, -1.0), normal, 0.75);
 			float dist = waterDepth / -refractVec.z;
 
 			refrPositions[x][odd]  = surfPositions[x][odd];

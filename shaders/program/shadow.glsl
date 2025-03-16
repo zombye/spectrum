@@ -201,7 +201,7 @@ uniform vec3 shadowLightVector;
 				shadowcolor0Write.zw = vec2(0.0);
 			#endif
 			#if CAUSTICS == CAUSTICS_HIGH || CAUSTICS == CAUSTICS_MEDIUM
-				shadowcolor0Write.xy = EncodeNormal(waterNormal) * 0.5 + 0.5;
+				shadowcolor0Write.xy = EncodeNormal(mat3(shadowModelView) * waterNormal) * 0.5 + 0.5;
 			#endif
 		} else
 		#endif
