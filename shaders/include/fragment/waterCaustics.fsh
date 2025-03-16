@@ -14,7 +14,7 @@ float GetProjectedCaustics(vec2 uv, float depth) {
 }
 
 #if CAUSTICS == CAUSTICS_MEDIUM || (CAUSTICS == CAUSTICS_HIGH && CAUSTICS_HIGH_SUBSEARCH_ITERATIONS >= 1)
-float DoCausticSearch(vec2 targetPos, vec2 initialGuess, float waterDepth, int iterations) {
+vec2 DoCausticSearch(vec2 targetPos, vec2 initialGuess, float waterDepth, int iterations) {
 	vec2 searchPos = initialGuess;
 	for (int i = 0; i < iterations; ++i) {
 		// Sample normal
@@ -30,10 +30,7 @@ float DoCausticSearch(vec2 targetPos, vec2 initialGuess, float waterDepth, int i
 		searchPos += (targetPos - refractsTo) / (iterations - i);
 	}
 
-	vec2 finalUv = Diagonal(shadowProjection).xy * searchPos + shadowProjection[3].xy;
-	     finalUv = DistortShadowSpace(finalUv) * 0.5 + 0.5;
-
-	return GetProjectedCaustics(finalUv, waterDepth);
+	return searchPos;
 }
 #endif
 
@@ -46,7 +43,12 @@ float CalculateCaustics(vec3 position, float waterDepth) {
 	vec3 flatRefractVector = refract(vec3(0.0, 0.0, -1.0), mat3(shadowModelView) * vec3(0.0, 1.0, 0.0), 0.75);
 	vec3 flatRefraction = flatRefractVector * waterDepth / -flatRefractVector.z;
 
-	float result = DoCausticSearch(position.xy + flatRefraction.xy, position.xy, waterDepth, CAUSTICS_MEDIUM_SEARCH_ITERATIONS);
+	vec2 sourcePos = DoCausticSearch(position.xy + flatRefraction.xy, position.xy, waterDepth, CAUSTICS_MEDIUM_SEARCH_ITERATIONS);;
+	vec2 finalUv = Diagonal(shadowProjection).xy * sourcePos + shadowProjection[3].xy;
+	     finalUv = DistortShadowSpace(finalUv) * 0.5 + 0.5;
+
+	float result = GetProjectedCaustics(finalUv, waterDepth);
+
 	return pow(result, CAUSTICS_POWER);
 }
 #elif CAUSTICS == CAUSTICS_HIGH
@@ -178,12 +180,12 @@ float CalculateCaustics(vec3 position, float waterDepth, vec2 offs) {
 				vec2 sourcePos = barycentric.x * sp0 + barycentric.y * sp1 + (1.0 - barycentric.x - barycentric.y) * sp2;
 
 				#if CAUSTICS_HIGH_SUBSEARCH_ITERATIONS >= 1
-				result += DoCausticSearch(position.xy + flatRefraction.xy, sourcePos, waterDepth, CAUSTICS_HIGH_SUBSEARCH_ITERATIONS);
-				#else
+				sourcePos = DoCausticSearch(position.xy + flatRefraction.xy, sourcePos, waterDepth, CAUSTICS_HIGH_SUBSEARCH_ITERATIONS);
+				#endif
+
 				vec2 sourceUv = vec2(shadowProjection[0].x, shadowProjection[1].y) * sourcePos + shadowProjection[3].xy;
 				     sourceUv = DistortShadowSpace(sourceUv) * 0.5 + 0.5;
 				result += GetProjectedCaustics(sourceUv, waterDepth);
-				#endif
 			}
 
 			rp1 = refrPositions[idx_x.z][idx_y.z], sp1 = surfPositions[idx_x.z][idx_y.z];
@@ -195,12 +197,12 @@ float CalculateCaustics(vec3 position, float waterDepth, vec2 offs) {
 				vec2 sourcePos = barycentric.x * sp0 + barycentric.y * sp1 + (1.0 - barycentric.x - barycentric.y) * sp2;
 
 				#if CAUSTICS_HIGH_SUBSEARCH_ITERATIONS >= 1
-				result += DoCausticSearch(position.xy + flatRefraction.xy, sourcePos, waterDepth, CAUSTICS_HIGH_SUBSEARCH_ITERATIONS);
-				#else
+				sourcePos = DoCausticSearch(position.xy + flatRefraction.xy, sourcePos, waterDepth, CAUSTICS_HIGH_SUBSEARCH_ITERATIONS);
+				#endif
+
 				vec2 sourceUv = vec2(shadowProjection[0].x, shadowProjection[1].y) * sourcePos + shadowProjection[3].xy;
 				     sourceUv = DistortShadowSpace(sourceUv) * 0.5 + 0.5;
 				result += GetProjectedCaustics(sourceUv, waterDepth);
-				#endif
 			}
 		}
 	}
