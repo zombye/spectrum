@@ -23,6 +23,8 @@ uniform sampler2D colortex8; // Velocity buffer
 uniform sampler2D colortex5; // Previous frame data
 uniform sampler3D colortex7; // 3D noise
 uniform sampler2D colortex9; // Cloud patch noise
+uniform sampler2D colortex10; // 3D clouds scattering, transmittance
+uniform sampler2D colortex11; // 3D clouds distance
 uniform sampler2D noisetex;
 
 uniform sampler2D depthtex0; // Sky Transmittance LUT
@@ -354,8 +356,8 @@ uniform vec3 shadowLightVector;
 		float lowerLimitDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_lowerLimitRadius).x;
 		if (lowerLimitDistance <= 0.0 || eyeAltitude >= CLOUDS3D_ALTITUDE_MIN) {
 			#ifdef CLOUDS3D
-			float clouds3DDistance = 0.0;
-			vec4 clouds3D = Render3DClouds(viewVector, dither, clouds3DDistance);
+			float clouds3DDistance = texelFetch(colortex11, ivec2(gl_FragCoord.xy), 0).x;
+			vec4 clouds3D = texelFetch(colortex10, ivec2(gl_FragCoord.xy), 0);
 
 			if (clouds3DDistance > 0.0) {
 				vec3 cloudsPosition = viewPosition + viewVector * clouds3DDistance;

@@ -24,12 +24,16 @@ const int colortex6Format = RGBA32F;    // Sky Scattering Image & cloud shadow, 
 const int colortex7Format = RGBA8;      // Shadows
 const int colortex8Format = RG32F;      // Velocity buffer
 const int colortex9Format = RG8;
+const int colortex10Format = RGBA16F;   // 3D clouds scattering, transmittance
+const int colortex11Format = R32F;      // 3D clouds distance
 
 const bool colortex3Clear = false;
 const bool colortex4Clear = false;
 const bool colortex6Clear = false;
 const bool colortex7Clear = false;
 const bool colortex8Clear = false;
+const bool colortex10Clear = false;
+const bool colortex11Clear = false;
 
 const vec4 colortex0ClearColor = vec4(0.0, 0.0, 0.0, 1.0);
 const vec4 colortex1ClearColor = vec4(0.0, 0.0, 0.0, 0.0);
