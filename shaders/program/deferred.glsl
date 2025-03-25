@@ -424,6 +424,88 @@ uniform vec3 shadowLightVector;
 		#endif
 	}
 
+	void RenderSky2(
+		vec3 viewPosition, vec3 viewVector, float dither,
+		out vec3 scattering, out vec3 transmittance
+	) {
+		transmittance = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector);
+		#if !defined CLOUDS3D || !defined DISTANT_VL
+		scattering  = AtmosphereScattering(scatteringLut, viewPosition, viewVector, sunVector)  * sunIlluminance;
+		scattering += AtmosphereScattering(scatteringLut, viewPosition, viewVector, moonVector) * moonIlluminance;
+		#endif
+
+		#if defined CLOUDS2D || defined CLOUDS3D
+		float lowerLimitDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_lowerLimitRadius).x;
+		if (lowerLimitDistance <= 0.0 || eyeAltitude >= CLOUDS3D_ALTITUDE_MIN) {
+			#ifdef CLOUDS3D
+			float clouds3DDistance;
+			vec4 clouds3D = Render3DClouds(viewVector, dither, clouds3DDistance);
+
+			if (clouds3DDistance > 0.0) {
+				vec3 cloudsPosition = viewPosition + viewVector * clouds3DDistance;
+
+				// remove atmosphere occluded by clouds
+				vec3 transmittanceFromClouds = AtmosphereTransmittance(transmittanceLut, cloudsPosition, viewVector);
+				vec3 transmittanceToClouds = AtmosphereTransmittance(transmittanceLut, viewPosition, viewVector, clouds3DDistance);//transmittance / transmittanceFromClouds;
+				vec3 scatteringFromClouds  = AtmosphereScattering(scatteringLut, cloudsPosition, viewVector, sunVector)  * sunIlluminance;
+				     scatteringFromClouds += AtmosphereScattering(scatteringLut, cloudsPosition, viewVector, moonVector) * moonIlluminance;
+
+				#ifdef DISTANT_VL
+				if (eyeAltitude < CLOUDS3D_ALTITUDE_MIN) {
+					scattering += CloudShadowedAtmosphere(viewPosition, viewVector, clouds3DDistance, dither)[0];
+					scattering += scatteringFromClouds * transmittanceToClouds * clouds3D.a;
+				} else {
+					// TODO: Do distant VL here as well
+					scattering += scatteringFromClouds * transmittanceToClouds * (clouds3D.a * averageCloudTransmittance - 1.0);
+				}
+				#else
+				if (eyeAltitude < CLOUDS3D_ALTITUDE_MIN) {
+					scattering -= scatteringFromClouds * transmittanceToClouds;
+					scattering *= averageCloudTransmittance;
+					scattering += scatteringFromClouds * transmittanceToClouds * clouds3D.a;
+				} else {
+					scattering += scatteringFromClouds * transmittanceToClouds * (clouds3D.a * averageCloudTransmittance - 1.0);
+				}
+				#endif
+
+				// apply clouds
+				scattering += clouds3D.rgb * transmittanceToClouds;
+				transmittance *= clouds3D.a;
+			}
+			#endif
+
+			#ifdef CLOUDS2D
+			float clouds2DDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_planetRadius + CLOUDS2D_ALTITUDE).y;
+
+			if (clouds2DDistance > 0.0) {
+				vec4 clouds2D = Calculate2DClouds(viewVector, dither);
+				vec3 cloudsPosition = viewPosition + viewVector * clouds2DDistance;
+
+				// remove atmosphere occluded by clouds
+				vec3 transmittanceFromClouds = AtmosphereTransmittance(transmittanceLut, cloudsPosition, viewVector);
+				vec3 transmittanceToClouds = transmittance / transmittanceFromClouds;
+				vec3 scatteringFromClouds  = AtmosphereScattering(scatteringLut, cloudsPosition, viewVector, sunVector)  * sunIlluminance;
+				     scatteringFromClouds += AtmosphereScattering(scatteringLut, cloudsPosition, viewVector, moonVector) * moonIlluminance;
+
+				scattering += scatteringFromClouds * transmittanceToClouds * (clouds2D.a - 1.0);
+
+				// apply clouds
+				scattering += clouds2D.rgb * transmittanceToClouds;
+				transmittance *= clouds2D.a;
+			}
+			#endif
+		} else {
+			#ifdef CLOUDS3D
+			#ifdef DISTANT_VL
+			scattering = CloudShadowedAtmosphere(viewPosition, viewVector, lowerLimitDistance, dither)[0];
+			#else
+			scattering *= averageCloudTransmittance;
+			#endif
+			#endif
+		}
+		#endif
+	}
+
 	//------------------------------------------------------------------------//
 
 	void main() {
@@ -466,7 +548,7 @@ uniform vec3 shadowLightVector;
 			vec3 viewVector = UnprojectSky(screenCoord, SKY_IMAGE_LOD);
 
 			vec3 tmp;
-			RenderSky(viewPosition, viewVector, 0.5, skyImage, tmp);
+			RenderSky2(viewPosition, viewVector, 0.5, skyImage, tmp);
 		} else {
 			skyImage = vec3(0.0);
 		}
