@@ -31,7 +31,7 @@
 #define CLOUDS3D_ATTENUATION_COEFFICIENT (0.05 * 500.0 / CLOUDS3D_THICKNESS)
 #define CLOUDS3D_SCATTERING_ALBEDO 0.99
 
-#if defined PROGRAM_DEFERRED || defined PROGRAM_DEFERRED2
+#if defined PROGRAM_DEFERRED || defined PROGRAM_DEFERRED2 || defined PROGRAM_DEFERRED4 || defined PROGRAM_DEFERRED6
 float Get3DCloudsDensity(vec3 position) {
 	#ifdef CLOUDS3D_USE_WORLD_TIME
 		float cloudsTime = CLOUDS3D_SPEED * TIME_SCALE * (worldDay % 128 + worldTime / 24000.0);

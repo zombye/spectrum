@@ -161,9 +161,9 @@ uniform vec3 shadowLightVector;
 
 	//--// Fragment Outputs //------------------------------------------------//
 
-	/* RENDERTARGETS: 4 */
+	/* RENDERTARGETS: 6 */
 
-	out vec4 skyEncode;
+	out vec4 skyImage_cloudShadow;
 
 	//--// Fragment Includes //-----------------------------------------------//
 
@@ -270,77 +270,6 @@ uniform vec3 shadowLightVector;
 
 	//------------------------------------------------------------------------//
 
-	vec3 CalculateStars(vec3 background, vec3 viewVector) {
-		const float scale = 256.0;
-		const float coverage = 0.01;
-		const float maxLuminance = 0.7 * NIGHT_SKY_BRIGHTNESS;
-		const float minTemperature = 1500.0;
-		const float maxTemperature = 9000.0;
-
-		viewVector = Rotate(viewVector, sunVector, vec3(0, 0, 1));
-
-		// TODO: Calculate for surrounding cells as well to allow uniform apparent size
-
-		vec3  p = viewVector * scale;
-		ivec3 i = ivec3(floor(p));
-		vec3  f = p - i;
-		float r = dot(f - 0.5, f - 0.5);
-
-		vec2 hash = Hash2(i);
-		hash.y = 2.0 * hash.y - 4.0 * hash.y * hash.y + 3.0 * hash.y * hash.y * hash.y;
-
-		vec3 luminance = Pow2(LinearStep(1.0 - coverage, 1.0, hash.x)) * Blackbody(mix(minTemperature, maxTemperature, hash.y));
-		return background + maxLuminance * LinearStep(0.25, 0.0, r) * Pow2(LinearStep(1.0 - coverage, 1.0, hash.x)) * Blackbody(mix(minTemperature, maxTemperature, hash.y));
-	}
-
-	vec3 CalculateSun(vec3 background, vec3 viewVector, vec3 sunVector) {
-		float cosTheta = dot(viewVector, sunVector);
-
-		if (cosTheta < cos(sunAngularRadius)) { return background; }
-
-		// limb darkening approximation
-		const vec3 a = vec3(0.397, 0.503, 0.652);
-		const vec3 halfa = a * 0.5;
-		const vec3 normalizationConst = vec3(0.83438, 0.79904, 0.75415); // changes with `a` and `sunAngularRadius`
-
-		float x = Clamp01(acos(cosTheta) / sunAngularRadius);
-		vec3 sunDisk = exp2(log2(1.0 - x * x) * halfa) / normalizationConst;
-
-		return sunLuminance * sunDisk;
-	}
-
-	vec3 CalculateMoon(vec3 background, vec3 viewVector, vec3 moonVector) {
-		const float roughness = 0.4;
-		const float roughnessSquared = roughness * roughness;
-
-		// -- Find normal and calculate dot products for lighting
-
-		vec2 dists = RaySphereIntersection(-moonVector, viewVector, sin(moonAngularRadius));
-		if (dists.y < 0.0) { return background; }
-
-		vec3 normal = normalize(viewVector * dists.x - moonVector);
-
-		float NoL = dot(normal, sunVector);
-		float LoV = dot(sunVector, -viewVector);
-		float NoV = dot(normal, -viewVector);
-		float rcpLen_LV = inversesqrt(2.0 * LoV + 2.0);
-		float NoH = (NoL + NoV) * rcpLen_LV;
-		float VoH = LoV * rcpLen_LV + rcpLen_LV;
-
-		vec3 diffuse = NoL * BRDFDiffuseHammon(NoL, NoH, NoV, LoV, moonAlbedo, roughness);
-
-		// Specular
-		float f  = FresnelDielectric(VoH, 1.0 / 1.45);
-		float d  = DistributionGGX(NoH, roughnessSquared);
-		float g2 = G2SmithGGX(NoL, NoV, roughnessSquared);
-
-		float specular = f * d * g2 // BRDF
-		               * NoL / NoV; // incoming spread / outgoing gather
-
-		// Return result
-		return sunIlluminance * (diffuse + specular);
-	}
-
 	// Doens't handle stars or the sun/moon so not really the entire sky but I couldn't think of a better name for this function
 	void RenderSky(
 		vec3 viewPosition, vec3 viewVector, float dither,
@@ -437,26 +366,24 @@ uniform vec3 shadowLightVector;
 
 		vec3 viewPosition = vec3(0.0, atmosphere_planetRadius + eyeAltitude, 0.0);
 
-		float depth = texture(depthtex1, screenCoord).x;
-		if (depth >= 1.0) {
-			vec3 positionScreen = vec3(screenCoord, depth);
-			#ifdef TAA
-			positionScreen.xy -= 0.5 * taaOffset;
-			#endif
-			vec3 viewVector = mat3(gbufferModelViewInverse) * GetViewDirection(positionScreen.xy, gbufferProjectionInverse);
+		float tileSize = min(floor(viewResolution.x * 0.5) / 1.5, floor(viewResolution.y * 0.5)) * exp2(-SKY_IMAGE_LOD);
+		vec2 cmp = tileSize * vec2(3.0, 2.0);
+		vec3 skyImage;
+		if (gl_FragCoord.x < cmp.x && gl_FragCoord.y < cmp.y) {
+			vec3 viewVector = UnprojectSky(screenCoord, SKY_IMAGE_LOD);
 
-			vec3 color = vec3(0.0);
-			color = CalculateStars(color, viewVector);
-			color = CalculateSun(color, viewVector, sunVector);
-			color = CalculateMoon(color, viewVector, moonVector);
-
-			vec3 scattering, transmittance;
-			RenderSky(viewPosition, viewVector, dither, scattering, transmittance);
-			color = color * transmittance + scattering;
-
-			skyEncode = EncodeRGBE8(color);
+			vec3 tmp;
+			RenderSky(viewPosition, viewVector, 0.5, skyImage, tmp);
 		} else {
-			skyEncode = vec4(0.0);
+			skyImage = vec3(0.0);
 		}
+
+		skyImage_cloudShadow.rgb = skyImage;
+
+		#ifdef CLOUDS3D
+			skyImage_cloudShadow.a = CalculateCloudShadowMap();
+		#else
+			skyImage_cloudShadow.a = 1.0;
+		#endif
 	}
 #endif
