@@ -3,4 +3,4 @@
 #define WORLD_OVERWORLD
 #define PROGRAM_DEFERRED1
 #define STAGE_VERTEX
-#include "/program/deferred.glsl"
+#include "/program/render2dclouds.glsl"

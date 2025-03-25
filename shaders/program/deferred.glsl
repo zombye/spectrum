@@ -25,6 +25,7 @@ uniform sampler3D colortex7; // 3D noise
 uniform sampler2D colortex9; // Cloud patch noise
 uniform sampler2D colortex10; // 3D clouds scattering, transmittance
 uniform sampler2D colortex11; // 3D clouds distance
+uniform sampler2D colortex12; // 2D clouds scattering, transmittance
 uniform sampler2D noisetex;
 
 uniform sampler2D depthtex0; // Sky Transmittance LUT
@@ -396,7 +397,7 @@ uniform vec3 shadowLightVector;
 			float clouds2DDistance = RaySphereIntersection(viewPosition, viewVector, atmosphere_planetRadius + CLOUDS2D_ALTITUDE).y;
 
 			if (clouds2DDistance > 0.0) {
-				vec4 clouds2D = Calculate2DClouds(viewVector, dither);
+				vec4 clouds2D = texelFetch(colortex12, ivec2(gl_FragCoord.xy), 0);
 				vec3 cloudsPosition = viewPosition + viewVector * clouds2DDistance;
 
 				// remove atmosphere occluded by clouds

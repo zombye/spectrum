@@ -1,6 +1,6 @@
 #version 440 compatibility
 #include "/include/shared/header.glsl"
 #define WORLD_OVERWORLD
-#define PROGRAM_DEFERRED1
+#define PROGRAM_DEFERRED2
 #define STAGE_FRAGMENT
-#include "/program/render2dclouds.glsl"
+#include "/program/deferred.glsl"
