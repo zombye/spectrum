@@ -198,7 +198,7 @@ void main() {
 			#endif
 
 			vec4 sampleAlbedo = textureLod(shadowcolor1, sampleCoord, 0.0);
-			rsm += eotf_sRGB(sampleAlbedo.rgb) * sampleAlbedo.a * brdf / (sampleDistanceSquared + sampleDistanceAdd);
+			rsm += render_from_BT709_relative * eotf_sRGB(sampleAlbedo.rgb) * sampleAlbedo.a * brdf / (sampleDistanceSquared + sampleDistanceAdd);
 		}
 
 		rsm *= perSampleArea;

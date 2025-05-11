@@ -186,6 +186,7 @@ uniform vec2 viewPixelSize;
 		color = Contrast(color);
 		color = Saturation(color);
 
+		color = BT709_from_render * color;
 		color = Max0(color);
 
 		const mat3 coneOverlapMatrix2Deg = mat3(

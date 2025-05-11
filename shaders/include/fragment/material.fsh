@@ -26,7 +26,7 @@ Material airMaterial   = Material(vec3(0.0), 0.0, 0.002, 0.0, false, vec3(1.0002
 Material waterMaterial = Material(vec3(0.0), 0.0, 0.002, 0.0, false, vec3(1.333000), vec3(0.0), vec3(0.0), vec3(1.0));
 
 Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
-	baseTex = eotf_sRGB(baseTex);
+	baseTex = render_from_BT709_relative * eotf_sRGB(baseTex);
 
 	#ifdef PROCEDURAL_WATER
 		if (id == 8 || id == 9) {

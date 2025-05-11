@@ -20,7 +20,7 @@ vec3 AtmosphereTransmittance(sampler2D sampler, float R, float Mu) {
 
 	vec2 coord = AtmosphereTransmittanceLookupUv(R, Mu);
 
-	return texture(sampler, coord).rgb / atmosphere_valueScale;
+	return render_from_BT709_relative * texture(sampler, coord).rgb / atmosphere_valueScale;
 }
 vec3 AtmosphereTransmittance(sampler2D sampler, float R, float Mu, float distance) {
 	// Transmittance from A to B is same as transmittance from B to A

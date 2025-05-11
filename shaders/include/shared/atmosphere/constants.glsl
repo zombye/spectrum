@@ -43,9 +43,9 @@ const vec3  rayleighColor = vec3(6.433377384678407e+24, 1.0873673940138444e+25, 
 const float rayleighK     = 9.993284137187039e-31; // Set for an earth-like atmosphere.
 
 // m^3 coefficients
-const vec3 atmosphere_coefficientRayleigh = rayleighK * rayleighColor;
-const vec3 atmosphere_coefficientOzone    = ozoneCrossSection * ozoneNumberDensity;
-const vec3 atmosphere_coefficientMie      = vec3(4e-6); // Should usually be >= 2e-6, depends heavily on conditions. Current value is just one that looks good.
+const vec3 atmosphere_coefficientRayleigh = render_from_BT709_relative * rayleighK * rayleighColor;
+const vec3 atmosphere_coefficientOzone    = render_from_BT709_relative * ozoneCrossSection * ozoneNumberDensity;
+const vec3 atmosphere_coefficientMie      = render_from_BT709_relative * vec3(4e-6); // Should usually be >= 2e-6, depends heavily on conditions. Current value is just one that looks good.
 
 //--// The rest are set from the above constants //---------------------------//
 

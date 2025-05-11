@@ -171,7 +171,7 @@ uniform vec3 shadowLightVector;
 				float shadow1 = textureLod(shadowtex1, shadowCoord.st, 0.0).r;
 				      shadow1 = shadow1 < 1.0 ? step(shadowCoord.z, shadow1) : 1.0;
 				vec4  shadowC = textureLod(shadowcolor1, shadowCoord.st, 0.0);
-				      shadowC.rgb = eotf_sRGB(shadowC.rgb);
+				      shadowC.rgb = render_from_BT709_relative * eotf_sRGB(shadowC.rgb);
 
 				// Best looking method I've found so far.
 				return (shadowC.rgb * shadowC.a - shadowC.a) * (-shadow1 * shadow0 + shadow1) + shadow1;

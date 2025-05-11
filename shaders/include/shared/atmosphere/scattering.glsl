@@ -55,7 +55,7 @@ vec3 AtmosphereScatteringSingle(sampler3D scatteringSampler, float R, float Mu, 
 	vec3 single_rayleigh = PhaseRayleigh(V)             * Texture4D(scatteringSampler, vec4(uv.xyz, (uv.w + 0.0) / 3.0), res4D);
 	vec3 single_mie      = PhaseMie(V, atmosphere_mieg) * Texture4D(scatteringSampler, vec4(uv.xyz, (uv.w + 1.0) / 3.0), res4D);
 
-	return (single_rayleigh + single_mie) / atmosphere_valueScale;
+	return render_from_BT709_relative * (single_rayleigh + single_mie) / atmosphere_valueScale;
 }
 vec3 AtmosphereScatteringSingle(sampler3D scatteringSampler, vec3 p, vec3 d, vec3 l) {
 	float R   = length(p);
@@ -93,7 +93,7 @@ vec3 AtmosphereScatteringMulti(sampler3D scatteringSampler, float R, float Mu, f
 
 	vec3 multi = Texture4D(scatteringSampler, vec4(uv.xyz, (uv.w + 2.0) / 3.0), res4D);
 
-	return multi / atmosphere_valueScale;
+	return render_from_BT709_relative * multi / atmosphere_valueScale;
 }
 vec3 AtmosphereScatteringMulti(sampler3D scatteringSampler, vec3 p, vec3 d, vec3 l) {
 	float R   = length(p);
@@ -133,7 +133,7 @@ vec3 AtmosphereScattering(sampler3D scatteringSampler, float R, float Mu, float 
 	vec3 single_mie      = PhaseMie(V, atmosphere_mieg) * Texture4D(scatteringSampler, vec4(uv.xyz, (uv.w + 1.0) / 3.0), res4D);
 	vec3 multi           =                                Texture4D(scatteringSampler, vec4(uv.xyz, (uv.w + 2.0) / 3.0), res4D);
 
-	return (single_rayleigh + single_mie + multi) / atmosphere_valueScale;
+	return render_from_BT709_relative * (single_rayleigh + single_mie + multi) / atmosphere_valueScale;
 }
 vec3 AtmosphereScattering(sampler3D scatteringSampler, vec3 p, vec3 d, vec3 l) {
 	float R   = length(p);
