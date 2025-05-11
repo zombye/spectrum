@@ -94,7 +94,7 @@ uniform vec2 viewPixelSize;
 
 	vec3 LowlightDesaturate(vec3 color, float exposure) {
 		float desaturated = dot(color, vec3(0.05, 0.55, 0.4));
-		//float desaturated = dot(color, RgbToXyz[1]);
+		//float desaturated = dot(color, transpose(XYZ_from_render)[1]);
 		//float desatAmt = Clamp01(exp(-50.0 * desaturated / exposure));
 		float desatAmt = Clamp01(exp(-1e2 * (desaturated*desaturated) / (exposure*exposure)));
 		return color * (1.0 - desatAmt) + (desaturated * desatAmt);
@@ -107,12 +107,12 @@ uniform vec2 viewPixelSize;
 	}
 
 	vec3 Contrast(vec3 color) {
-		float luminance = dot(color, RgbToXyz[1]);
+		float luminance = dot(color, transpose(XYZ_from_render)[1]);
 		float newLuminance = CONTRAST_MIDPOINT * pow(luminance / CONTRAST_MIDPOINT, exp2(CONTRAST));
 		return color * Max0(newLuminance / luminance);
 	}
 	vec3 Saturation(vec3 color) {
-		float luminance = dot(color, RgbToXyz[1]);
+		float luminance = dot(color, transpose(XYZ_from_render)[1]);
 		float minComp = MinOf(color), maxComp = MaxOf(color);
 
 		// compute the desired output saturation
@@ -124,7 +124,7 @@ uniform vec2 viewPixelSize;
 
 		// compute new color from saturated & non-saturated color
 		color  = mix(vec3(1.0), saturatedColor, newSaturation);
-		color *= luminance / dot(color, RgbToXyz[1]);
+		color *= luminance / dot(color, transpose(XYZ_from_render)[1]);
 
 		return color;
 	}
@@ -150,11 +150,11 @@ uniform vec2 viewPixelSize;
 		return (XyzToLms * vonKries) * inverse(XyzToLms);
 	}
 	vec3 WhiteBalance(vec3 color) {
-		vec3 sourceXYZ = Blackbody(WHITE_BALANCE) * RgbToXyz;
-		vec3 destinationXYZ = Blackbody(6500.0) * RgbToXyz;
-		mat3 matrix = RgbToXyz * ChromaticAdaptationMatrix(sourceXYZ, destinationXYZ) * XyzToRgb;
+		vec3 sourceXYZ = render_from_XYZ * Blackbody(WHITE_BALANCE);
+		vec3 destinationXYZ = render_from_XYZ * Blackbody(6500.0);
+		mat3 matrix = render_from_XYZ * transpose(ChromaticAdaptationMatrix(sourceXYZ, destinationXYZ)) * XYZ_from_render;
 
-		return color * matrix;
+		return matrix * color;
 	}
 
 	void main() {

@@ -169,7 +169,7 @@ uniform vec3 shadowLightVector;
 				float shadow1 = textureLod(shadowtex1, shadowCoord.st, 0.0).r;
 				      shadow1 = shadow1 < 1.0 ? step(shadowCoord.z, shadow1) : 1.0;
 				vec4  shadowC = textureLod(shadowcolor1, shadowCoord.st, 0.0);
-				      shadowC.rgb = LinearFromSrgb(shadowC.rgb);
+				      shadowC.rgb = eotf_sRGB(shadowC.rgb);
 
 				// Best looking method I've found so far.
 				return (shadowC.rgb * shadowC.a - shadowC.a) * (-shadow1 * shadow0 + shadow1) + shadow1;
@@ -293,7 +293,7 @@ uniform vec3 shadowLightVector;
 				float VoH = LoV * rcpLen_LV + rcpLen_LV;
 
 				float lightAngularRadius = sunAngle < 0.5 ? sunAngularRadius : moonAngularRadius;
-				color += CalculateSpecularHighlight(NoL, NoV, LoV, VoH, material, lightAngularRadius) * illuminanceShadowlight * LinearFromSrgb(texture(colortex7, screenCoord).rgb);
+				color += CalculateSpecularHighlight(NoL, NoV, LoV, VoH, material, lightAngularRadius) * illuminanceShadowlight * eotf_sRGB(texture(colortex7, screenCoord).rgb);
 
 				#ifdef SSR_MULTILAYER
 					if (backPosition[0].z == frontPosition[0].z) {

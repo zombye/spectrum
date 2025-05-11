@@ -86,7 +86,7 @@ uniform vec2 taaOffset;
 			vec3  posCenter      = ScreenSpaceToViewSpace(vec3(viewPixelSize * fragCoord2, depth), gbufferProjectionInverse);
 			vec3  normalCenter   = DecodeNormal(Unpack2x8(texelFetch(colortex1, fragCoord2, 0).a) * 2.0 - 1.0);
 			vec3  normalCenterVS = mat3(gbufferModelView) * normalCenter;
-			float lumCenter      = dot(result.rgb, RgbToXyz[1]);
+			float lumCenter      = dot(result.rgb, transpose(XYZ_from_render)[1]);
 
 			float phiPos = -posCenter.z * stepSize * sigmaP;
 

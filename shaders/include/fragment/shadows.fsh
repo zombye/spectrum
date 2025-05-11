@@ -70,7 +70,7 @@ void SampleShadowmapBilinear(
 			if (diffs0[i] != diffs1[i]) {
 				vec2 io = vec2(i == 1 || i == 2, i == 0 || i == 1);
 				colors[i] = texture(shadowcolor1, positionShadowDistorted.xy + (io - 0.5) / textureSize(shadowcolor1, 0));
-				colors[i].rgb = LinearFromSrgb(colors[i].rgb);
+				colors[i].rgb = eotf_sRGB(colors[i].rgb);
 				#if defined USE_R2020
 				colors[i].rgb *= R709ToRgb_unlit;
 				#endif
@@ -181,7 +181,7 @@ void SampleShadowmapPCF(
 		#ifdef SHADOW_COLORED
 		if (diff0 != diff1) {
 			vec4 scol = texelFetch(shadowcolor1, ivec2(textureSize(shadowcolor1, 0) * sampleUv), 0);
-			scol.rgb = LinearFromSrgb(scol.rgb);
+			scol.rgb = eotf_sRGB(scol.rgb);
 			#if defined USE_R2020
 			scol.rgb *= R709ToRgb_unlit;
 			#endif
@@ -406,7 +406,7 @@ void SampleShadowmapPCSS(
 		#ifdef SHADOW_COLORED
 		if (depth0 != depth1) {
 			vec4 scol = texelFetch(shadowcolor1, ivec2(textureSize(shadowcolor1, 0) * sampleUv), 0);
-			scol.rgb = LinearFromSrgb(scol.rgb);
+			scol.rgb = eotf_sRGB(scol.rgb);
 			#if defined USE_R2020
 			scol.rgb *= R709ToRgb_unlit;
 			#endif
@@ -669,7 +669,7 @@ vec3 CalculateShadows(mat3 position, vec3 normal, bool translucent, float dither
 		#else
 			const float fogDensity = 0.1;
 		#endif
-		vec3 attenuationCoefficient = -log(LinearFromSrgb(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
+		vec3 attenuationCoefficient = -log(eotf_sRGB(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
 		vec3 waterShadow = exp(-attenuationCoefficient * fogDensity * waterDepth);
 
 		#if   CAUSTICS == CAUSTICS_LOW

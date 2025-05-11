@@ -185,8 +185,8 @@ vec3 CalculateAirFog(vec3 background, vec3 startPosition, vec3 endPosition, vec3
 
 #ifdef VL_WATER
 vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, vec3 viewVector, float LoV, float skylight, float dither, bool sky) {
-	vec3 waterScatteringAlbedo = LinearFromSrgb(vec3(WATER_SCATTERING_R, WATER_SCATTERING_G, WATER_SCATTERING_B) / 255.0);
-	vec3 baseAttenuationCoefficient = -log(LinearFromSrgb(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
+	vec3 waterScatteringAlbedo = eotf_sRGB(vec3(WATER_SCATTERING_R, WATER_SCATTERING_G, WATER_SCATTERING_B) / 255.0);
+	vec3 baseAttenuationCoefficient = -log(eotf_sRGB(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
 
 	const float isotropicPhase = 0.25 / pi;
 
@@ -312,8 +312,8 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 #endif
 
 vec3 CalculateWaterFog(vec3 background, vec3 startPosition, vec3 endPosition, vec3 viewVector, float LoV, float skylight, float dither, bool sky) {
-	vec3 waterScatteringAlbedo = LinearFromSrgb(vec3(WATER_SCATTERING_R, WATER_SCATTERING_G, WATER_SCATTERING_B) / 255.0);
-	vec3 baseAttenuationCoefficient = -log(LinearFromSrgb(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
+	vec3 waterScatteringAlbedo = eotf_sRGB(vec3(WATER_SCATTERING_R, WATER_SCATTERING_G, WATER_SCATTERING_B) / 255.0);
+	vec3 baseAttenuationCoefficient = -log(eotf_sRGB(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
 
 	const float isotropicPhase = 0.25 / pi;
 
@@ -335,7 +335,7 @@ vec3 CalculateWaterFog(vec3 background, vec3 startPosition, vec3 endPosition, ve
 		lighting += illuminanceShadowlight * sunlightPhase * skylight * GetCloudShadows(startPosition);
 	} else {
 		#if defined PROGRAM_COMPOSITE
-			lighting += illuminanceShadowlight * sunlightPhase * LinearFromSrgb(texture(colortex7, screenCoord).rgb);
+			lighting += illuminanceShadowlight * sunlightPhase * eotf_sRGB(texture(colortex7, screenCoord).rgb);
 		#else
 			lighting += illuminanceShadowlight * sunlightPhase; // TODO: shadows
 		#endif

@@ -61,8 +61,8 @@ uniform vec3 shadowLightVector;
 	const float K = 14.0;
 	const float calibration = exp2(CAMERA_AUTOEXPOSURE_BIAS) * K / 100.0;
 
-	const float minExposure = exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi /  dot(sunIlluminance, RgbToXyz[1]);
-	const float maxExposure = 0.03 * exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi / (dot(moonIlluminance, RgbToXyz[1]) * NIGHT_SKY_BRIGHTNESS);
+	const float minExposure =        exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi /  dot(sunIlluminance,  transpose(XYZ_from_render)[1]);
+	const float maxExposure = 0.03 * exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi / (dot(moonIlluminance, transpose(XYZ_from_render)[1]) * NIGHT_SKY_BRIGHTNESS);
 
 	void CalculateExposure(out float exposure, out float previousExposure) {
 		#if CAMERA_AUTOEXPOSURE != CAMERA_AUTOEXPOSURE_OFF

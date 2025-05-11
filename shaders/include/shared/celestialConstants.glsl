@@ -19,13 +19,13 @@ this comes out to approximately 126600 lm/m^2 at 1 AU
 
 const float sunAngularDiameter = radians(SUN_ANGULAR_DIAMETER);
 const float sunAngularRadius   = 0.5 * sunAngularDiameter;
-const vec3  sunColor           = vec3(1.0, 0.949, 0.937);// * R709ToRgb;
-const vec3  sunIlluminance     = 126.6e3 * (sunColor / dot(sunColor, RgbToXyz[1]));
+const vec3  sunColor           = render_from_BT709 * vec3(1.0, 0.949, 0.937);
+const vec3  sunIlluminance     = 126.6e3 * (sunColor / dot(sunColor, transpose(XYZ_from_render)[1]));
 const vec3  sunLuminance       = sunIlluminance / ConeAngleToSolidAngle(sunAngularRadius);
 
 const float moonAngularDiameter = radians(MOON_ANGULAR_DIAMETER);
 const float moonAngularRadius   = 0.5 * moonAngularDiameter;
-const vec3  moonAlbedo          = vec3(0.136);// * R709ToRgb_unlit;
+const vec3  moonAlbedo          = render_from_BT709_relative * vec3(0.136);
 const vec3  moonLuminance       = sunIlluminance * moonAlbedo / pi;
 const vec3  moonIlluminance     = moonLuminance * ConeAngleToSolidAngle(moonAngularRadius);
 

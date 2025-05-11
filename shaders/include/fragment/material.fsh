@@ -26,7 +26,7 @@ Material airMaterial   = Material(vec3(0.0), 0.0, 0.002, 0.0, false, vec3(1.0002
 Material waterMaterial = Material(vec3(0.0), 0.0, 0.002, 0.0, false, vec3(1.333000), vec3(0.0), vec3(0.0), vec3(1.0));
 
 Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
-	baseTex = LinearFromSrgb(baseTex);
+	baseTex = eotf_sRGB(baseTex);
 
 	#ifdef PROCEDURAL_WATER
 		if (id == 8 || id == 9) {
@@ -137,7 +137,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 		material.metalness    = float(isMetal);
 		material.roughness    = Pow2(1.0 - specTex.r);
 		material.porosity     = 1.0;
-		material.n            = F0ToIor(isMetal ? baseTex : vec3(LinearFromSrgb(specTex.g))) * airMaterial.n;
+		material.n            = F0ToIor(isMetal ? baseTex : vec3(eotf_sRGB(specTex.g))) * airMaterial.n;
 		material.k            = vec3(0.0);
 		material.emission     = vec3(0.0); //emisTex.rgb * BLOCK_LIGHT_LUMINANCE;
 		material.translucency = vec3(isTranslucent);

@@ -198,7 +198,7 @@ void main() {
 			#endif
 
 			vec4 sampleAlbedo = textureLod(shadowcolor1, sampleCoord, 0.0);
-			rsm += LinearFromSrgb(sampleAlbedo.rgb) * sampleAlbedo.a * brdf / (sampleDistanceSquared + sampleDistanceAdd);
+			rsm += eotf_sRGB(sampleAlbedo.rgb) * sampleAlbedo.a * brdf / (sampleDistanceSquared + sampleDistanceAdd);
 		}
 
 		rsm *= perSampleArea;

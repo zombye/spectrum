@@ -364,7 +364,7 @@ uniform vec3 shadowLightVector;
 			color = CalculateDiffuseLighting(NoL, NoH, NoV, LoV, material, shadows, cloudShadow, bounce, sssDepth, skylight, lightmap, blocklightShading, ao);
 			color += material.emission;
 
-			shadowsOut = vec4(SrgbFromLinear(shadows), 1.0);
+			shadowsOut = vec4(inverse_eotf_sRGB(shadows), 1.0);
 			#endif
 		} else {
 			shadowsOut = vec4(0.0);

@@ -39,7 +39,7 @@ void main() {
 
 	if (all(lessThan(gl_GlobalInvocationID.xy, textureSize(colortex6, 0)))) {
 		vec3 color = texelFetch(colortex6, ivec2(gl_GlobalInvocationID.xy), 0).rgb;
-		float luminance = dot(color, RgbToXyz[1]);
+		float luminance = dot(color, transpose(XYZ_from_render)[1]);
 
 		// Discard pixels with luminance values that are less than or equal to 0, infinite, or NaN.
 		if (!isnan(luminance) && !isinf(luminance) && luminance > 0.0) {

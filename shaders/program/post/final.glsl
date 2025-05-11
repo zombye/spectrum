@@ -96,7 +96,7 @@ uniform sampler2D depthtex2;
 
 		// Convert to output color space
 		color = Clamp01(color);
-		color = SrgbFromLinear(color);
+		color = inverse_eotf_sRGB(color);
 
 		#ifdef LUT
 			// Apply LUT
