@@ -28,7 +28,11 @@ vec3 AtmosphereTransmittance(sampler2D sampler, float R, float Mu, float distanc
 	float endR  = sqrt(distance * distance + 2 * R * Mu * distance + R * R);
 	float endMu = (R * Mu + distance) / endR;
 
-	return AtmosphereTransmittance(sampler, R, Mu) / AtmosphereTransmittance(sampler, endR, endMu);
+	if (R < endR) {
+		return AtmosphereTransmittance(sampler, R, Mu) / AtmosphereTransmittance(sampler, endR, endMu);
+	} else {
+		return min(AtmosphereTransmittance(sampler, endR, -endMu) / AtmosphereTransmittance(sampler, R, -Mu), 1.0);
+	}
 }
 vec3 AtmosphereTransmittance(sampler2D sampler, vec3 position, vec3 direction) {
 	float coreDistance = length(position);
