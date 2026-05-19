@@ -152,7 +152,7 @@ vec3 Calculate2DCloudsScattering(vec3 position, vec3 lowerPosition, vec3 viewVec
 
 	vec3 lightColor  = sunAngle < 0.5 ? sunIlluminance : moonIlluminance;
 	     lightColor *= AtmosphereTransmittance(transmittanceLut, position, shadowLightVector);
-	     lightColor *= 0.25/pi * (0.5 * exp(-10.0 * stepCoefficient)) + CloudsPhase2(VdotL, vec3(-0.1, 0.3, 0.9), vec3(0.3, 0.6, 0.1));
+	     lightColor *= CloudsPhase2(VdotL, vec3(-0.1, 0.3, 0.9), vec3(0.3, 0.6, 0.1));
 
 	return scattering * lightColor;
 }
@@ -186,6 +186,8 @@ vec4 Calculate2DClouds(vec3 viewVector, float dither) {
 
 	vec3 scattering = Calculate2DCloudsScattering(centerPosition, lowerPosition, viewVector, viewRayLength, density, cloudsTime, dither);
 	float transmittance = exp(-CLOUDS2D_ATTENUATION_COEFFICIENT * density * viewRayLength);
+	scattering += (1.0 - transmittance) * skyAmbientUp * 0.5/pi * exp(-CLOUDS2D_THICKNESS * CLOUDS2D_ATTENUATION_COEFFICIENT * density);
+	scattering *= 1.0 + 7.0 * density;
 
 	return vec4(scattering, transmittance);
 }
