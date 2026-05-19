@@ -2,12 +2,11 @@
 #define INCLUDE_FRAGMENT_CLOUDS3D
 
 // quality
-#define CLOUDS3D_STEPS_VIEW 20 // [5 10 20 50]
-#define CLOUDS3D_STEPS_SUN 5 // [5 10 20 50]
-#define CLOUDS3D_STEPS_SKY 2 // [2 5 10]
-//#define CLOUDS3D_ALTERNATE_SKYLIGHT
+#define CLOUDS3D_STEPS_VIEW 20 // [5 7 10 14 20 30 50 70 100]
+#define CLOUDS3D_STEPS_SUN 5 // [5 7 10 14 20]
+#define CLOUDS3D_STEPS_SKY 2 // [2 3 5 7 10]
 
-#define CLOUDS3D_MIN_TRANSMITTANCE 0.0 // Minimum transmittance before raymarch is stopped. After the raymarch, transmittance is then re-mapped so this value becomes 0.
+#define CLOUDS3D_MIN_TRANSMITTANCE 0.01 // Minimum transmittance before raymarch is stopped. After the raymarch, transmittance is then re-mapped so this value becomes 0.
 
 #define CLOUDS3D_NOISE_OCTAVES_2D 3 // 2D noise octaves, determines overall shape.
 #define CLOUDS3D_DETAIL_NOISE_OCTAVES 1 // [0 1 2]
@@ -26,10 +25,10 @@
 #define CLOUDS3D_ALTITUDE_MAX (CLOUDS3D_ALTITUDE + CLOUDS3D_THICKNESS)
 
 // shading
-#define CLOUDS3D_FAKE_POWDER_STRENGTH 0.7
+#define CLOUDS3D_POWDER_STRENGTH 0.4
 
 #define CLOUDS3D_ATTENUATION_COEFFICIENT (0.05 * 500.0 / CLOUDS3D_THICKNESS)
-#define CLOUDS3D_SCATTERING_ALBEDO 0.99
+#define CLOUDS3D_SCATTERING_ALBEDO 0.95
 
 #if defined PROGRAM_DEFERRED || defined PROGRAM_DEFERRED2 || defined PROGRAM_DEFERRED4 || defined PROGRAM_DEFERRED6
 float Get3DCloudsDensity(vec3 position) {
@@ -120,11 +119,13 @@ float Get3DCloudsDensity(vec3 position) {
 	#endif
 	//*/
 
-	detailNoise *= 1.0 - cloudAltitude * cloudAltitude * cloudAltitude;
+	float detailNoiseStrength = 1.0 - cloudAltitude * cloudAltitude;
+	//float detailNoiseStrength = 1.0 - cloudAltitude * cloudAltitude * cloudAltitude;
+	//float detailNoiseStrength = 1.0 - cloudAltitude * cloudAltitude * (3.0 - 2.0 * cloudAltitude);
 
 	// detail noise layers are shared between patch and cells noise
-	patchNoise += patchRemaining * (detailNoise - 0.5);
-	cellsNoise += 0.25 * 0.5 * (detailNoise - 0.5);
+	patchNoise += patchRemaining * (detailNoise - 0.5) * detailNoiseStrength;
+	cellsNoise += 0.25 * 0.5 * (detailNoise - 0.5) * detailNoiseStrength;
 
 	//--// Apply coverage
 
@@ -240,11 +241,13 @@ float Get3DCloudsDensityShadow(vec3 position) {
 	#endif
 	//*/
 
-	detailNoise *= 1.0 - cloudAltitude * cloudAltitude * cloudAltitude;
+	float detailNoiseStrength = 1.0 - cloudAltitude * cloudAltitude;
+	//float detailNoiseStrength = 1.0 - cloudAltitude * cloudAltitude * cloudAltitude;
+	//float detailNoiseStrength = 1.0 - cloudAltitude * cloudAltitude * (3.0 - 2.0 * cloudAltitude);
 
 	// detail noise layers are shared between patch and cells noise
-	patchNoise += patchRemaining * (detailNoise - 0.5);
-	cellsNoise += 0.25 * 0.5 * (detailNoise - 0.5);
+	patchNoise += patchRemaining * (detailNoise - 0.5) * detailNoiseStrength;
+	cellsNoise += 0.25 * 0.5 * (detailNoise - 0.5) * detailNoiseStrength;
 
 	//--// Apply coverage
 
@@ -334,7 +337,7 @@ float Calculate3DCloudsOpticalDepth(vec3 rayPosition, vec3 rayDirection, float s
 }
 
 float Phase3DClouds(float VdotL, float opticalDepth) {
-	const float backscatterWeight = 0.2;
+	const float backscatterWeight = 0.4;
 	const float peakWeight = 0.15;
 
 	float forwardsLobe  = PhaseHenyeyGreenstein(VdotL,  pow(0.35, opticalDepth + 1.0));
@@ -354,13 +357,13 @@ void Calculate3DCloudsScattering(
 	float sunPathOpticalDepth = viewOpticalDepth + sunOpticalDepth;
 	float sunPathTransmittance = exp(-sunPathOpticalDepth);
 
-	#ifdef CLOUDS3D_ALTERNATE_SKYLIGHT
+	//*
 	vec3 skyDir = SampleSphere(Hash2(position));
 	if (skyDir.y < 0.0) { skyDir.y = -skyDir.y; }
 	float skyOpticalDepth = Calculate3DCloudsOpticalDepth(position, skyDir, dither, CLOUDS3D_STEPS_SKY, 1.5);
-	#else
+	/*/
 	float skyOpticalDepth = Calculate3DCloudsOpticalDepth(position, vec3(0.0, 1.0, 0.0), dither, CLOUDS3D_STEPS_SKY);
-	#endif
+	//*/
 	float skyPathOpticalDepth = viewOpticalDepth + skyOpticalDepth;
 	float skyPathTransmittance = exp(-skyPathOpticalDepth);
 
@@ -371,29 +374,51 @@ void Calculate3DCloudsScattering(
 	//*/
 
 	//* approximated multiple scattering
-	const float scatterStrength = 0.7;
-	const float slope = 0.3;
-	float sunPath = exp(-viewOpticalDepth) * pow(1.0 + slope * scatterStrength * sunOpticalDepth, -1.0 / scatterStrength);
-	float skyPath = exp(-viewOpticalDepth) * pow(1.0 + slope * scatterStrength * skyOpticalDepth, -1.0 / scatterStrength);
+	const float forwardsScatteredEnergy = 0.15 * CLOUDS3D_SCATTERING_ALBEDO; // Energy we assume is scattered "forwards."
+	const float remainingScatteredEnergy = CLOUDS3D_SCATTERING_ALBEDO - forwardsScatteredEnergy; // Energy we assume is scattered in all other directions.
 
-	float sharedpart = 1.7 * CLOUDS3D_SCATTERING_ALBEDO * (1.0 - stepTransmittance);
+	// Forwards-scattering approximation.
+	// In the limit of scatterStrength=0 (where this turns into exp(-slope*opticalDepth)), this is exact assuming `forwardsScatteredEnergy` is directly forwards (i.e. dirac delta distribution).
+	// scatterStrength is used to further boost it over very long paths, because forward scattering is not sufficient by itself.
+	// Aside from the scatterStrenght parth, this approximation is useful on both segments.
+	const float scatterStrength = 1.0;
+	const float slope = 1.0 - forwardsScatteredEnergy;
+	float incidentDirectAndForwardsScattered = pow(1.0 + slope * scatterStrength * sunOpticalDepth, -1.0 / scatterStrength);
+	float visibleDirectAndForwardsScattered  = exp(-slope * viewOpticalDepth);
+	// The name for this one is outdated since `skyOpticalDepth` is picking random directions.
+	// That was necessary to get skylight shading to look right, but the randomization does have its own drawbacks (mainly, noise).
+	// One of the later heuristics also assumes this is specifically up, but fortunately that one doesn't seem to have been negatively affected by that change.
+	float upDirectAndForwardsScattered       = pow(1.0 + slope * scatterStrength * skyOpticalDepth, -1.0 / scatterStrength);
 
-	// fake powder effect for directions away from the light, makes them not look like complete garbage
-	float fakePowder = 8.0 * (1.0 - 0.97 * exp(-10.0 * stepCoefficient));
+	// Normally this is just 1.0-stepTransmittance, but forwards-scattering changes the integral.
+	float integral = (CLOUDS3D_SCATTERING_ALBEDO / slope) * (1.0 - pow(stepTransmittance, slope));
+	float sharedPart = integral * visibleDirectAndForwardsScattered;
 
-	float fakeSunPowder = mix(fakePowder, 1.0, VdotL * 0.5 + 0.5);
-	float sunPhase = fakeSunPowder       * Phase3DClouds(VdotL, sunOpticalDepth);
-	#ifdef CLOUDS3D_ALTERNATE_SKYLIGHT
-	// having a multiply by 2 here gives a closer result to actually sampling the sky in each direction
-	float fakeSkyPowder = mix(fakePowder, 1.0, dot(direction, skyDir) * 0.5 + 0.5);
-	float skyPhase = fakeSkyPowder * 2.0 * Phase3DClouds(dot(direction, skyDir), skyOpticalDepth);
-	#else
-	float fakeSkyPowder = mix(fakePowder, 1.0, 0.5);
-	float skyPhase = fakeSkyPowder * 0.25 / pi;
-	#endif
+	// Add single and forwards-scattered portion
+	float phaseSingleAndForward = Phase3DClouds(VdotL, sunOpticalDepth);
+	scatteringSun += sharedPart * incidentDirectAndForwardsScattered * phaseSingleAndForward;
 
-	scatteringSun += sharedpart * sunPhase * sunPath;
-	scatteringSky += sharedpart * skyPhase * skyPath;
+	// Handle non-forwards scattered portion
+	// Based on https://zhuanlan.zhihu.com/p/457997155
+	// The representative coefficient & radius are parameters of the model, here driven with a heuristic based on the actual density function.
+	// These get combined into a representative "optical radius," and some tuning of this will be needed whenever the density function changes.
+	float representative_coefficient = CLOUDS3D_ATTENUATION_COEFFICIENT * mix(0.3, stepCoefficient / CLOUDS3D_ATTENUATION_COEFFICIENT, CLOUDS3D_POWDER_STRENGTH);
+	float representative_radius = 0.5 * CLOUDS3D_THICKNESS * mix(1.0, stepCoefficient / CLOUDS3D_ATTENUATION_COEFFICIENT, CLOUDS3D_POWDER_STRENGTH);
+	float representative_optical_radius = representative_coefficient * representative_radius;
+
+	// `f_ms` represents the ratio of energy between successive scattering events where the energy distribution no longer changes (`E_n(x) = f_ms * E_n-1(x)`).
+	// We can then compute all remaining scattering events by summing `f_ms^m * E_n(x)` for m from 1 through infinity, which simplifies to `(f_ms / (1 - f_ms)) * E_n(x)`.
+	// This quickly approaches the exact result when applied to later scattering events, but we don't have that luxury here.
+	// Since we've also added dedicated forwards scattering, `f_ms_ends` is applied to each "end" of the chain where forward-scattering was already accounted for and should be excluded in this step.
+	// Note that this approach to the exclusion wasn't derived from the underlying math, so while it makes sense and works well, I'm not entirely sure how accurate it is.
+	float f_ms = CLOUDS3D_SCATTERING_ALBEDO * (1.0 - exp(-representative_optical_radius));
+	float f_ms_ends = remainingScatteredEnergy * (1.0 - exp(-representative_optical_radius));
+	float ms_scale = f_ms_ends * f_ms_ends * f_ms / (1.0 - f_ms);
+	float phaseMulti = Phase3DClouds(VdotL, sunOpticalDepth + 1.0); // Add 1 because we assume this is second-order scattering and above.
+	float incidentMulti = mix(incidentDirectAndForwardsScattered, upDirectAndForwardsScattered, 0.2); // Heuristic to get an estimate for where multiple-scattering is visible even deeper in the cloud.
+	scatteringSun += sharedPart * incidentMulti * ms_scale * phaseMulti;
+
+	scatteringSky += sharedPart * upDirectAndForwardsScattered * (1.0 + ms_scale) * 0.25/3.14159265;
 	//*/
 }
 
@@ -473,8 +498,13 @@ vec4 Render3DClouds(
 		cloudsDistance = min((i + dither) * stepSize + startDistance, cloudsDistance);
 	}
 
-	float transmittance = exp(-opticalDepth);
-	transmittance = Clamp01(transmittance / (1.0 - CLOUDS3D_MIN_TRANSMITTANCE) - (CLOUDS3D_MIN_TRANSMITTANCE / (1.0 - CLOUDS3D_MIN_TRANSMITTANCE)));
+	float transmittance;
+	if (CLOUDS3D_MIN_TRANSMITTANCE > 0.0) {
+		const float c = -log(CLOUDS3D_MIN_TRANSMITTANCE);
+		transmittance = opticalDepth < c ? pow(1.0 - opticalDepth / c, c) : 0.0;
+	} else {
+		transmittance = exp(-opticalDepth);
+	}
 	/*/
 	float transmittance = 1.0;
 	const float majorant = CLOUDS3D_ATTENUATION_COEFFICIENT;
