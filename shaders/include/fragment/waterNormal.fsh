@@ -31,6 +31,16 @@
 		);
 	}
 
+	vec2 distribute_wave(vec2 wind_dir, float wind_speed, float u) {
+		float anisotropy = wind_speed * 3.0;
+
+		float rand_theta = tau * u;
+		vec2 rand_dir = vec2(cos(rand_theta), sin(rand_theta));
+		vec2 par = wind_dir * dot(rand_dir, wind_dir);
+		vec2 per = rand_dir - par;
+		return normalize(wind_dir * anisotropy + par * sqrt(anisotropy * anisotropy + 1.0) + per);
+	}
+
 	#define WAVES_WIND_PERF_CHEAT // Significantly improves performance in exchance for a probably unnoticeabe accuracy loss.
 	float CalculateWaterWaves(vec3 position) {
 		const float g = 9.81;
@@ -82,8 +92,8 @@
 				vec2 wind_dir = normalize(windvel);
 				#endif
 				vec2[2] wavevector = vec2[2](
-					k.x * rot(wind_dir, angrng_mul * (angoffs.x - 0.5)),
-					k.y * rot(wind_dir, angrng_mul * (angoffs.y - 0.5))
+					k.x * distribute_wave(wind_dir, wind_speed, angoffs.x),
+					k.y * distribute_wave(wind_dir, wind_speed, angoffs.y)
 				);
 
 				vec2 rel_pos = p - cell_pos;
@@ -134,8 +144,8 @@
 				vec2 wind_dir = normalize(windvel);
 				#endif
 				vec2[2] wavevector = vec2[2](
-					k.x * rot(wind_dir, angrng_mul * (angoffs.x - 0.5)),
-					k.y * rot(wind_dir, angrng_mul * (angoffs.y - 0.5))
+					k.x * distribute_wave(wind_dir, wind_speed, angoffs.x),
+					k.y * distribute_wave(wind_dir, wind_speed, angoffs.y)
 				);
 
 				vec2 rel_pos = p - cell_pos;
@@ -209,8 +219,8 @@
 				vec2 wind_dir = normalize(windvel);
 				#endif
 				vec2[2] wavevector = vec2[2](
-					k.x * rot(wind_dir, angrng_mul * (angoffs.x - 0.5)),
-					k.y * rot(wind_dir, angrng_mul * (angoffs.y - 0.5))
+					k.x * distribute_wave(wind_dir, wind_speed, angoffs.x),
+					k.y * distribute_wave(wind_dir, wind_speed, angoffs.y)
 				);
 
 				vec2 rel_pos = p - cell_pos;
@@ -271,8 +281,8 @@
 				vec2 wind_dir = normalize(windvel);
 				#endif
 				vec2[2] wavevector = vec2[2](
-					k.x * rot(wind_dir, angrng_mul * (angoffs.x - 0.5)),
-					k.y * rot(wind_dir, angrng_mul * (angoffs.y - 0.5))
+					k.x * distribute_wave(wind_dir, wind_speed, angoffs.x),
+					k.y * distribute_wave(wind_dir, wind_speed, angoffs.y)
 				);
 
 				vec2 rel_pos = p - cell_pos;
