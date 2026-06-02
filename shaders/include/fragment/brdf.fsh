@@ -137,7 +137,7 @@ float EstimateNormalizationFactor(float alpha2, float lightAngularRadius) {
 vec3 CalculateSpecularBRDFSphere(float NdotL, float NdotV, float LdotV, float VdotH, float alpha2, vec3 n, vec3 k, float angularRadius) {
 	// Reflection direction
 	float RdotL = 2.0 * NdotV * NdotL - LdotV; // == dot(reflect(-V, N), L)
-	if (alpha2 < 0.25 / 65025.0) {
+	if (alpha2 == 0.0) {
 		// Specular fraction (fresnel)
 		vec3 f = FresnelNonpolarized(VdotH, ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(n, k));
 

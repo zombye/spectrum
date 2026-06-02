@@ -396,12 +396,32 @@ uniform vec3 shadowLightVector;
 			}
 		#endif
 
+		vec3 shading_normal_tangent = normal;
+
 		normal = normalize(tbn * normal);
 
 		colortex0Write = vec4(Pack2x8(baseTex.rg), Pack2x8(baseTex.b, Clamp01(blockId / 255.0)), Pack2x8Dithered(lightmapCoordinates, dither), 1.0);
 		colortex1Write = vec4(Pack2x8(specTex.rg), Pack2x8(specTex.ba), Pack2x8(EncodeNormal(normal) * 0.5 + 0.5), 1.0);
 
 		Material material = MaterialFromTex(baseTex.rgb, specTex, blockId);
+
+		#ifdef PROCEDURAL_WATER
+		if (blockId == 8 || blockId == 9) {
+			material.roughness = 0.0;
+			// https://jcgt.org/published/0010/02/02/
+			// Based directly on listing 5
+			// Different choice of sigma^2 for crisper & narrower highlights
+			const float sigma_squared = 1.0 / 12.0;
+			vec3 normal_pixel_grad_x = dFdx(shading_normal_tangent);
+			vec3 normal_pixel_grad_y = dFdy(shading_normal_tangent);
+			float isotropic_variance = sigma_squared * (dot(normal_pixel_grad_x, normal_pixel_grad_x) + dot(normal_pixel_grad_y, normal_pixel_grad_y));
+			      isotropic_variance = min(isotropic_variance, 0.18);
+			float slope_variance = material.roughness * material.roughness + isotropic_variance;
+
+			material.roughness = sqrt(sqrt(2.0) * slope_variance);
+			colortex1Write.x = Pack2x8(vec2(clamp(1.0 - sqrt(material.roughness), 0.0, 1.0), specTex.g));
+		}
+		#endif
 
 		bool translucent = material.translucency.r + material.translucency.g + material.translucency.b > 0.0 || baseTex.a < 1.0;
 

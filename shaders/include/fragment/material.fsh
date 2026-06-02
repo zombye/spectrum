@@ -30,6 +30,8 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 
 	#ifdef PROCEDURAL_WATER
 		if (id == 8 || id == 9) {
+			airMaterial.roughness = Pow2(1.0 - specTex.r);
+			waterMaterial.roughness = Pow2(1.0 - specTex.r);
 			#ifdef TOTAL_INTERNAL_REFLECTION
 			return isEyeInWater == 1 ? airMaterial : waterMaterial;
 			#else
