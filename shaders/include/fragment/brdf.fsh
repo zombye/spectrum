@@ -164,10 +164,11 @@ float GetNdotHSquared(float radiusCos, float radiusTan, float NdotL, float NdotV
 	float HoH = 2.0 * newVdotL + 2.0;
 	return Clamp01(NdotH * NdotH / HoH);
 }
-// Estimates normalization factor when using the above
-// Not really accurate, but it works well
-float EstimateNormalizationFactor(float alpha2, float lightAngularRadius) {
-	return alpha2 / (alpha2 + ConeAngleToSolidAngle(lightAngularRadius)/(2.0*pi));
+// Estimates renormalization factor when using the above
+// Accurate in the limit as alpha appraches 0, but not entirely sure how it deviates with higher `alpha`.
+float EstimateNormalizationFactor(float alphaSquared, float lightAngularRadius) {
+	float solidAngle = ConeAngleToSolidAngle(lightAngularRadius);
+	return 4.0 * pi * alphaSquared / (4.0 * pi * alphaSquared + solidAngle);
 }
 
 vec3 CalculateSpecularBRDFSphere(float NdotL, float NdotV, float LdotV, float VdotH, float alpha2, vec3 n, vec3 k, float angularRadius, bool useBeckmannNdf) {
