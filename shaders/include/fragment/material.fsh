@@ -15,6 +15,7 @@ struct Material {
 	float metalness;    // Only used to scale down diffuse light before adding specular (so metals don't have to just be black in the reflections)
 	float roughness;    // GGX roughness
 	float porosity;     // Currently unused
+	bool  useBeckmannNdf; // For water
 	bool  albedoTintsMetalReflections; // For lab, mainly
 	vec3  n;            // Index of refraction
 	vec3  k;            // Extinction coefficient (for complex index of refraction, needed for metals)
@@ -22,8 +23,8 @@ struct Material {
 	vec3  translucency; // Currently unused
 };
 
-Material airMaterial   = Material(vec3(0.0), 0.0, 0.002, 0.0, false, vec3(1.000275), vec3(0.0), vec3(0.0), vec3(1.0));
-Material waterMaterial = Material(vec3(0.0), 0.0, 0.002, 0.0, false, vec3(1.333000), vec3(0.0), vec3(0.0), vec3(1.0));
+Material airMaterial   = Material(vec3(0.0), 0.0, 0.002, 0.0, true, false, vec3(1.000275), vec3(0.0), vec3(0.0), vec3(1.0));
+Material waterMaterial = Material(vec3(0.0), 0.0, 0.002, 0.0, true, false, vec3(1.333000), vec3(0.0), vec3(0.0), vec3(1.0));
 
 Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 	baseTex = render_from_BT709_relative * eotf_sRGB(baseTex);
@@ -43,6 +44,7 @@ Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 	bool isTranslucent = id == 18 || id == 30 || id == 31 || id == 38 || id == 78 || id == 175 || id == 176;
 
 	Material material;
+	material.useBeckmannNdf = false;
 
 	#if   RESOURCE_FORMAT == RESOURCE_FORMAT_GREYSCALE
 		bool isMetal = (id == 41 || id == 42) && specTex.r > 0.5;

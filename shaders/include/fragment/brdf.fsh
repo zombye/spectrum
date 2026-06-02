@@ -56,6 +56,11 @@ float DistributionGGX(float NdotH, float alpha2) {
 	float p = (NdotH * alpha2 - NdotH) * NdotH + 1.0;
 	return alpha2 / (pi * p * p);
 }
+float DistributionBeckmann(float NdotH, float alphaSquared) {
+	float NdotHSquared = NdotH * NdotH;
+	return exp(-(1.0 / NdotHSquared - 1.0) / alphaSquared)
+	     / (pi * alphaSquared * NdotHSquared * NdotHSquared);
+}
 
 float G1SmithGGX(float NdotV, float alpha2) {
 	return Clamp01(2.0 * NdotV / (sqrt(alpha2 + (NdotV - NdotV * alpha2) * NdotV) + NdotV));
@@ -77,16 +82,47 @@ float G2OverG1SmithGGX(float NdotV, float NdotL, float alpha2) {
 	return Clamp01((NdotV + a) * NdotL / (NdotL * a + NdotV * b));
 }
 
+float G1SmithBeckmannApprox(float NdotV, float alpha) {
+	float a = abs(NdotV) * inversesqrt(1.0 - NdotV * NdotV) / alpha;
+	if (a >= 1.6) { return 1.0; }
+	return clamp((3.3535 * a + 2.181 * a * a) / (1.0 + 2.276 * a + 2.577 * a * a), 0.0, 1.0);
+}
+/*
+float G1SmithBeckmann(float NdotV, float alpha) {
+	float a = NdotV * inversesqrt(1.0 - NdotV * NdotV) / alpha;
+	float delta = (erf(a) - 1.0) / 2.0 + exp(-a * a) / (2.0 * a * sqrt(pi));
+	return 1.0 / (1.0 + delta);
+}
+*/
+float G2SmithBeckmannApprox(float NdotV, float NdotL, float alpha) {
+	float av = abs(NdotV) * inversesqrt(1.0 - NdotV * NdotV) / alpha;
+	float al = abs(NdotL) * inversesqrt(1.0 - NdotL * NdotL) / alpha;
+	float deltav = av < 1.6 ? (1.0 - 1.259 * av + 0.396 * av * av) / (3.535 * av + 2.181 * av * av) : 0.0;
+	float deltal = al < 1.6 ? (1.0 - 1.259 * al + 0.396 * al * al) / (3.535 * al + 2.181 * al * al) : 0.0;
+	if (isnan(deltav) || isinf(deltav)) { deltav = 0.0; }
+	if (isnan(deltal) || isinf(deltal)) { deltal = 0.0; }
+	return clamp(1.0 / (1.0 + deltav + deltal), 0.0, 1.0);
+}
+float G2OverG1SmithBeckmannApprox(float NdotV, float NdotL, float alpha2) {
+	float av = abs(NdotV) * inversesqrt(1.0 - NdotV * NdotV) / alpha;
+	float al = abs(NdotL) * inversesqrt(1.0 - NdotL * NdotL) / alpha;
+	float deltav = av < 1.6 ? (1.0 - 1.259 * av + 0.396 * av * av) / (3.535 * av + 2.181 * av * av) : 0.0;
+	float deltal = al < 1.6 ? (1.0 - 1.259 * al + 0.396 * al * al) / (3.535 * al + 2.181 * al * al) : 0.0;
+	if (isnan(deltav) || isinf(deltav)) { deltav = 0.0; }
+	if (isnan(deltal) || isinf(deltal)) { deltal = 0.0; }
+	return clamp((1.0 + deltav) / (1.0 + deltav + deltal), 0.0, 1.0);
+}
+
 //----------------------------------------------------------------------------//
 
-vec3 CalculateSpecularBRDF(float NdotL, float NdotH, float NdotV, float VdotH, float alpha2, vec3 n, vec3 k) {
+vec3 CalculateSpecularBRDF(float NdotL, float NdotH, float NdotV, float VdotH, float alpha2, vec3 n, vec3 k, bool useBeckmannNdf) {
 	// A point is often used in place of a really, really small light source to simplify a lot of things.
 	// Small enough that it can be assumed to be invisible unless reflected by a rough surface.
 	if (alpha2 == 0.0) { return vec3(0.0); }
 
 	vec3  f  = FresnelNonpolarized(VdotH, ComplexVec3(airMaterial.n, airMaterial.k), ComplexVec3(n, k));
-	float d  = DistributionGGX(NdotH, alpha2);
-	float g2 = G2SmithGGX(NdotL, NdotV, alpha2);
+	float d  = useBeckmannNdf ? DistributionBeckmann(NdotH, alpha2) : DistributionGGX(NdotH, alpha2);
+	float g2 = useBeckmannNdf ? G2SmithBeckmannApprox(NdotL, NdotV, alpha2) : G2SmithGGX(NdotL, NdotV, alpha2);
 
 	return f * d * g2 / (4.0 * NdotL * NdotV);
 }
@@ -134,7 +170,7 @@ float EstimateNormalizationFactor(float alpha2, float lightAngularRadius) {
 	return alpha2 / (alpha2 + ConeAngleToSolidAngle(lightAngularRadius)/(2.0*pi));
 }
 
-vec3 CalculateSpecularBRDFSphere(float NdotL, float NdotV, float LdotV, float VdotH, float alpha2, vec3 n, vec3 k, float angularRadius) {
+vec3 CalculateSpecularBRDFSphere(float NdotL, float NdotV, float LdotV, float VdotH, float alpha2, vec3 n, vec3 k, float angularRadius, bool useBeckmannNdf) {
 	// Reflection direction
 	float RdotL = 2.0 * NdotV * NdotL - LdotV; // == dot(reflect(-V, N), L)
 	if (alpha2 == 0.0) {
@@ -153,8 +189,8 @@ vec3 CalculateSpecularBRDFSphere(float NdotL, float NdotV, float LdotV, float Vd
 
 	NdotV = abs(NdotV);
 	// Geometry part
-	float d  = DistributionGGX(NdotH, alpha2);
-	float g2 = G2SmithGGX(NdotL, NdotV, alpha2);
+	float d  = useBeckmannNdf ? DistributionBeckmann(NdotH, alpha2) : DistributionGGX(NdotH, alpha2);
+	float g2 = useBeckmannNdf ? G2SmithBeckmannApprox(NdotL, NdotV, alpha2) : G2SmithGGX(NdotL, NdotV, alpha2);
 
 	float norm = EstimateNormalizationFactor(alpha2, angularRadius);
 

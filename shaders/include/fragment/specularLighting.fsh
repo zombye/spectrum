@@ -4,7 +4,7 @@
 vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float VdotH, Material material, float angularRadius) {
 	float alpha2 = material.roughness * material.roughness;
 
-	vec3 brdf = CalculateSpecularBRDFSphere(NdotL, NdotV, VdotL, VdotH, alpha2, material.n, material.k, angularRadius);
+	vec3 brdf = CalculateSpecularBRDFSphere(NdotL, NdotV, VdotL, VdotH, alpha2, material.n, material.k, angularRadius, material.useBeckmannNdf);
 
 	/* NdotL modified to fade to 0 only when the light is fully occluded (rather than when light is only halfway occluded)
 	float sinLightRadius = sin(angularRadius);
@@ -81,6 +81,8 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 
 		mat3 rot = GetRotationMatrix(vec3(0, 0, 1), normal);
 		vec3 tangentView = viewDirection * rot;
+
+		// TODO: Support Beckmann
 
 		vec3 reflection = vec3(0.0);
 		for (int i = 0; i < SSR_RAY_COUNT; ++i) {
