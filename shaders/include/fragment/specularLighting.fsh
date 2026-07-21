@@ -86,7 +86,7 @@ vec3 CalculateSpecularHighlight(float NdotL, float NdotV, float VdotL, float Vdo
 
 		vec3 reflection = vec3(0.0);
 		for (int i = 0; i < SSR_RAY_COUNT; ++i) {
-			vec2 xy = R2((i + dither) * ditherSize);
+			vec2 xy = R2(i + SSR_RAY_COUNT * dither * ditherSize);
 			xy.x *= 1.0 - SSR_TAIL_CLAMP;
 			vec3 facetNormal = rot * SampleVNDFGGX(-tangentView, vec2(material.roughness), xy);
 
