@@ -189,6 +189,7 @@ uniform vec3 shadowLightVector;
 			#endif
 
 			out_clouds = Calculate2DClouds(viewVector, dither);
+			out_clouds.rgb = sqrt(out_clouds.rgb);
 		} else {
 			out_clouds = vec4(0.0);
 		}

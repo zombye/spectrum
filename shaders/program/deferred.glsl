@@ -360,6 +360,7 @@ uniform vec3 shadowLightVector;
 			vec4 clouds3D = texelFetch(colortex10, ivec2(gl_FragCoord.xy), 0);
 
 			if (clouds3DDistance > 0.0) {
+				clouds3D.rgb *= clouds3D.rgb;
 				vec3 cloudsPosition = viewPosition + viewVector * clouds3DDistance;
 
 				// remove atmosphere occluded by clouds
@@ -397,6 +398,7 @@ uniform vec3 shadowLightVector;
 
 			if (clouds2DDistance > 0.0) {
 				vec4 clouds2D = texelFetch(colortex12, ivec2(gl_FragCoord.xy), 0);
+				clouds2D.rgb *= clouds2D.rgb;
 				vec3 cloudsPosition = viewPosition + viewVector * clouds2DDistance;
 
 				// remove atmosphere occluded by clouds

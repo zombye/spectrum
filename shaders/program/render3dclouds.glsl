@@ -206,6 +206,7 @@ uniform vec3 shadowLightVector;
 			#endif
 
 			out_clouds = Render3DClouds(viewVector, dither, out_clouddist);
+			out_clouds.rgb = sqrt(out_clouds.rgb);
 		} else {
 			out_clouds = vec4(0.0);
 			out_clouddist = 0.0;
