@@ -23,11 +23,14 @@ struct Material {
 	vec3  translucency; // Currently unused
 };
 
+#include "/include/color/display_transform/config.glsl"
+
 Material airMaterial   = Material(vec3(0.0), 0.0, 0.002, 0.0, true, false, vec3(1.000275), vec3(0.0), vec3(0.0), vec3(1.0));
 Material waterMaterial = Material(vec3(0.0), 0.0, 0.002, 0.0, true, false, vec3(1.333000), vec3(0.0), vec3(0.0), vec3(1.0));
 
 Material MaterialFromTex(vec3 baseTex, vec4 specTex, int id) {
 	baseTex = render_from_BT709_relative * eotf_sRGB(baseTex);
+	baseTex = mix(vec3(dot(baseTex, vec3(0.2, 0.7, 0.1))), baseTex, 1.0 / DISPLAY_TRANSFORM_RELATIVE_MODE_COLORFULNESS_SCALE);
 
 	#ifdef PROCEDURAL_WATER
 		if (id == 8 || id == 9) {

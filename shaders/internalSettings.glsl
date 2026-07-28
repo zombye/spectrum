@@ -27,6 +27,9 @@ const int colortex9Format = RG8;
 const int colortex10Format = RGBA16F;   // 3D clouds scattering, transmittance
 const int colortex11Format = R32F;      // 3D clouds distance
 const int colortex12Format = RGBA16F;   // 2D clouds scattering, transmittance
+const int colortex13Format = R16F;      // Display transform: Display colorfulness boundary LUT
+const int colortex14Format = R16F;      // Display transform: Input colorfulness boundary LUT
+const int colortex15Format = RG16F;     // Display transform: Display grayline chroma LUT
 
 const bool colortex3Clear = false;
 const bool colortex4Clear = false;

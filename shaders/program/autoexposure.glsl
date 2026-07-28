@@ -83,7 +83,7 @@ void main() {
 		// Since bins are logarithmically spaced, getting the luminance of the mean bin give the geometric mean of luminance
 		float geometricMeanLuminance = LuminanceFromBin(float(weighted[0]) / float(included_count));
 
-		const float K = 14.0;
+		const float K = 18.0;
 		const float calibration = exp2(CAMERA_AUTOEXPOSURE_BIAS) * K / 100.0;
 
 		const float minExposure =        exp2(CAMERA_AUTOEXPOSURE_BIAS) * pi /  dot(sunIlluminance,  transpose(XYZ_from_render)[1]);

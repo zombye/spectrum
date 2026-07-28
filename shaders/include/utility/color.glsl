@@ -4,22 +4,44 @@
 #include "/include/color/primary_transform.glsl"
 #include "/include/color/transfer_function.glsl"
 
-// Returns a color conversion matrix to XYZ with specified source white point and primaries
-mat3 CreateConversionMatrix(vec2 Wxy, vec2 Rxy, vec2 Gxy, vec2 Bxy) {
-	vec3 Wxyz = vec3(Wxy, 1.0 - Wxy.x - Wxy.y);
-	vec3 Rxyz = vec3(Rxy, 1.0 - Rxy.x - Rxy.y);
-	vec3 Gxyz = vec3(Gxy, 1.0 - Gxy.x - Gxy.y);
-	vec3 Bxyz = vec3(Bxy, 1.0 - Bxy.x - Bxy.y);
+// Computes the matrix to convert to XYZ from a color space with specified xyY xy primaries.
+mat3 create_conversion_matrix(
+	vec2 pri_white_xy,
+	vec2 pri_first_xy,
+	vec2 pri_second_xy,
+	vec2 pri_third_xy
+) {
+	vec3 pri_white_xyz  = vec3(pri_white_xy,  1.0 - pri_white_xy.x  - pri_white_xy.y );
+	vec3 pri_first_xyz  = vec3(pri_first_xy,  1.0 - pri_first_xy.x  - pri_first_xy.y );
+	vec3 pri_second_xyz = vec3(pri_second_xy, 1.0 - pri_second_xy.x - pri_second_xy.y);
+	vec3 pri_third_xyz  = vec3(pri_third_xy,  1.0 - pri_third_xy.x  - pri_third_xy.y );
 
-	vec3 WXYZ = Wxyz / Wxyz.y;
+	// Solve for relative weights:
+	// Wx = Rw * Rx + Gw * Gx + Bw * Bx
+	// Wy = Rw * Ry + Gw * Gy + Bw * By
+	// Wz = Rw * Rz + Gw * Gz + Bw * Bz
+	// -> Matrix form
+	// | Wx |   | Rx Gx Bx | | Rw |
+	// | Wy | = | Ry Gy By | | Gw |
+	// | Wz |   | Rz Gz Bz | | Bw |
+	// -> Invert matrix to find solution
+	vec3 pri_weight = inverse(mat3(
+		pri_first_xyz,
+		pri_second_xyz,
+		pri_third_xyz
+	)) * pri_white_xyz;
 
-	mat3 tmp = mat3(
-		Rxyz.x / Rxyz.y, Gxyz.x / Gxyz.y, Bxyz.x / Bxyz.y,
-		1.0,             1.0,             1.0,
-		Rxyz.z / Rxyz.y, Gxyz.z / Gxyz.y, Bxyz.z / Bxyz.y
+	// Find normalization c such that
+	// 1 = c * (Rw * Ry + Gw * Gy + Bw * By)
+	// and apply to weights
+	pri_weight /= pri_weight.r * pri_first_xyz.y + pri_weight.g * pri_second_xyz.y + pri_weight.b * pri_third_xyz.y;
+
+	// Assemble the matrix
+	return mat3(
+		pri_weight.r * pri_first_xyz,
+		pri_weight.g * pri_second_xyz,
+		pri_weight.b * pri_third_xyz
 	);
-	vec3 lc = WXYZ * inverse(tmp);
-	return mat3(lc * tmp[0], lc, lc * tmp[2]);
 }
 
 //----------------------------------------------------------------------------//

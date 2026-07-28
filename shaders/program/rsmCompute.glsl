@@ -46,6 +46,8 @@ const vec2 workGroups = vec2(0.5, 0.5);
 
 #include "/include/shared/shadowDistortion.glsl"
 
+#include "/include/color/display_transform/config.glsl"
+
 //--// Functions //-----------------------------------------------------------//
 
 float GetLinearDepth(sampler2D depthSampler, vec2 coord) {
@@ -198,7 +200,9 @@ void main() {
 			#endif
 
 			vec4 sampleAlbedo = textureLod(shadowcolor1, sampleCoord, 0.0);
-			rsm += render_from_BT709_relative * eotf_sRGB(sampleAlbedo.rgb) * sampleAlbedo.a * brdf / (sampleDistanceSquared + sampleDistanceAdd);
+			sampleAlbedo.rgb = eotf_sRGB(sampleAlbedo.rgb);
+			sampleAlbedo.rgb = mix(vec3(dot(sampleAlbedo.rgb, vec3(0.2, 0.7, 0.1))), sampleAlbedo.rgb, 1.0 / DISPLAY_TRANSFORM_RELATIVE_MODE_COLORFULNESS_SCALE);
+			rsm += render_from_BT709_relative * sampleAlbedo.rgb * sampleAlbedo.a * brdf / (sampleDistanceSquared + sampleDistanceAdd);
 		}
 
 		rsm *= perSampleArea;

@@ -183,10 +183,15 @@ vec3 CalculateAirFog(vec3 background, vec3 startPosition, vec3 endPosition, vec3
 	return background * transmittance + scattering;
 }
 
+#include "/include/color/display_transform/config.glsl"
+
 #ifdef VL_WATER
 vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, vec3 viewVector, float LoV, float skylight, float dither, bool sky) {
 	vec3 waterScatteringAlbedo = render_from_BT709_relative * eotf_sRGB(vec3(WATER_SCATTERING_R, WATER_SCATTERING_G, WATER_SCATTERING_B) / 255.0);
-	vec3 baseAttenuationCoefficient = -log(render_from_BT709_relative * eotf_sRGB(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
+	vec3 waterTransmission = render_from_BT709_relative * eotf_sRGB(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0);
+	waterScatteringAlbedo = mix(vec3(dot(waterScatteringAlbedo, vec3(0.2, 0.7, 0.1))), waterScatteringAlbedo, 1.0 / DISPLAY_TRANSFORM_RELATIVE_MODE_COLORFULNESS_SCALE);
+	waterTransmission = mix(vec3(dot(waterTransmission, vec3(0.2, 0.7, 0.1))), waterTransmission, 1.0 / DISPLAY_TRANSFORM_RELATIVE_MODE_COLORFULNESS_SCALE);
+	vec3 baseAttenuationCoefficient = -log(waterTransmission) / WATER_REFERENCE_DEPTH;
 
 	const float isotropicPhase = 0.25 / pi;
 
@@ -313,7 +318,10 @@ vec3 CalculateWaterFogVL(vec3 background, vec3 startPosition, vec3 endPosition, 
 
 vec3 CalculateWaterFog(vec3 background, vec3 startPosition, vec3 endPosition, vec3 viewVector, float LoV, float skylight, float dither, bool sky) {
 	vec3 waterScatteringAlbedo = render_from_BT709_relative * eotf_sRGB(vec3(WATER_SCATTERING_R, WATER_SCATTERING_G, WATER_SCATTERING_B) / 255.0);
-	vec3 baseAttenuationCoefficient = -log(render_from_BT709_relative * eotf_sRGB(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0)) / WATER_REFERENCE_DEPTH;
+	vec3 waterTransmission = render_from_BT709_relative * eotf_sRGB(vec3(WATER_TRANSMISSION_R, WATER_TRANSMISSION_G, WATER_TRANSMISSION_B) / 255.0);
+	waterScatteringAlbedo = mix(vec3(dot(waterScatteringAlbedo, vec3(0.2, 0.7, 0.1))), waterScatteringAlbedo, 1.0 / DISPLAY_TRANSFORM_RELATIVE_MODE_COLORFULNESS_SCALE);
+	waterTransmission = mix(vec3(dot(waterTransmission, vec3(0.2, 0.7, 0.1))), waterTransmission, 1.0 / DISPLAY_TRANSFORM_RELATIVE_MODE_COLORFULNESS_SCALE);
+	vec3 baseAttenuationCoefficient = -log(waterTransmission) / WATER_REFERENCE_DEPTH;
 
 	const float isotropicPhase = 0.25 / pi;
 

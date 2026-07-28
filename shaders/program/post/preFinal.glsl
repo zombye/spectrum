@@ -2,10 +2,6 @@
 
 #include "/settings.glsl"
 
-#define CONTRAST -0.1 // [-1 -0.9 -0.8 -0.7 -0.6 -0.5 -0.4 -0.3 -0.2 -0.1 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1]
-#define CONTRAST_MIDPOINT 0.14
-#define SATURATION 1 // [0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1 1.1 1.2 1.3 1.4 1.5 1.6 1.7 1.8 1.9 2]
-
 //#define DIFFRACTION_SPIKES
 
 //--// Uniforms //------------------------------------------------------------//
@@ -53,8 +49,6 @@ uniform vec2 viewPixelSize;
 
 	#include "/include/shared/blurTileOffset.glsl"
 
-	#include "/include/fragment/tonemap.fsh"
-
 	//--// Fragment Functions //----------------------------------------------//
 
 	float Sinc(float x) {
@@ -92,13 +86,6 @@ uniform vec2 viewPixelSize;
 		return result / weightSum;
 	}
 
-	vec3 LowlightDesaturate(vec3 color, float exposure) {
-		float desaturated = dot(color, vec3(0.05, 0.55, 0.4));
-		//float desaturated = dot(color, transpose(XYZ_from_render)[1]);
-		//float desatAmt = Clamp01(exp(-50.0 * desaturated / exposure));
-		float desatAmt = Clamp01(exp(-1e2 * (desaturated*desaturated) / (exposure*exposure)));
-		return color * (1.0 - desatAmt) + (desaturated * desatAmt);
-	}
 	vec3 LowlightNoise(vec3 color, float exposure) {
 		vec3 invSNR = inversesqrt(color * 5.0 / exposure);
 		vec3 noise  = Hash3(vec3(gl_FragCoord.st * viewPixelSize, frameCounter % 256 / 256.0));
@@ -106,56 +93,7 @@ uniform vec2 viewPixelSize;
 		return (invSNR * noise * color + color) / (0.5 * invSNR + 1.0);
 	}
 
-	vec3 Contrast(vec3 color) {
-		float luminance = dot(color, transpose(XYZ_from_render)[1]);
-		float newLuminance = CONTRAST_MIDPOINT * pow(luminance / CONTRAST_MIDPOINT, exp2(CONTRAST));
-		return color * Max0(newLuminance / luminance);
-	}
-	vec3 Saturation(vec3 color) {
-		float luminance = dot(color, transpose(XYZ_from_render)[1]);
-		float minComp = MinOf(color), maxComp = MaxOf(color);
-
-		// compute the desired output saturation
-		//float originalSaturation = maxComp == 0.0 ? 0.0 : Clamp01(1.0 - minComp / maxComp);
-		float newSaturation = maxComp == 0.0 ? 0.0 : Clamp01(1.0 - pow(minComp / maxComp, SATURATION));
-
-		// compute fully saturated version of the color (if it exits)
-		vec3 saturatedColor = (maxComp - minComp) == 0.0 ? vec3(maxComp) : (color - minComp) / (maxComp - minComp);
-
-		// compute new color from saturated & non-saturated color
-		color  = mix(vec3(1.0), saturatedColor, newSaturation);
-		color *= luminance / dot(color, transpose(XYZ_from_render)[1]);
-
-		return color;
-	}
-
-	mat3 ChromaticAdaptationMatrix(vec3 sourceXYZ, vec3 destinationXYZ) {
-		const mat3 XyzToLms = mat3(
-			 0.7328, 0.4296,-0.1624,
-			-0.7036, 1.6975, 0.0061,
-			 0.0030, 0.0136, 0.9834
-		); // CAT02
-
-		vec3 sourceLMS = sourceXYZ * XyzToLms;
-		vec3 destinationLMS = destinationXYZ * XyzToLms;
-
-		vec3 tmp = destinationLMS / sourceLMS;
-
-		mat3 vonKries = mat3(
-			tmp.x, 0.0, 0.0,
-			0.0, tmp.y, 0.0,
-			0.0, 0.0, tmp.z
-		);
-
-		return (XyzToLms * vonKries) * inverse(XyzToLms);
-	}
-	vec3 WhiteBalance(vec3 color) {
-		vec3 sourceXYZ = render_from_XYZ * Blackbody(WHITE_BALANCE);
-		vec3 destinationXYZ = render_from_XYZ * Blackbody(6500.0);
-		mat3 matrix = render_from_XYZ * transpose(ChromaticAdaptationMatrix(sourceXYZ, destinationXYZ)) * XYZ_from_render;
-
-		return matrix * color;
-	}
+	#include "/include/color/display_transform/apply.glsl"
 
 	void main() {
 		#if defined MC_GL_RENDERER_RADEON // workaround for AMD driver bug(?) causing colortex0 to not get cleared
@@ -177,52 +115,8 @@ uniform vec2 viewPixelSize;
 		#ifdef LOWLIGHT_NOISE
 			color = LowlightNoise(color, exposure);
 		#endif
-		#ifdef LOWLIGHT_DESATURATION
-			color = LowlightDesaturate(color, exposure);
-		#endif
 
-		color = WhiteBalance(color);
-
-		color = Contrast(color);
-		color = Saturation(color);
-
-		color = BT709_from_render * color;
-		color = Max0(color);
-
-		const mat3 coneOverlapMatrix2Deg = mat3(
-			mix(vec3(1.0, 0.0, 0.0), vec3(0.5595088340965042, 0.39845359892109633, 0.04203756698239944), vec3(CONE_OVERLAP_SIMULATION)),
-			mix(vec3(0.0, 1.0, 0.0), vec3(0.43585871315661756, 0.5003841413971261, 0.06375714544625634), vec3(CONE_OVERLAP_SIMULATION)),
-			mix(vec3(0.0, 0.0, 1.0), vec3(0.10997368482498855, 0.15247972169325025, 0.7375465934817612), vec3(CONE_OVERLAP_SIMULATION))
-		);
-		color = Tonemap(color * coneOverlapMatrix2Deg) * inverse(coneOverlapMatrix2Deg);
-
-		//#define DEBUG_TONEMAP
-		#ifdef DEBUG_TONEMAP
-			{
-				const ivec2 pos  = ivec2(4, 3);
-				const ivec2 size = ivec2(512, 128);
-				const float lineWidth = 1.5;
-
-				vec2 coord = gl_FragCoord.xy - pos;
-
-				if (clamp(coord, vec2(0), size) == coord) {
-					color *= 0.2;
-
-					float scale = 8.0;
-
-					float newmin = -10.0;
-					float newmax =   8.0;
-
-					float cLum = exp2((coord.x / size.x) * (newmax - newmin) + newmin);
-
-					vec3 lineHeight = Tonemap(vec3(cLum)) * size.y;
-					vec3 derivative = dFdx(lineHeight);
-
-					vec3 line = LinearStep(0.5 * lineWidth + 0.5, 0.5 * lineWidth - 0.5, abs(lineHeight - coord.y) * inversesqrt(1.0 + derivative * derivative) * sqrt(2.0));
-					color = mix(color * 0.2, vec3(1.0), line);
-				}
-			}
-		#endif
+		color = apply_display_transform((XYZ_from_render * color) / exposure, exposure);
 
 		colortex4Write = EncodeRGBE8(color);
 	}
