@@ -103,7 +103,7 @@ float G2SmithBeckmannApprox(float NdotV, float NdotL, float alpha) {
 	if (isnan(deltal) || isinf(deltal)) { deltal = 0.0; }
 	return clamp(1.0 / (1.0 + deltav + deltal), 0.0, 1.0);
 }
-float G2OverG1SmithBeckmannApprox(float NdotV, float NdotL, float alpha2) {
+float G2OverG1SmithBeckmannApprox(float NdotV, float NdotL, float alpha) {
 	float av = abs(NdotV) * inversesqrt(1.0 - NdotV * NdotV) / alpha;
 	float al = abs(NdotL) * inversesqrt(1.0 - NdotL * NdotL) / alpha;
 	float deltav = av < 1.6 ? (1.0 - 1.259 * av + 0.396 * av * av) / (3.535 * av + 2.181 * av * av) : 0.0;
