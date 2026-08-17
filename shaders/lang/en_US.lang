@@ -186,12 +186,16 @@ option.TAA_CLIP.comment=Prevents a lot of ghosting. Should only be disabled for 
 option.TAA_MOTION_REJECTION=Motion Rejection
 option.TAA_MOTION_REJECTION.comment=Lower values have more blurring in motion. Higher values have more aliasing in motion.
 
-##--## Tonemapping ##---------------------------------------------------------##
+##--## Display transform ##---------------------------------------------------##
 
-option.TONEMAP_TOE_STRENGTH=Toe Strength
-option.TONEMAP_TOE_LENGTH=Toe Length
-option.TONEMAP_LINEAR_LENGTH=Linear Length
-option.TONEMAP_SHOULDER_CURVE=Shoulder Curve
+screen.display_transform=Tonemapping
+
+option.DISPLAY_TRANSFORM_COLORFULNESS_PERCENT=Saturation
+suffix.DISPLAY_TRANSFORM_COLORFULNESS_PERCENT=%
+option.DISPLAY_TRANSFORM_CONTRAST_MODIFIER=Contrast modifier
+
+option.DISPLAY_TRANSFORM_BRIGHTNESS_COMPRESSION_PERCENT=Brightness compression
+suffix.DISPLAY_TRANSFORM_BRIGHTNESS_COMPRESSION_PERCENT=%
 
 ##--## Water Waves ##---------------------------------------------------------##
 

@@ -14,13 +14,17 @@
 
 // Produces a scaling factor that maps "linear brightness" down to a 0 to 1 range
 float highlight_compression_factor(float brightness) {
-	const float curve = 1.0; // 1 to infinity. 1 matches Reinhard. Higher values have a "sharper" peak.
+	const float curve = 1.0 / DISPLAY_TRANSFORM_BRIGHTNESS_COMPRESSION; // 1 to infinity. 1 matches Reinhard. Higher values have a "sharper" peak.
 
 	const float c1 = 1.0 / curve - 1.0;
 	const float c2 = sqrt(curve);
 	const float c3 = pow(1.0 - 1.0 / curve, sqrt(curve));
 	const float c4 = -1.0 / sqrt(curve);
-	return 1.0 / (1.0 + brightness * (1.0 + c1 * pow(pow(brightness, c2) + c3, c4)));
+	if (DISPLAY_TRANSFORM_BRIGHTNESS_COMPRESSION == 0.0) {
+		return brightness < 1.0 ? 1.0 : 1.0 / brightness;
+	} else {
+		return 1.0 / (1.0 + brightness * (1.0 + c1 * pow(pow(brightness, c2) + c3, c4)));
+	}
 }
 float highlight_shoulder(float brightness) {
 	vec3 display_white_xyz = xyz_absolute_from_display_linear_normalized(vec3(1.0));
@@ -78,6 +82,8 @@ float input_brightness_to_display_brightness(float input_brightness, float expos
 	// target brightness, i.e. what we might try to output on an ideal display with perfect blacks and unlimited whites
 	float target_brightness = display_white_brightness * exposure * input_brightness;
 
+	target_brightness = (0.18 * display_white_brightness) * pow(target_brightness / (0.18 * display_white_brightness), exp2(DISPLAY_TRANSFORM_CONTRAST_MODIFIER));
+
 	// Apply shoulder for highlights
 	float whitelimited_brightness = highlight_shoulder(target_brightness);
 
@@ -119,8 +125,8 @@ float set_display_colorfulness(float display_brightness, float input_brightness,
 
 	// Colorfulness modifier can be applied here.
 	// Having it integrated like this works really nicely, IMO.
-	//input_colorfulness *= colorfulness_modifier;
-	//input_gamut_boundary_colorfulness *= colorfulness_modifier;
+	input_colorfulness *= DISPLAY_TRANSFORM_COLORFULNESS_SCALE;
+	input_gamut_boundary_colorfulness *= DISPLAY_TRANSFORM_COLORFULNESS_SCALE;
 	#ifndef DISPLAY_TRANSFORM_ABSOLUTE_LUMINANCE_EFFECTS
 		input_colorfulness *= DISPLAY_TRANSFORM_RELATIVE_MODE_COLORFULNESS_SCALE;
 		input_gamut_boundary_colorfulness *= DISPLAY_TRANSFORM_RELATIVE_MODE_COLORFULNESS_SCALE;

@@ -8,31 +8,31 @@
 #include "/include/color/primary_transform.glsl"
 #include "/include/color/transfer_function.glsl"
 
-//#define DISPLAY_USES_APPROXIMATE_SRGB // If you know your display uses the common approximation of the sRGB transfer function, turn this on.
+//#define DISPLAY_USES_APPROXIMATE_SRGB // If you know your display uses the common power-of-2.2 approximation of the sRGB transfer function, turn this on.
 float eotf_display(float x) {
 	#ifdef DISPLAY_USES_APPROXIMATE_SRGB
-		return eotf_sRGBapproximate(x);
+		return eotf_sRGB_approximate(x);
 	#else
 		return eotf_sRGB(x);
 	#endif
 }
 vec3 eotf_display(vec3 x) {
 	#ifdef DISPLAY_USES_APPROXIMATE_SRGB
-		return eotf_sRGBapproximate(x);
+		return eotf_sRGB_approximate(x);
 	#else
 		return eotf_sRGB(x);
 	#endif
 }
 float inverse_eotf_display(float x) {
 	#ifdef DISPLAY_USES_APPROXIMATE_SRGB
-		return inverse_eotf_sRGBapproximate(x);
+		return inverse_eotf_sRGB_approximate(x);
 	#else
 		return inverse_eotf_sRGB(x);
 	#endif
 }
 vec3 inverse_eotf_display(vec3 x) {
 	#ifdef DISPLAY_USES_APPROXIMATE_SRGB
-		return inverse_eotf_sRGBapproximate(x);
+		return inverse_eotf_sRGB_approximate(x);
 	#else
 		return inverse_eotf_sRGB(x);
 	#endif
