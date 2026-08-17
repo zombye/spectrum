@@ -4,6 +4,8 @@
 #define WATER_WAVES_VERSION 4 // [0 1 2 3 4]
 
 #if WATER_WAVES_VERSION == 4
+	#define WAVES_LOD_SUPPORT
+
 	vec2 GetWind(vec2 p) {
 		vec2 noise = TextureCubic(noisetex, p * 0.05 / 256.0).xy * 2.0 - 1.0;
 		const float c = 0.5;
@@ -40,131 +42,324 @@
 		vec2 per = rand_dir - par;
 		return normalize(wind_dir * anisotropy + par * sqrt(anisotropy * anisotropy + 1.0) + per);
 	}
+	// probability density of a wave having a given direction
+	float wave_direction_distribution(vec2 wind_dir, float wind_speed, vec2 direction) {
+		float anisotropy = wind_speed * 3.0;
+		return 1.0 / (2.0 * pi * (sqrt(anisotropy * anisotropy + 1.0) - dot(direction, wind_dir) * anisotropy));
+	}
+
+	void ellipoid_axis_lengths(
+		mat2 A,
+		out float semi_minor_axis_length,
+		out float semi_major_axis_length
+	) {
+		float M = dot(A[0], A[0]) + dot(A[1], A[1]);
+		float N = abs(determinant(A));
+		float tmp1 = sqrt(M + 2.0 * N);
+		float tmp2 = sqrt(M - 2.0 * N);
+		semi_minor_axis_length = 0.5 * (tmp1 - tmp2);
+		semi_major_axis_length = 0.5 * (tmp1 + tmp2);
+	}
+
+	// wave_vector = unit direction vector divided by wavelength
+	float wave_height(vec2 position, float time, vec2 wave_vector, float frequency, float amplitude, float phase_offset) {
+		float phase = tau * (dot(position, wave_vector) - frequency * time) + phase_offset;
+		return amplitude * cos(phase);
+	}
+	vec2 wave_slope(vec2 position, float time, vec2 wave_vector, float frequency, float amplitude, float phase_offset) {
+		float phase = tau * (dot(position, wave_vector) - frequency * time) + phase_offset;
+		return -amplitude * wave_vector * tau * sin(phase);
+	}
+	float wave_slope_variance(vec2 wave_vector, float amplitude) {
+		return amplitude * amplitude * 0.25 * tau * tau * (wave_vector.x * wave_vector.x + wave_vector.y * wave_vector.y);
+	}
+	mat2 wave_slope_covariance_matrix(vec2 wave_vector, float amplitude) {
+		return amplitude * amplitude * 0.5 * tau * tau * mat2(
+			wave_vector.x * wave_vector.x, wave_vector.x * wave_vector.y,
+			wave_vector.y * wave_vector.x, wave_vector.y * wave_vector.y
+		);
+	}
+
+	/*
+	mat2 wave_distribution_slope_covariance(
+		vec2 wind_dir,
+		float wind_speed,
+		float amplitude,
+		float wave_length
+	) {
+
+	}
+	*/
 
 	#define WAVES_WIND_PERF_CHEAT // Significantly improves performance in exchance for a probably unnoticeabe accuracy loss.
-	float CalculateWaterWaves(vec3 position) {
+	float CalculateWaterWavesLayerPair(
+		vec2 p,
+		float t,
+		#ifdef WAVES_WIND_PERF_CHEAT
+		float wind_speed,
+		vec2 wind_dir,
+		#endif
+		const vec2 wavelengths,
+		const float grid_frequency,
+		const int set
+	) {
 		const float g = 9.81;
 		const float tau = 6.2831853;
 
+		vec2 k = tau / wavelengths; // angular wavenumber (radians per metre)
+		vec2 w = sqrt(g * k);      // angular frequency (radians per second)
+		vec2 wavevel = w / k;
 
+		#ifdef WAVES_WIND_PERF_CHEAT
+		vec2 amplitude = CalcWaveAmplitude(wavevel, wind_speed, wavelengths);
+		#endif
+
+		ivec2 i = ivec2(floor(grid_frequency * p));
+		vec2 f = fract(grid_frequency * p);
+
+		float n = 0.0;
+		for (int ox = 0; ox < 2; ++ox)
+		for (int oy = 0; oy < 2; ++oy) {
+			ivec2 ci = i + ivec2(ox, oy);
+			vec2 cell_pos = vec2(ci) / grid_frequency;
+
+			#ifndef WAVES_WIND_PERF_CHEAT
+			vec2 windvel = GetWind(cell_pos);
+			#endif
+			vec2 phoffs  = texelFetch(noisetex, (ci + (2*set+0)*97) % 256, 0).xy;
+			vec2 angoffs = texelFetch(noisetex, (ci + (2*set+1)*97) % 256, 0).xy;
+
+			#ifndef WAVES_WIND_PERF_CHEAT
+			float wind_speed = length(windvel);
+			vec2 amplitude = CalcWaveAmplitude(wavevel, wind_speed, wavelengths);
+
+			vec2 wind_dir = normalize(windvel);
+			#endif
+			vec2[2] wavevector = vec2[2](
+				k.x * distribute_wave(wind_dir, wind_speed, angoffs.x),
+				k.y * distribute_wave(wind_dir, wind_speed, angoffs.y)
+			);
+
+			vec2 rel_pos = p - cell_pos;
+			vec2 phase = vec2(
+				dot(rel_pos, wavevector[0]),
+				dot(rel_pos, wavevector[1])
+			) + w * t + tau * phoffs;
+			vec2 waves = amplitude * (sin(phase) - 1.0);
+
+			float c = waves.x + waves.y;
+
+			vec2 tmp = f * f * (3.0 - 2.0 * f);
+			float we = (ox == 0 ? 1.0 - tmp.x : tmp.x)
+			         * (oy == 0 ? 1.0 - tmp.y : tmp.y);
+
+			n += c * we;
+		}
+
+		return n;
+	}
+	vec2 CalculateWaterWavesLayerPairSlope(
+		vec2 p,
+		float t,
+		#ifdef WAVES_WIND_PERF_CHEAT
+		float wind_speed,
+		vec2 wind_dir,
+		#endif
+		const vec2 wavelengths,
+		const float grid_frequency,
+		const int set
+	) {
+		const float g = 9.81;
+		const float tau = 6.2831853;
+
+		vec2 k = tau / wavelengths; // angular wavenumber (radians per metre)
+		vec2 w = sqrt(g * k);      // angular frequency (radians per second)
+		vec2 wavevel = w / k;
+
+		#ifdef WAVES_WIND_PERF_CHEAT
+		vec2 amplitude = CalcWaveAmplitude(wavevel, wind_speed, wavelengths);
+		#endif
+
+		ivec2 i = ivec2(floor(grid_frequency * p));
+		vec2 f = fract(grid_frequency * p);
+
+		vec2 slope = vec2(0.0);
+		for (int ox = 0; ox < 2; ++ox)
+		for (int oy = 0; oy < 2; ++oy) {
+			ivec2 ci = i + ivec2(ox, oy);
+			vec2 cell_pos = vec2(ci) / grid_frequency;
+
+			#ifndef WAVES_WIND_PERF_CHEAT
+			vec2 windvel = GetWind(cell_pos);
+			#endif
+			vec2 phoffs  = texelFetch(noisetex, (ci + (2*set+0)*97) % 256, 0).xy;
+			vec2 angoffs = texelFetch(noisetex, (ci + (2*set+1)*97) % 256, 0).xy;
+
+			#ifndef WAVES_WIND_PERF_CHEAT
+			float wind_speed = length(windvel);
+			vec2 amplitude = CalcWaveAmplitude(wavevel, wind_speed, wavelengths);
+
+			vec2 wind_dir = normalize(windvel);
+			#endif
+			vec2[2] wavevector = vec2[2](
+				k.x * distribute_wave(wind_dir, wind_speed, angoffs.x),
+				k.y * distribute_wave(wind_dir, wind_speed, angoffs.y)
+			);
+
+			vec2 rel_pos = p - cell_pos;
+			vec2 phase = vec2(
+				dot(rel_pos, wavevector[0]),
+				dot(rel_pos, wavevector[1])
+			) + w * t + tau * phoffs;
+			vec2 waves = amplitude * (sin(phase) - 1.0);
+			vec2 slopes = amplitude * cos(phase);
+
+			float c = waves.x + waves.y;
+			vec2 c_slope = slopes.x * wavevector[0] + slopes.y * wavevector[1];
+
+
+			vec2 tmp = f * f * (3.0 - 2.0 * f);
+			vec2 tmp2 = vec2(
+				ox == 0 ? 1.0 - tmp.x : tmp.x,
+				oy == 0 ? 1.0 - tmp.y : tmp.y
+			);
+			float we = tmp2.x * tmp2.y;
+			vec2 we_slope = vec2(
+				(ox == 0 ? -1 : 1) * (6.0 * f.x * (1.0 - f.x)) * tmp2.y,
+				(oy == 0 ? -1 : 1) * (6.0 * f.y * (1.0 - f.y)) * tmp2.x
+			) * grid_frequency;
+
+			slope += c_slope * we + c * we_slope;
+		}
+
+		return slope;
+	}
+	vec2 CalculateWaterWavesLayerPairSlopeLod(
+		vec2 p,
+		float t,
+		#ifdef WAVES_WIND_PERF_CHEAT
+		float wind_speed,
+		vec2 wind_dir,
+		#endif
+		const vec2 wavelengths,
+		const float grid_frequency,
+		const int set,
+		inout float slope_variance
+	) {
+		const float g = 9.81;
+		const float tau = 6.2831853;
+
+		vec2 k = tau / wavelengths; // angular wavenumber (radians per metre)
+		vec2 w = sqrt(g * k);      // angular frequency (radians per second)
+		vec2 wavevel = w / k;
+
+		#ifdef WAVES_WIND_PERF_CHEAT
+		vec2 amplitude = CalcWaveAmplitude(wavevel, wind_speed, wavelengths);
+		#endif
+
+		mat2 A = mat2(dFdx(p), dFdy(p));
+		float minor, major;
+		ellipoid_axis_lengths(A, minor, major);
+		vec2 lodweights = clamp(log2(wavelengths / major), 0.0, 1.0);
+		vec2 vars = 0.25 * tau * tau * amplitude * amplitude / (wavelengths * wavelengths);
+		slope_variance += dot(1.0 - lodweights, vars);
+		amplitude *= lodweights;
+
+		if (lodweights.x + lodweights.y <= 0.001) {
+			return vec2(0.0);
+		}
+
+		ivec2 i = ivec2(floor(grid_frequency * p));
+		vec2 f = fract(grid_frequency * p);
+
+		vec2 slope = vec2(0.0);
+		for (int ox = 0; ox < 2; ++ox)
+		for (int oy = 0; oy < 2; ++oy) {
+			ivec2 ci = i + ivec2(ox, oy);
+			vec2 cell_pos = vec2(ci) / grid_frequency;
+
+			#ifndef WAVES_WIND_PERF_CHEAT
+			vec2 windvel = GetWind(cell_pos);
+			#endif
+			vec2 phoffs  = texelFetch(noisetex, (ci + (2*set+0)*97) % 256, 0).xy;
+			vec2 angoffs = texelFetch(noisetex, (ci + (2*set+1)*97) % 256, 0).xy;
+
+			#ifndef WAVES_WIND_PERF_CHEAT
+			float wind_speed = length(windvel);
+			vec2 amplitude = CalcWaveAmplitude(wavevel, wind_speed, wavelengths);
+
+			vec2 wind_dir = normalize(windvel);
+			#endif
+			vec2[2] wavevector = vec2[2](
+				k.x * distribute_wave(wind_dir, wind_speed, angoffs.x),
+				k.y * distribute_wave(wind_dir, wind_speed, angoffs.y)
+			);
+
+			vec2 rel_pos = p - cell_pos;
+			vec2 phase = vec2(
+				dot(rel_pos, wavevector[0]),
+				dot(rel_pos, wavevector[1])
+			) + w * t + tau * phoffs;
+			vec2 waves = amplitude * (sin(phase) - 1.0);
+			vec2 slopes = amplitude * cos(phase);
+
+			float c = waves.x + waves.y;
+			vec2 c_slope = slopes.x * wavevector[0] + slopes.y * wavevector[1];
+
+
+			vec2 tmp = f * f * (3.0 - 2.0 * f);
+			vec2 tmp2 = vec2(
+				ox == 0 ? 1.0 - tmp.x : tmp.x,
+				oy == 0 ? 1.0 - tmp.y : tmp.y
+			);
+			float we = tmp2.x * tmp2.y;
+			vec2 we_slope = vec2(
+				(ox == 0 ? -1 : 1) * (6.0 * f.x * (1.0 - f.x)) * tmp2.y,
+				(oy == 0 ? -1 : 1) * (6.0 * f.y * (1.0 - f.y)) * tmp2.x
+			) * grid_frequency;
+
+			slope += c_slope * we + c * we_slope;
+		}
+
+		return slope;
+	}
+
+	float CalculateWaterWaves(vec3 position) {
 		float time = frameTimeCounter * TIME_SCALE;
 
 		vec2 p = position.xz + cameraPosition.xz;
-		float t = time;
 
 		#ifdef WAVES_WIND_PERF_CHEAT
 		vec2 windvel = GetWind(p);
 		float wind_speed = length(windvel);
-		float angrng_mul = tau / (6.0 * wind_speed + 1.0);
 		vec2 wind_dir = normalize(windvel);
 		#endif
 
 		float n = 0.0;
 
-		{ // large
-			const vec2 wavelength = vec2(2.0, 1.0);
-			const vec2 k = tau / wavelength; // angular wavenumber (radians per metre)
-			const vec2 w = sqrt(g * k);      // angular frequency (radians per second)
-			const vec2 wavevel = w / k;
-
+		// large
+		n += CalculateWaterWavesLayerPair(
+			p, time,
 			#ifdef WAVES_WIND_PERF_CHEAT
-			vec2 amplitude = CalcWaveAmplitude(wavevel, wind_speed, wavelength);
+			wind_speed,
+			wind_dir,
 			#endif
+			vec2(2.0, 1.0),
+			1.0,
+			0
+		);
 
-			ivec2 i = ivec2(floor(p));
-			vec2 f = fract(p);
-			for (int ox = 0; ox < 2; ++ox)
-			for (int oy = 0; oy < 2; ++oy) {
-				ivec2 ci = i + ivec2(ox, oy);
-				vec2 cell_pos = vec2(ci);
-
-				#ifndef WAVES_WIND_PERF_CHEAT
-				vec2 windvel = GetWind(cell_pos);
-				#endif
-				vec2 phoffs  = texelFetch(noisetex, ci % 256, 0).xy;
-				vec2 angoffs = texelFetch(noisetex, (ci + 97) % 256, 0).xy;
-
-				#ifndef WAVES_WIND_PERF_CHEAT
-				float wind_speed = length(windvel);
-				vec2 amplitude = CalcWaveAmplitude(wavevel, wind_speed, wavelength);
-				float angrng_mul = tau / (6.0 * wind_speed + 1.0);
-
-				vec2 wind_dir = normalize(windvel);
-				#endif
-				vec2[2] wavevector = vec2[2](
-					k.x * distribute_wave(wind_dir, wind_speed, angoffs.x),
-					k.y * distribute_wave(wind_dir, wind_speed, angoffs.y)
-				);
-
-				vec2 rel_pos = p - cell_pos;
-				vec2 phase = vec2(
-					dot(rel_pos, wavevector[0]),
-					dot(rel_pos, wavevector[1])
-				) + w * t + tau * phoffs;
-				vec2 waves = amplitude * (sin(phase) - 1.0);
-
-				float c = waves.x + waves.y;
-
-
-				vec2 tmp = f * f * (3.0 - 2.0 * f);
-				float we = (ox == 0 ? 1.0 - tmp.x : tmp.x)
-				         * (oy == 0 ? 1.0 - tmp.y : tmp.y);
-
-				n += c * we;
-			}
-		}
-		{ // small
-			const vec2 wavelength = vec2(0.5, 0.25);
-			const vec2 k = tau / wavelength; // angular wavenumber (radians per metre)
-			const vec2 w = sqrt(g * k);      // angular frequency (radians per second)
-			const vec2 wavevel = w / k;
-
+		// small
+		n += CalculateWaterWavesLayerPair(
+			p, time,
 			#ifdef WAVES_WIND_PERF_CHEAT
-			vec2 amplitude = CalcWaveAmplitude(wavevel, wind_speed, wavelength);
+			wind_speed,
+			wind_dir,
 			#endif
-
-			ivec2 i = ivec2(floor(4.0 * p));
-			vec2 f = fract(4.0 * p);
-			for (int ox = 0; ox < 2; ++ox)
-			for (int oy = 0; oy < 2; ++oy) {
-				ivec2 ci = i + ivec2(ox, oy);
-				vec2 cell_pos = 0.25 * ci;
-
-				#ifndef WAVES_WIND_PERF_CHEAT
-				vec2 windvel = GetWind(cell_pos);
-				#endif
-				vec2 phoffs  = texelFetch(noisetex, (ci + 2*97) % 256, 0).xy;
-				vec2 angoffs = texelFetch(noisetex, (ci + 3*97) % 256, 0).xy;
-
-				#ifndef WAVES_WIND_PERF_CHEAT
-				float wind_speed = length(windvel);
-				vec2 amplitude = CalcWaveAmplitude(wavevel, wind_speed, wavelength);
-				float angrng_mul = tau / (6.0 * wind_speed + 1.0);
-
-				vec2 wind_dir = normalize(windvel);
-				#endif
-				vec2[2] wavevector = vec2[2](
-					k.x * distribute_wave(wind_dir, wind_speed, angoffs.x),
-					k.y * distribute_wave(wind_dir, wind_speed, angoffs.y)
-				);
-
-				vec2 rel_pos = p - cell_pos;
-				vec2 phase = vec2(
-					dot(rel_pos, wavevector[0]),
-					dot(rel_pos, wavevector[1])
-				) + w * t + tau * phoffs;
-				vec2 waves = amplitude * (sin(phase) - 1.0);
-
-				float c = waves.x + waves.y;
-
-
-				vec2 tmp = f * f * (3.0 - 2.0 * f);
-				float we = (ox == 0 ? 1.0 - tmp.x : tmp.x)
-				         * (oy == 0 ? 1.0 - tmp.y : tmp.y);
-
-				n += c * we;
-			}
-		}
+			vec2(0.5, 0.25),
+			4.0,
+			1
+		);
 
 		return n;
 	}
@@ -181,136 +376,81 @@
 		#ifdef WAVES_WIND_PERF_CHEAT
 		vec2 windvel = GetWind(p);
 		float wind_speed = length(windvel);
-		float angrng_mul = tau / (6.0 * wind_speed + 1.0);
 		vec2 wind_dir = normalize(windvel);
 		#endif
 
 		vec2 slope = vec2(0.0);
 
-		{ // large
-			const vec2 wavelength = vec2(2.0, 1.0);
-			const vec2 k = tau / wavelength; // angular wavenumber (radians per metre)
-			const vec2 w = sqrt(g * k);      // angular frequency (radians per second)
-			const vec2 wavevel = w / k;
-
+		// large
+		slope += CalculateWaterWavesLayerPairSlope(
+			p, time,
 			#ifdef WAVES_WIND_PERF_CHEAT
-			vec2 amplitude = CalcWaveAmplitude(wavevel, wind_speed, wavelength);
+			wind_speed,
+			wind_dir,
 			#endif
+			vec2(2.0, 1.0),
+			1.0,
+			0
+		);
 
-			ivec2 i = ivec2(floor(p));
-			vec2 f = fract(p);
-			const vec2 f_dp = vec2(1.0);
-			for (int ox = 0; ox < 2; ++ox)
-			for (int oy = 0; oy < 2; ++oy) {
-				ivec2 ci = i + ivec2(ox, oy);
-				vec2 cell_pos = vec2(ci);
-
-				#ifndef WAVES_WIND_PERF_CHEAT
-				vec2 windvel = GetWind(cell_pos);
-				#endif
-				vec2 phoffs  = texelFetch(noisetex, ci % 256, 0).xy;
-				vec2 angoffs = texelFetch(noisetex, (ci + 97) % 256, 0).xy;
-
-				#ifndef WAVES_WIND_PERF_CHEAT
-				float wind_speed = length(windvel);
-				vec2 amplitude = CalcWaveAmplitude(wavevel, wind_speed, wavelength);
-				float angrng_mul = tau / (6.0 * wind_speed + 1.0);
-
-				vec2 wind_dir = normalize(windvel);
-				#endif
-				vec2[2] wavevector = vec2[2](
-					k.x * distribute_wave(wind_dir, wind_speed, angoffs.x),
-					k.y * distribute_wave(wind_dir, wind_speed, angoffs.y)
-				);
-
-				vec2 rel_pos = p - cell_pos;
-				vec2 phase = vec2(
-					dot(rel_pos, wavevector[0]),
-					dot(rel_pos, wavevector[1])
-				) + w * t + tau * phoffs;
-				vec2 waves  = amplitude * (sin(phase) - 1.0);
-				vec2 slopes = amplitude * cos(phase);
-
-				float c = waves.x + waves.y;
-				vec2 c_slope = slopes.x * wavevector[0] + slopes.y * wavevector[1];
-
-
-				vec2 tmp = f * f * (3.0 - 2.0 * f);
-				vec2 tmp2 = vec2(
-					ox == 0 ? 1.0 - tmp.x : tmp.x,
-					oy == 0 ? 1.0 - tmp.y : tmp.y
-				);
-				float we = tmp2.x * tmp2.y;
-				vec2 we_slope = vec2(
-					(ox == 0 ? -1 : 1) * (6.0 * f.x * (1.0 - f.x)) * tmp2.y,
-					(oy == 0 ? -1 : 1) * (6.0 * f.y * (1.0 - f.y)) * tmp2.x
-				) * f_dp;
-
-				slope += c_slope * we + c * we_slope;
-			}
-		}
-		{ // small
-			const vec2 wavelength = vec2(0.5, 0.25);
-			const vec2 k = tau / wavelength; // angular wavenumber (radians per metre)
-			const vec2 w = sqrt(g * k);      // angular frequency (radians per second)
-			const vec2 wavevel = w / k;
-
+		// small
+		slope += CalculateWaterWavesLayerPairSlope(
+			p, time,
 			#ifdef WAVES_WIND_PERF_CHEAT
-			vec2 amplitude = CalcWaveAmplitude(wavevel, wind_speed, wavelength);
+			wind_speed,
+			wind_dir,
 			#endif
+			vec2(0.5, 0.25),
+			4.0,
+			1
+		);
 
-			ivec2 i = ivec2(floor(4.0 * p));
-			vec2 f = fract(4.0 * p);
-			const vec2 f_dp = vec2(4.0);
-			for (int ox = 0; ox < 2; ++ox)
-			for (int oy = 0; oy < 2; ++oy) {
-				ivec2 ci = i + ivec2(ox, oy);
-				vec2 cell_pos = 0.25 * ci;
-
-				#ifndef WAVES_WIND_PERF_CHEAT
-				vec2 windvel = GetWind(cell_pos);
-				#endif
-				vec2 phoffs  = texelFetch(noisetex, (ci + 2*97) % 256, 0).xy;
-				vec2 angoffs = texelFetch(noisetex, (ci + 3*97) % 256, 0).xy;
-
-				#ifndef WAVES_WIND_PERF_CHEAT
-				float wind_speed = length(windvel);
-				vec2 amplitude = CalcWaveAmplitude(wavevel, wind_speed, wavelength);
-				float angrng_mul = tau / (6.0 * wind_speed + 1.0);
-
-				vec2 wind_dir = normalize(windvel);
-				#endif
-				vec2[2] wavevector = vec2[2](
-					k.x * distribute_wave(wind_dir, wind_speed, angoffs.x),
-					k.y * distribute_wave(wind_dir, wind_speed, angoffs.y)
-				);
-
-				vec2 rel_pos = p - cell_pos;
-				vec2 phase = vec2(
-					dot(rel_pos, wavevector[0]),
-					dot(rel_pos, wavevector[1])
-				) + w * t + tau * phoffs;
-				vec2 waves  = amplitude * (sin(phase) - 1.0);
-				vec2 slopes = amplitude * cos(phase);
-
-				float c = waves.x + waves.y;
-				vec2 c_slope = slopes.x * wavevector[0] + slopes.y * wavevector[1];
+		return slope;
+	}
+	vec2 CalculateWaterWavesSlopeLod(vec3 position, out float slope_variance) {
+		const float g = 9.81;
+		const float tau = 6.2831853;
 
 
-				vec2 tmp = f * f * (3.0 - 2.0 * f);
-				vec2 tmp2 = vec2(
-					ox == 0 ? 1.0 - tmp.x : tmp.x,
-					oy == 0 ? 1.0 - tmp.y : tmp.y
-				);
-				float we = tmp2.x * tmp2.y;
-				vec2 we_slope = vec2(
-					(ox == 0 ? -1 : 1) * (6.0 * f.x * (1.0 - f.x)) * tmp2.y,
-					(oy == 0 ? -1 : 1) * (6.0 * f.y * (1.0 - f.y)) * tmp2.x
-				) * f_dp;
+		float time = frameTimeCounter * TIME_SCALE;
 
-				slope += c_slope * we + c * we_slope;
-			}
-		}
+		vec2 p = position.xz + cameraPosition.xz;
+		float t = time;
+
+		#ifdef WAVES_WIND_PERF_CHEAT
+		vec2 windvel = GetWind(p);
+		float wind_speed = length(windvel);
+		vec2 wind_dir = normalize(windvel);
+		#endif
+
+		vec2 slope = vec2(0.0);
+		slope_variance = 0.0;
+
+		// large
+		slope += CalculateWaterWavesLayerPairSlopeLod(
+			p, time,
+			#ifdef WAVES_WIND_PERF_CHEAT
+			wind_speed,
+			wind_dir,
+			#endif
+			vec2(2.0, 1.0),
+			1.0,
+			0,
+			slope_variance
+		);
+
+		// small
+		slope += CalculateWaterWavesLayerPairSlopeLod(
+			p, time,
+			#ifdef WAVES_WIND_PERF_CHEAT
+			wind_speed,
+			wind_dir,
+			#endif
+			vec2(0.5, 0.25),
+			4.0,
+			1,
+			slope_variance
+		);
 
 		return slope;
 	}
@@ -324,6 +464,13 @@
 	vec3 CalculateWaterNormal(vec3 position, float strength) {
 		vec2 slope  = CalculateWaterWavesSlope(position);
 		     slope *= strength;
+		vec3 normal = vec3(-slope.x, 1.0, -slope.y);
+
+		return normalize(normal);
+	}
+
+	vec3 CalculateWaterNormalLod(vec3 position, out float slope_variance) {
+		vec2 slope  = CalculateWaterWavesSlopeLod(position, slope_variance);
 		vec3 normal = vec3(-slope.x, 1.0, -slope.y);
 
 		return normalize(normal);
@@ -762,6 +909,13 @@
 		return CalculateWaterNormal(position).xzy;
 		//return CalculateWaterNormal(position, sqrt(1.0 - Pow4(1.0 - abs(normalize(tangentViewVector).z)))).xzy;
 	}
+	#if defined WAVES_LOD_SUPPORT
+	vec3 CalculateWaterNormalLod(vec3 position, vec3 tangentViewVector, out float slope_variance) {
+		position = CalculateWaterParallax(position, tangentViewVector.xzy);
+
+		return CalculateWaterNormalLod(position, slope_variance).xzy;
+	}
+	#endif
 #endif
 
 #endif

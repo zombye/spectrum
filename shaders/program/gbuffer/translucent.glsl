@@ -369,14 +369,25 @@ uniform vec3 shadowLightVector;
 		#endif
 
 		#ifdef PROCEDURAL_WATER
+			#if defined WAVES_LOD_SUPPORT
+			float waves_slope_variance = 0.0;
+			#endif
 			if (blockId == 8 || blockId == 9) {
 				baseTex = vec4(0.0);
 				specTex = vec4(0.0);
 
-				#ifdef WATER_PARALLAX
-					normal = CalculateWaterNormal(position[2], tangentViewVector);
+				#if defined WAVES_LOD_SUPPORT
+					#ifdef WATER_PARALLAX
+						normal = CalculateWaterNormalLod(position[2], tangentViewVector, waves_slope_variance);
+					#else
+						normal = CalculateWaterNormalLod(position[2], waves_slope_variance).xzy;
+					#endif
 				#else
-					normal = CalculateWaterNormal(position[2]).xzy;
+					#ifdef WATER_PARALLAX
+						normal = CalculateWaterNormal(position[2], tangentViewVector);
+					#else
+						normal = CalculateWaterNormal(position[2]).xzy;
+					#endif
 				#endif
 			} else {
 		#endif
@@ -407,7 +418,12 @@ uniform vec3 shadowLightVector;
 
 		#ifdef PROCEDURAL_WATER
 		if (blockId == 8 || blockId == 9) {
+			#if defined WAVES_LOD_SUPPORT
+			material.roughness = sqrt(waves_slope_variance);
+			#else
 			material.roughness = 0.0;
+			#endif
+
 			// https://jcgt.org/published/0010/02/02/
 			// Based directly on listing 5
 			// Different choice of sigma^2 for crisper & narrower highlights
