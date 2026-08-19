@@ -36,8 +36,9 @@ uniform sampler2D noisetex;
 
 	/* RENDERTARGETS: 9 */
 
-	layout (location = 0, component = 0) out float cloudPatchNoise;
-	layout (location = 0, component = 1) out float cloudCellsNoise;
+	out vec2 cloudNoises;
+	#define cloudPatchNoise (cloudNoises.x)
+	#define cloudCellsNoise (cloudNoises.y)
 
 	//--// Fragment Includes //-----------------------------------------------//
 
